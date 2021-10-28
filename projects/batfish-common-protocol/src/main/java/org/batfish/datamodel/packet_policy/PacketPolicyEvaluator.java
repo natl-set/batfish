@@ -1,5 +1,7 @@
 package org.batfish.datamodel.packet_policy;
 
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -8,20 +10,27 @@ import org.batfish.datamodel.Fib;
 import org.batfish.datamodel.FibForward;
 import org.batfish.datamodel.FibNextVrf;
 import org.batfish.datamodel.FibNullRoute;
+import org.batfish.datamodel.FilterResult;
 import org.batfish.datamodel.Flow;
 import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpSpace;
+import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.acl.Evaluator;
+import org.batfish.datamodel.flow.FilterStep;
+import org.batfish.datamodel.flow.FilterStep.FilterType;
+import org.batfish.datamodel.flow.Step;
+import org.batfish.datamodel.flow.StepAction;
 import org.batfish.datamodel.transformation.TransformationEvaluator;
+import org.batfish.datamodel.transformation.TransformationStep;
 import org.batfish.datamodel.visitors.FibActionVisitor;
 
 /**
  * Evaluates a {@link PacketPolicy} against a given {@link Flow}.
  *
  * <p>To evaluate an entire policy, see {@link #evaluate(Flow, String, String, PacketPolicy, Map,
- * Map, Map)} which will return a {@link FlowResult}.
+ * Map, Map)} which will return a {@link PacketPolicyResult}.
  */
-public final class FlowEvaluator {
+public final class PacketPolicyEvaluator {
 
   private final @Nonnull Map<String, IpAccessList> _availableAcls;
   private final @Nonnull Map<String, IpSpace> _namedIpSpaces;
@@ -32,13 +41,15 @@ public final class FlowEvaluator {
   /** Vrf name to FIB mapping */
   @Nonnull private final Map<String, Fib> _fibs;
 
+  @Nonnull private final ImmutableList.Builder<Step<?>> _traceSteps;
+
   // Modified state
   @Nonnull private Flow.Builder _currentFlow;
 
   // Expr and stmt visitors
-  @Nonnull private BoolExprEvaluator _boolExprEvaluator = new BoolExprEvaluator();
-  @Nonnull private StatementEvaluator _stmtEvaluator = new StatementEvaluator();
-  @Nonnull private VrfExprEvaluator _vrfExprEvaluator = new VrfExprEvaluator();
+  @Nonnull private final BoolExprEvaluator _boolExprEvaluator = new BoolExprEvaluator();
+  @Nonnull private final StatementEvaluator _stmtEvaluator = new StatementEvaluator();
+  @Nonnull private final VrfExprEvaluator _vrfExprEvaluator = new VrfExprEvaluator();
 
   private final class BoolExprEvaluator implements BoolExprVisitor<Boolean> {
 
@@ -122,21 +133,42 @@ public final class FlowEvaluator {
     }
 
     @Override
+    public Action visitApplyFilter(ApplyFilter applyFilter) {
+      IpAccessList acl = _availableAcls.get(applyFilter.getFilter());
+      Flow flow = _currentFlow.build();
+      FilterResult filterResult = acl.filter(flow, _srcInterface, _availableAcls, _namedIpSpaces);
+      boolean denied = filterResult.getAction() == LineAction.DENY;
+
+      // Create filter step
+      // TODO What if policy applies an ACL between transformations? Does that happen?
+      FilterType filterType =
+          _traceSteps.build().stream().anyMatch(TransformationStep.class::isInstance)
+              ? FilterType.POST_TRANSFORMATION_INGRESS_FILTER
+              : FilterType.INGRESS_FILTER;
+      _traceSteps.add(
+          new FilterStep(
+              new FilterStep.FilterStepDetail(acl.getName(), filterType, _srcInterface, flow),
+              denied ? StepAction.DENIED : StepAction.PERMITTED));
+
+      return denied ? Drop.instance() : null;
+    }
+
+    @Override
     public Action visitApplyTransformation(ApplyTransformation transformation) {
-      _currentFlow =
+      TransformationEvaluator.TransformationResult result =
           TransformationEvaluator.eval(
               transformation.getTransformation(),
               _currentFlow.build(),
               _srcInterface,
               _availableAcls,
-              _namedIpSpaces)
-              .getOutputFlow()
-              .toBuilder();
+              _namedIpSpaces);
+      _currentFlow = result.getOutputFlow().toBuilder();
+      _traceSteps.addAll(result.getTraceSteps());
       return null;
     }
   }
 
-  private FlowEvaluator(
+  private PacketPolicyEvaluator(
       Flow originalFlow,
       String srcInterface,
       String srcInterfaceVrf,
@@ -149,6 +181,7 @@ public final class FlowEvaluator {
     _availableAcls = availableAcls;
     _namedIpSpaces = namedIpSpaces;
     _fibs = fibs;
+    _traceSteps = ImmutableList.builder();
   }
 
   @Nonnull
@@ -156,17 +189,17 @@ public final class FlowEvaluator {
     return _currentFlow.build();
   }
 
-  private FlowResult evaluate(PacketPolicy policy) {
+  private PacketPolicyResult evaluate(PacketPolicy policy) {
     Action action =
         policy.getStatements().stream()
             .map(_stmtEvaluator::visit)
             .filter(Objects::nonNull)
             .findFirst()
             .orElse(policy.getDefaultAction().getAction());
-    return new FlowResult(getTransformedFlow(), action);
+    return new PacketPolicyResult(getTransformedFlow(), action, _traceSteps.build());
   }
 
-  public static FlowResult evaluate(
+  public static PacketPolicyResult evaluate(
       Flow f,
       String srcInterface,
       String srcInterfaceVrf,
@@ -174,26 +207,36 @@ public final class FlowEvaluator {
       Map<String, IpAccessList> availableAcls,
       Map<String, IpSpace> namedIpSpaces,
       Map<String, Fib> fibs) {
-    return new FlowEvaluator(f, srcInterface, srcInterfaceVrf, availableAcls, namedIpSpaces, fibs)
+    return new PacketPolicyEvaluator(
+            f, srcInterface, srcInterfaceVrf, availableAcls, namedIpSpaces, fibs)
         .evaluate(policy);
   }
 
-  /** Combination of final (possibly transformed) {@link Flow} and the action taken */
-  public static final class FlowResult {
-    private final Flow _finalFlow;
-    private final Action _action;
+  /**
+   * Combination of final (possibly transformed) {@link Flow} and the action taken by the evaluated
+   * {@link PacketPolicy}
+   */
+  public static final class PacketPolicyResult {
+    private final @Nonnull List<Step<?>> _traceSteps;
+    private final @Nonnull Flow _finalFlow;
+    private final @Nonnull Action _action;
 
-    FlowResult(Flow finalFlow, Action action) {
+    PacketPolicyResult(Flow finalFlow, Action action, List<Step<?>> traceSteps) {
       _finalFlow = finalFlow;
       _action = action;
+      _traceSteps = ImmutableList.copyOf(traceSteps);
     }
 
-    public Flow getFinalFlow() {
+    public @Nonnull Flow getFinalFlow() {
       return _finalFlow;
     }
 
-    public Action getAction() {
+    public @Nonnull Action getAction() {
       return _action;
+    }
+
+    public @Nonnull List<Step<?>> getTraceSteps() {
+      return _traceSteps;
     }
 
     @Override
@@ -204,14 +247,15 @@ public final class FlowEvaluator {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      FlowResult that = (FlowResult) o;
-      return Objects.equals(getFinalFlow(), that.getFinalFlow())
-          && Objects.equals(getAction(), that.getAction());
+      PacketPolicyResult that = (PacketPolicyResult) o;
+      return _finalFlow.equals(that.getFinalFlow())
+          && _action.equals(that.getAction())
+          && _traceSteps.equals(that.getTraceSteps());
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getFinalFlow(), getAction());
+      return Objects.hash(_finalFlow, _action, _traceSteps);
     }
   }
 

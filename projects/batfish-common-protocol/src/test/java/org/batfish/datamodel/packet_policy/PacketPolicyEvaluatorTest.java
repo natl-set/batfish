@@ -1,7 +1,9 @@
 package org.batfish.datamodel.packet_policy;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.batfish.datamodel.acl.AclLineMatchExprs.permittedByAcl;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 
 import com.google.common.collect.ImmutableMap;
@@ -9,6 +11,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.testing.EqualsTester;
 import java.util.Collections;
 import java.util.Map;
+import org.batfish.datamodel.AclLine;
 import org.batfish.datamodel.ConnectedRoute;
 import org.batfish.datamodel.ExprAclLine;
 import org.batfish.datamodel.Fib;
@@ -20,20 +23,25 @@ import org.batfish.datamodel.HeaderSpace;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpSpaceReference;
+import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.MockFib;
 import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.UniverseIpSpace;
 import org.batfish.datamodel.acl.FalseExpr;
+import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.datamodel.acl.TrueExpr;
-import org.batfish.datamodel.packet_policy.FlowEvaluator.FlowResult;
+import org.batfish.datamodel.flow.FilterStep;
+import org.batfish.datamodel.flow.InboundStep;
+import org.batfish.datamodel.flow.StepAction;
+import org.batfish.datamodel.packet_policy.PacketPolicyEvaluator.PacketPolicyResult;
 import org.batfish.datamodel.transformation.Transformation;
 import org.batfish.datamodel.transformation.TransformationStep;
 import org.junit.Before;
 import org.junit.Test;
 import org.parboiled.common.ImmutableList;
 
-/** Tests of {@link FlowEvaluator} */
-public final class FlowEvaluatorTest {
+/** Tests of {@link PacketPolicyEvaluator} */
+public final class PacketPolicyEvaluatorTest {
 
   private Flow _flow;
   private Return _defaultAction;
@@ -57,8 +65,8 @@ public final class FlowEvaluatorTest {
   @Test
   public void evaluateReturn() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -74,8 +82,8 @@ public final class FlowEvaluatorTest {
   @Test
   public void evaluateIfWithMatch() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -92,8 +100,8 @@ public final class FlowEvaluatorTest {
   @Test
   public void evaluateIfNoMatch() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -112,11 +120,24 @@ public final class FlowEvaluatorTest {
   public void testFlowResultEquality() {
     new EqualsTester()
         .addEqualityGroup(
-            new FlowResult(_flow, Drop.instance()), new FlowResult(_flow, Drop.instance()))
+            new PacketPolicyResult(_flow, Drop.instance(), ImmutableList.of()),
+            new PacketPolicyResult(_flow, Drop.instance(), ImmutableList.of()))
         .addEqualityGroup(
-            new FlowResult(
-                _flow.toBuilder().setIngressNode("differentNode").build(), Drop.instance()))
-        .addEqualityGroup(new FlowResult(_flow, new FibLookup(new LiteralVrfName("avrf"))))
+            new PacketPolicyResult(
+                _flow.toBuilder().setIngressNode("differentNode").build(),
+                Drop.instance(),
+                ImmutableList.of()))
+        .addEqualityGroup(
+            new PacketPolicyResult(
+                _flow, new FibLookup(new LiteralVrfName("avrf")), ImmutableList.of()))
+        .addEqualityGroup(
+            new PacketPolicyResult(
+                _flow,
+                Drop.instance(),
+                ImmutableList.of(
+                    InboundStep.builder()
+                        .setDetail(new InboundStep.InboundStepDetail("iface"))
+                        .build())))
         .addEqualityGroup(new Object())
         .testEquals();
   }
@@ -138,8 +159,8 @@ public final class FlowEvaluatorTest {
             _defaultAction);
 
     // Test:
-    FlowResult result =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult result =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -158,8 +179,8 @@ public final class FlowEvaluatorTest {
     // Setup policy
     PacketPolicy policy = new PacketPolicy("policyName", ImmutableList.of(), _defaultAction);
     // Test:
-    FlowResult result =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult result =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -178,8 +199,8 @@ public final class FlowEvaluatorTest {
     String aclName = "acl1";
     String ipSpaceName = "ipSpace1";
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -208,8 +229,8 @@ public final class FlowEvaluatorTest {
   @Test
   public void testTrue() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -227,8 +248,8 @@ public final class FlowEvaluatorTest {
   @Test
   public void testFalse() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -244,6 +265,67 @@ public final class FlowEvaluatorTest {
   }
 
   @Test
+  public void testEvaluateApplyFilter() {
+    // Set up an ACL that permits traffic to 1.1.1.0/24
+    Prefix permittedPrefix = Prefix.parse("1.1.1.0/24");
+    AclLine line =
+        new ExprAclLine(
+            LineAction.PERMIT,
+            new MatchHeaderSpace(
+                HeaderSpace.builder().setDstIps(permittedPrefix.toIpSpace()).build()),
+            "foo");
+    IpAccessList acl = IpAccessList.builder().setName("acl").setLines(line).build();
+
+    // Create a PacketPolicy that uses an ApplyFilter for the above ACL
+    FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
+    PacketPolicy policy =
+        new PacketPolicy("name", ImmutableList.of(new ApplyFilter(acl.getName())), new Return(fl));
+
+    String srcIface = checkNotNull(_flow.getIngressInterface());
+    {
+      // Flow that does not match the ACL
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
+              _flow, // destined to 2.2.2.2
+              srcIface,
+              "vrf",
+              policy,
+              ImmutableMap.of(acl.getName(), acl),
+              ImmutableMap.of(),
+              ImmutableMap.of());
+      assertThat(r.getAction(), equalTo(Drop.instance()));
+      assertThat(
+          r.getTraceSteps(),
+          contains(
+              new FilterStep(
+                  new FilterStep.FilterStepDetail(
+                      acl.getName(), FilterStep.FilterType.INGRESS_FILTER, srcIface, _flow),
+                  StepAction.DENIED)));
+    }
+    {
+      // Flow that does match the ACL
+      Flow flow = _flow.toBuilder().setDstIp(Ip.parse("1.1.1.100")).build();
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
+              flow,
+              srcIface,
+              "vrf",
+              policy,
+              ImmutableMap.of(acl.getName(), acl),
+              ImmutableMap.of(),
+              ImmutableMap.of());
+      assertThat(r.getAction(), equalTo(fl));
+      assertThat(
+          r.getTraceSteps(),
+          contains(
+              new FilterStep(
+                  new FilterStep.FilterStepDetail(
+                      acl.getName(), FilterStep.FilterType.INGRESS_FILTER, srcIface, flow),
+                  StepAction.PERMITTED)));
+    }
+  }
+
+  @Test
   public void testEvaluateApplyTransformation() {
     Ip natIp = Ip.parse("8.8.8.8");
     ApplyTransformation transformation =
@@ -251,8 +333,8 @@ public final class FlowEvaluatorTest {
             Transformation.always()
                 .apply(TransformationStep.assignDestinationIp(natIp, natIp))
                 .build());
-    FlowResult r =
-        FlowEvaluator.evaluate(
+    PacketPolicyResult r =
+        PacketPolicyEvaluator.evaluate(
             _flow,
             "Eth0",
             "otherVrf",
@@ -311,8 +393,8 @@ public final class FlowEvaluatorTest {
 
     {
       // Lookup in interface VRF
-      FlowResult r =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
               _flow,
               srcIface,
               vrfName,
@@ -328,8 +410,8 @@ public final class FlowEvaluatorTest {
     }
     {
       // Lookup in interface VRF, no match
-      FlowResult r =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
               _flow,
               srcIface,
               vrfName,
@@ -346,8 +428,8 @@ public final class FlowEvaluatorTest {
 
     {
       // Lookup in a different VRF
-      FlowResult r =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
               _flow,
               srcIface,
               vrfName,
@@ -365,8 +447,8 @@ public final class FlowEvaluatorTest {
     {
       // Lookup in original VRF with NEXT VR route -- should match nextVrfIface
       Flow flow = _flow.toBuilder().setDstIp(nextVrIp).build();
-      FlowResult r =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult r =
+          PacketPolicyEvaluator.evaluate(
               flow,
               srcIface,
               vrfName,
@@ -386,8 +468,8 @@ public final class FlowEvaluatorTest {
   public void testConjunction() {
     FibLookup fl = new FibLookup(new LiteralVrfName("vrf"));
     {
-      FlowResult result =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult result =
+          PacketPolicyEvaluator.evaluate(
               _flow,
               "Eth0",
               "otherVrf",
@@ -403,8 +485,8 @@ public final class FlowEvaluatorTest {
     }
 
     {
-      FlowResult result =
-          FlowEvaluator.evaluate(
+      PacketPolicyResult result =
+          PacketPolicyEvaluator.evaluate(
               _flow,
               "Eth0",
               "otherVrf",
