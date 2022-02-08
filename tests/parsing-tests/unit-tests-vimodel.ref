@@ -109998,7 +109998,6 @@
                     "routeReflectorClient" : false
                   },
                   "localAs" : 65002,
-                  "localIp" : "172.16.3.1",
                   "peerAddress" : "172.16.3.2",
                   "remoteAsns" : "65003"
                 },
@@ -110032,7 +110031,6 @@
                     "routeReflectorClient" : false
                   },
                   "localAs" : 65002,
-                  "localIp" : "172.16.5.1",
                   "peerAddress" : "172.16.5.2",
                   "remoteAsns" : "65004"
                 },
@@ -110066,7 +110064,6 @@
                     "routeReflectorClient" : false
                   },
                   "localAs" : 65002,
-                  "localIp" : "172.16.7.1",
                   "peerAddress" : "172.16.7.2",
                   "remoteAsns" : "65005"
                 },
