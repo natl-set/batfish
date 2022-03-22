@@ -108595,6 +108595,7 @@
             "switchportMode" : "NONE",
             "switchportTrunkEncapsulation" : "DOT1Q",
             "type" : "VLAN",
+            "vlan" : 100,
             "vrf" : "default"
           },
           "lo0" : {
