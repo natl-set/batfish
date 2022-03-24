@@ -4,14 +4,16 @@ load("@batfish//skylark:pmd_test.bzl", "pmd_test")
 package(default_visibility = ["//visibility:public"])
 
 java_library(
-    name = "palo_alto",
+    name = "application_definitions",
     srcs = glob(
         ["*.java"],
         exclude = ["BUILD"],
     ),
+    resources = [
+        "//projects/batfish/src/main/resources/org/batfish/representation/palo_alto/application_definitions:application_definitions.json",
+    ],
     deps = [
         "//projects/batfish-common-protocol:common",
-        "//projects/batfish/src/main/java/org/batfish/representation/palo_alto/application_definitions",
         "@maven//:com_fasterxml_jackson_core_jackson_annotations",
         "@maven//:com_fasterxml_jackson_core_jackson_core",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
@@ -23,5 +25,5 @@ java_library(
 
 pmd_test(
     name = "pmd",
-    lib = ":palo_alto",
+    lib = ":application_definitions",
 )
