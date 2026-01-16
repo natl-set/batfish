@@ -126,6 +126,13 @@ DELETE: 'delete' -> pushMode(M_Str);
 DENY: 'deny';
 DESCRIPTION: 'description' -> pushMode(M_Str);
 DEVICE: 'device' -> pushMode(M_Str);
+DNS: 'dns' {
+  // ignore config system dns
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 DISABLE: 'disable';
 DISTANCE: 'distance';
 DOWN: 'down';
@@ -167,6 +174,13 @@ GATEWAY: 'gateway';
 GEOGRAPHY: 'geography';
 GLOBAL: 'global';
 GROUP: 'group';
+HA: 'ha' {
+  // ignore config system ha
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 HOSTNAME: 'hostname' -> pushMode(M_Str);
 HTTP: 'http' {
   if (lastTokenType() == REPLACEMSG) {
@@ -221,7 +235,21 @@ NAC_QUAR: 'nac-quar' {
 NAME: 'name' -> pushMode(M_Str);
 NEIGHBOR: 'neighbor';
 NETWORK: 'network';
+NETFLOW: 'netflow' {
+  // ignore config system netflow
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 NEXT: 'next';
+NP_QUEUES: 'np-queues' {
+  // ignore config np-queues
+  if (lastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 NP6: 'np6' {
   // ignore config system np6
   if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
@@ -229,11 +257,39 @@ NP6: 'np6' {
     pushMode(M_IgnoredConfigBlock);
   }
 };
+NPU: 'npu' {
+  // ignore config system npu
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 PERMIT: 'permit';
 PHYSICAL: 'physical';
+PHYSICAL_SWITCH: 'physical-switch' {
+  // ignore config system physical-switch
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 POLICY: 'policy';
 PREFIX: 'prefix';
 PROTOCOL: 'protocol';
+IP_PROTOCOL: 'ip-protocol' {
+  // ignore config ip-protocol
+  if (lastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
+ETHERNET_TYPE: 'ethernet-type' {
+  // ignore config ethernet-type
+  if (lastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 PROTOCOL_NUMBER: 'protocol-number';
 REDISTRIBUTE: 'redistribute' -> pushMode(M_Str);
 REDUNDANT: 'redundant';
@@ -283,6 +339,13 @@ SPAM: 'spam' {
   }
 };
 SPEED: 'speed';
+SPLIT_PORT_MODE: 'split-port-mode' {
+  // ignore config split-port-mode
+  if (lastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
 SRCADDR: 'srcaddr' -> pushMode(M_Str);
 SRCINTF: 'srcintf' -> pushMode(M_Str);
 SSLVPN: 'sslvpn' {
@@ -321,6 +384,7 @@ TAGGING: 'tagging';
 TCP_PORTRANGE: 'tcp-portrange';
 TCP_UDP_SCTP: 'TCP/UDP/SCTP';
 TO: 'to' -> pushMode(M_SingleStr);
+TIMEZONE: 'timezone';
 TRAFFIC_QUOTA: 'traffic-quota' {
   if (lastTokenType() == REPLACEMSG) {
     pushMode(M_Str);
@@ -846,6 +910,8 @@ M_IgnoredConfigBlock_REST_OF_LINE: F_NonNewline* F_Newline -> more, mode(M_Ignor
 // We are on some line inside an ignored config block. Eat lines, push if we hit an inner stanza.
 mode M_IgnoredConfigBlockInner;
 
+M_IgnoredConfigBlockInner_CONFIG: 'config' F_NonNewline* F_Newline -> more, pushMode(M_IgnoredInteriorConfigBlockInner);
+
 M_IgnoredConfigBlockInner_EDIT: 'edit' F_NonNewline* F_Newline -> more, pushMode(M_IgnoredEditBlock);
 
 M_IgnoredConfigBlockInner_SINGLE_LINE: ('set' | 'unset') F_NonNewline* F_Newline -> more;
@@ -869,6 +935,8 @@ M_IgnoredEditBlock_WS: F_Whitespace+ -> more;
 // Eat lines, push if we hit an inner stanza.
 // This is the same as M_IgnoredConfigBlockInner, except that the END token is also skipped.
 mode M_IgnoredInteriorConfigBlockInner;
+
+M_IgnoredInteriorConfigBlockInner_CONFIG: 'config' F_NonNewline* F_Newline -> more, pushMode(M_IgnoredInteriorConfigBlockInner);
 
 M_IgnoredInteriorConfigBlockInner_EDIT: 'edit' F_NonNewline* F_Newline -> more, pushMode(M_IgnoredEditBlock);
 
