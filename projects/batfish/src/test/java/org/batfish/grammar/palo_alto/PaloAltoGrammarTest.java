@@ -2878,6 +2878,14 @@ public final class PaloAltoGrammarTest {
   }
 
   @Test
+  public void testProfilesIgnoredConfigBlocks() {
+    PaloAltoConfiguration c = parsePaloAltoConfig("paloalto-profiles-ignored");
+
+    // Should have no parse warnings for the ignored config blocks
+    assertThat(c.getWarnings().getParseWarnings(), empty());
+  }
+
+  @Test
   public void testProfilesReference() throws IOException {
     String hostname = "profiles-reference";
     String filename = "configs/" + hostname;
