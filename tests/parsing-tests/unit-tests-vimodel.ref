@@ -45380,6 +45380,15 @@
             "hostname" : "cisco_crypto",
             "logging" : {
               "on" : true
+            },
+            "pki" : {
+              "trustpoints" : {
+                "HTTPS_SS_CERT_KEYPAIR" : {
+                  "enrollment" : "selfsigned",
+                  "name" : "HTTPS_SS_CERT_KEYPAIR",
+                  "revocationCheck" : "none"
+                }
+              }
             }
           }
         },
