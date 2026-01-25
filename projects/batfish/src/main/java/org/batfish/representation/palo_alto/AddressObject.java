@@ -28,7 +28,9 @@ public final class AddressObject implements Serializable {
   public enum Type {
     IP,
     IP_RANGE,
-    PREFIX
+    PREFIX,
+    FQDN,
+    IP_LOCATION
   }
 
   private @Nullable String _description;
@@ -43,6 +45,8 @@ public final class AddressObject implements Serializable {
   private @Nullable Range<Ip6> _ipRange6;
   private @Nullable IpPrefix _prefix;
   private @Nullable Ip6Prefix _prefix6;
+  private @Nullable String _fqdn;
+  private @Nullable String _ipLocation;
 
   public AddressObject(String name) {
     _name = name;
@@ -56,6 +60,8 @@ public final class AddressObject implements Serializable {
     _ipRange6 = null;
     _prefix = null;
     _prefix6 = null;
+    _fqdn = null;
+    _ipLocation = null;
   }
 
   public @Nullable String getDescription() {
@@ -193,5 +199,25 @@ public final class AddressObject implements Serializable {
     _type = prefix == null ? null : Type.PREFIX;
     clearAddress();
     _prefix6 = prefix;
+  }
+
+  public @Nullable String getFqdn() {
+    return _fqdn;
+  }
+
+  public void setFqdn(@Nullable String fqdn) {
+    _type = fqdn == null ? null : Type.FQDN;
+    clearAddress();
+    _fqdn = fqdn;
+  }
+
+  public @Nullable String getIpLocation() {
+    return _ipLocation;
+  }
+
+  public void setIpLocation(@Nullable String ipLocation) {
+    _type = ipLocation == null ? null : Type.IP_LOCATION;
+    clearAddress();
+    _ipLocation = ipLocation;
   }
 }
