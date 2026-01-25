@@ -3261,7 +3261,7 @@ stanza
    | s_controller
    | s_cops
    | s_cos_queue_group
-   | s_crypto_pki
+   | s_crypto
    | s_ctl_file
    | s_daemon
    | s_depi_class
