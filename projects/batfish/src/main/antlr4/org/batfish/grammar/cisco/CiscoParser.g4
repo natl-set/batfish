@@ -3261,7 +3261,7 @@ stanza
    | s_controller
    | s_cops
    | s_cos_queue_group
-   | s_crypto
+   | s_crypto_pki
    | s_ctl_file
    | s_daemon
    | s_depi_class
@@ -4370,5 +4370,20 @@ wsma_null
 
 s_bare: NEWLINE
 ;
+s_crypto_pki:
+   CRYPTO PKI
+   (
+      cc_certificate_chain
+      | cc_lookup
+      | cc_server
+      | cc_trustpoint
+      | cc_trustpool
+   )
+;
+s_cc_certificate_chain: cc_certificate_chain;
+s_cc_lookup: cc_lookup;
+s_cc_server: cc_server;
+s_cc_trustpoint: cc_trustpoint;
+s_cc_trustpool: cc_trustpool;
 s_quit: QUIT NEWLINE
 ;

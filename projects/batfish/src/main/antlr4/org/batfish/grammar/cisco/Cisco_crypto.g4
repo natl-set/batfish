@@ -64,11 +64,16 @@ cctpoint_null
 :
    NO?
    (
-      CRL
+      AUTO_ENROLL
+      | CRL
       | ENROLLMENT
       | FQDN
       | KEYPAIR
+      | PASSWORD
+      | REVOCATION_CHECK
+      | SOURCE_INTERFACE
       | SUBJECT_NAME
+      | USAGE
       | VALIDATION_USAGE
    ) null_rest_of_line
 ;
