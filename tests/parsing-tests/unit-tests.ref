@@ -21477,7 +21477,7 @@
             "            DEC:'05'",
             "            COLON:':'",
             "            DEC:'00'",
-            "            VARIABLE:'absolute'",
+            "            ABSOLUTE:'absolute'",
             "            NEWLINE:'\\n'))",
             "        (null_inner*",
             "          TIMEOUT:'timeout'",
