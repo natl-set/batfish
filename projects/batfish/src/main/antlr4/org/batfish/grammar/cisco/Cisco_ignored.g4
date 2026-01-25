@@ -443,6 +443,7 @@ null_inner
       | POLICY_LIST
       | PORT_NAME
       | PORTS
+      | PROPAGATE
       | PREDICTOR
       | PREEMPT
       | PREFERRED_PATH
@@ -477,6 +478,7 @@ null_inner
       | SERVERFARM
       | SERVER_PRIVATE
       | SERVICE_QUEUE
+      | SERVICE_MODULE
       | SERVICE_TYPE
       | SESSION
       | SEVERITY
@@ -772,6 +774,7 @@ null_single
       | MVR
       | NAME_SERVER
       | NAMES
+      | NAMEIF
       | NAT_CONTROL
       | NETCONF
       | NETWORK_OBJECT
@@ -863,6 +866,7 @@ null_single
       | SCRIPTING
       | SDM
       | SECURITY
+      | SECURITY_LEVEL
       | SERVER_TYPE
       | SETUP
       | SHELFNAME

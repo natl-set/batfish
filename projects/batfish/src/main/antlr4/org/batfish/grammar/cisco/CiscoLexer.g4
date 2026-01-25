@@ -67,6 +67,8 @@ AAL5SNAP: 'aal5snap';
 
 ABSOLUTE_TIMEOUT: 'absolute-timeout';
 
+ABSOLUTE: 'absolute';
+
 ACAP: 'acap';
 
 ACCEPT_DIALIN: 'accept-dialin';
@@ -3606,6 +3608,8 @@ NAMESPACE: 'namespace';
 NAMES: 'names';
 
 NAMESERVER: 'nameserver';
+
+NAMEIF: 'nameif';
 
 NAS: 'nas';
 
