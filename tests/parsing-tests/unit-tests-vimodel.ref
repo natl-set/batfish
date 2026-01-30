@@ -60532,6 +60532,196 @@
           }
         }
       },
+      "ios-crypto-keyword-names" : {
+        "configurationFormat" : "CISCO_IOS",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ios-crypto-keyword-names",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ios-crypto-keyword-names",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "10.0.0.1/24"
+            ],
+            "autostate" : true,
+            "bandwidth" : 1.0E9,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "GigabitEthernet0/0"
+            ],
+            "hmm" : false,
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "10.0.0.1/24",
+            "proxyArp" : true,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "speed" : 1.0E9,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "routingPolicies" : {
+          "~RESOLUTION_POLICY~" : {
+            "name" : "~RESOLUTION_POLICY~",
+            "statements" : [
+              {
+                "class" : "org.batfish.datamodel.routing_policy.statement.If",
+                "falseStatements" : [
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                    "type" : "ReturnTrue"
+                  }
+                ],
+                "guard" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                  "comment" : "match default route",
+                  "prefix" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                  },
+                  "prefixSet" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.ExplicitPrefixSet",
+                    "prefixSpace" : [
+                      "0.0.0.0/0"
+                    ]
+                  }
+                },
+                "trueStatements" : [
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                    "type" : "ReturnFalse"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "vendorFamily" : {
+          "cisco" : {
+            "hostname" : "ios-crypto-keyword-names",
+            "logging" : {
+              "on" : true
+            }
+          }
+        },
+        "vrfs" : {
+          "default" : {
+            "name" : "default",
+            "resolutionPolicy" : "~RESOLUTION_POLICY~"
+          }
+        }
+      },
+      "ios-crypto-unrecognized" : {
+        "configurationFormat" : "CISCO_IOS",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ios-crypto-unrecognized",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ios-crypto-unrecognized",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "10.0.0.1/24"
+            ],
+            "autostate" : true,
+            "bandwidth" : 1.0E9,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "GigabitEthernet0/0"
+            ],
+            "hmm" : false,
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "10.0.0.1/24",
+            "proxyArp" : true,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "speed" : 1.0E9,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "routingPolicies" : {
+          "~RESOLUTION_POLICY~" : {
+            "name" : "~RESOLUTION_POLICY~",
+            "statements" : [
+              {
+                "class" : "org.batfish.datamodel.routing_policy.statement.If",
+                "falseStatements" : [
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                    "type" : "ReturnTrue"
+                  }
+                ],
+                "guard" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                  "comment" : "match default route",
+                  "prefix" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                  },
+                  "prefixSet" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.ExplicitPrefixSet",
+                    "prefixSpace" : [
+                      "0.0.0.0/0"
+                    ]
+                  }
+                },
+                "trueStatements" : [
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                    "type" : "ReturnFalse"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "vendorFamily" : {
+          "cisco" : {
+            "hostname" : "ios-crypto-unrecognized",
+            "logging" : {
+              "on" : true
+            }
+          }
+        },
+        "vrfs" : {
+          "default" : {
+            "name" : "default",
+            "resolutionPolicy" : "~RESOLUTION_POLICY~"
+          }
+        }
+      },
       "ios-xe-bgp-vrf" : {
         "configurationFormat" : "CISCO_IOS",
         "exportBgpFromBgpRib" : true,
