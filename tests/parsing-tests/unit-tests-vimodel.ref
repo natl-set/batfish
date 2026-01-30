@@ -123002,6 +123002,20 @@
           }
         }
       },
+      "palo_alto_snmp_settings" : {
+        "configurationFormat" : "PALO_ALTO_NESTED",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "palo_alto_snmp_settings",
+        "defaultCrossZoneAction" : "DENY",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "PALO_ALTO_FIREWALL",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : false,
+        "humanName" : "palo_alto_snmp_settings",
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { }
+      },
       "palo_alto_virtual_routers" : {
         "configurationFormat" : "PALO_ALTO_NESTED",
         "exportBgpFromBgpRib" : false,
