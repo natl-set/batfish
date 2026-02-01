@@ -358,8 +358,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return A sorted map of route-policy names to route-policy configurations
    */
-  @Nonnull
-  public SortedMap<String, HuaweiRoutePolicy> getRoutePolicies() {
+  public @Nonnull SortedMap<String, HuaweiRoutePolicy> getRoutePolicies() {
     return _routePolicies;
   }
 
@@ -378,8 +377,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    * @param name The route-policy name
    * @return The route-policy, or null if not found
    */
-  @Nullable
-  public HuaweiRoutePolicy getRoutePolicy(String name) {
+  public @Nullable HuaweiRoutePolicy getRoutePolicy(String name) {
     return _routePolicies.get(name);
   }
 

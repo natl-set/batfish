@@ -243,7 +243,6 @@ public class HuaweiConversions {
             .setName(name)
             .setType(getInterfaceType(name))
             .setVrf(vrf)
-            .setVrf(vrf)
             .setOwner(c)
             .setAdminUp(!huaweiIface.getShutdown())
             .setMtu(huaweiIface.getMtu());
@@ -286,8 +285,8 @@ public class HuaweiConversions {
       iface.setOutgoingFilterName(huaweiIface.getOutgoingFilter());
     }
 
+    // TODO: Set DHCP relay client flag (not yet implemented)
     return iface;
-    // Set DHCP relay client flag
   }
 
   /**
@@ -472,7 +471,7 @@ public class HuaweiConversions {
     // Address family extraction is partially implemented but conversion is not yet complete
     // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
     if (!huaweiBgp.getAddressFamilies().isEmpty()) {
-      convertBgpAddressFamilies(c, bgpProcess, huaweiBgp);
+      convertBgpAddressFamilies(bgpProcess, huaweiBgp);
     }
 
     // Route policies are now converted with support for:
@@ -503,8 +502,7 @@ public class HuaweiConversions {
    * @param bgpProcess The BgpProcess to update
    * @param huaweiBgp The Huawei BGP process containing address families
    */
-  private static void convertBgpAddressFamilies(
-      Configuration c, BgpProcess bgpProcess, HuaweiBgpProcess huaweiBgp) {
+  private static void convertBgpAddressFamilies(BgpProcess bgpProcess, HuaweiBgpProcess huaweiBgp) {
     // Store address family configurations to apply to peers
     org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily ipv4Af = null;
     org.batfish.datamodel.bgp.Ipv6UnicastAddressFamily ipv6Af = null;
@@ -640,7 +638,7 @@ public class HuaweiConversions {
     }
     ospfBuilder.setRouterId(routerId);
 
-    // Set reference bandwidth (Huawei default: 100 Mbps)
+    // Set reference bandwidth (Huawei VRP default is 100 Mbps, per Huawei documentation)
     ospfBuilder.setReferenceBandwidth(100000000.0);
 
     // Set VRF
@@ -659,10 +657,11 @@ public class HuaweiConversions {
     // Virtual links require area ID and remote router ID
     // Need to determine which area the virtual link belongs to
     if (!huaweiOspf.getVirtualLinks().isEmpty()) {
-      for (HuaweiOspfProcess.HuaweiOspfVirtualLink vlink : huaweiOspf.getVirtualLinks()) {
-        // Virtual link extraction is implemented but conversion is not yet complete
-        // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
-      }
+      @SuppressWarnings("unused")
+      HuaweiOspfProcess.HuaweiOspfVirtualLink[] virtualLinks =
+          huaweiOspf.getVirtualLinks().toArray(new HuaweiOspfProcess.HuaweiOspfVirtualLink[0]);
+      // TODO: Virtual link extraction is implemented but conversion is not yet complete
+      // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
     }
 
     // Convert OSPF interface settings
@@ -760,7 +759,7 @@ public class HuaweiConversions {
       // Convert each redistribution policy
       for (HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy :
           huaweiOspf.getRedistributionPolicies().values()) {
-        If statement = convertOspfRedistributionPolicy(policy, huaweiCfg);
+        If statement = convertOspfRedistributionPolicy(policy);
         if (statement != null) {
           ospfExportStatements.add(statement);
         }
@@ -923,12 +922,13 @@ public class HuaweiConversions {
     AclLineMatchExpr matchCondition;
     List<AclLineMatchExpr> conditions = matchConditions.build();
 
-    if (headerSpaceBuilder.build().getSrcIps() != null
-        || headerSpaceBuilder.build().getDstIps() != null
-        || headerSpaceBuilder.build().getSrcPorts() != null
-        || headerSpaceBuilder.build().getDstPorts() != null) {
+    HeaderSpace headerSpace = headerSpaceBuilder.build();
+    if (headerSpace.getSrcIps() != null
+        || headerSpace.getDstIps() != null
+        || headerSpace.getSrcPorts() != null
+        || headerSpace.getDstPorts() != null) {
       // Add HeaderSpace to conditions
-      matchConditions.add(new MatchHeaderSpace(headerSpaceBuilder.build()));
+      matchConditions.add(new MatchHeaderSpace(headerSpace));
     }
 
     // Combine all conditions with AND
@@ -1385,7 +1385,7 @@ public class HuaweiConversions {
    * Converts Huawei BGP network announcements to Batfish vendor-independent format.
    *
    * <p>Network statements in Huawei BGP specify which networks to advertise into BGP. The syntax
-   * is: network <ip> <mask> [route-policy <policy>]
+   * is: network {@code <ip>} {@code <mask>} [route-policy {@code <policy>}]
    *
    * <p>This conversion:
    *
@@ -1473,7 +1473,7 @@ public class HuaweiConversions {
    * format.
    *
    * <p>Import-route statements in Huawei BGP redistribute routes from other protocols into BGP. The
-   * syntax is: import-route <protocol> [route-policy <policy>]
+   * syntax is: import-route {@code <protocol>} [route-policy {@code <policy>}]
    *
    * <p>Supported protocols include: direct, static, rip, ospf, isis, bgp
    *
@@ -1622,8 +1622,8 @@ public class HuaweiConversions {
    * Converts a Huawei OSPF redistribution policy to a Batfish If statement.
    *
    * <p>OSPF redistribution in Huawei uses the "import-route" command to redistribute routes from
-   * other protocols into OSPF. The syntax is: import-route <protocol> [cost <value>] [tag <value>]
-   * [route-policy <policy>]
+   * other protocols into OSPF. The syntax is: import-route {@code <protocol>} [cost {@code
+   * <value>}] [tag {@code <value>}] [route-policy {@code <policy>}]
    *
    * <p>This conversion:
    *
@@ -1639,7 +1639,7 @@ public class HuaweiConversions {
    * @return An If statement representing the redistribution policy, or null if conversion fails
    */
   private static @Nullable If convertOspfRedistributionPolicy(
-      HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy, HuaweiConfiguration huaweiCfg) {
+      HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy) {
     HuaweiOspfProcess.HuaweiRedistributionProtocol sourceProtocol = policy.getSourceProtocol();
 
     // Map Huawei protocol to Batfish RoutingProtocol(s)
@@ -1728,7 +1728,7 @@ public class HuaweiConversions {
         // UNR is a Huawei-specific feature for user-defined routes
         return ImmutableSet.of(RoutingProtocol.STATIC);
       default:
-        return ImmutableSet.of();
+        throw new IllegalArgumentException("Unhandled redistribution protocol: " + protocol);
     }
   }
 

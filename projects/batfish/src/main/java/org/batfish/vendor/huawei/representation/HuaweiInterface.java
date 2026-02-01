@@ -20,13 +20,13 @@ public class HuaweiInterface implements Serializable {
   private static final long serialVersionUID = 1L;
 
   /** Interface name (e.g., "GigabitEthernet0/0/1") */
-  @Nonnull private String _name;
+  private @Nonnull String _name;
 
   /** Description of the interface */
-  @Nullable private String _description;
+  private @Nullable String _description;
 
   /** Interface IP address and netmask */
-  @Nullable private ConcreteInterfaceAddress _address;
+  private @Nullable ConcreteInterfaceAddress _address;
 
   /** Administrative status of the interface */
   private boolean _shutdown;
@@ -35,13 +35,13 @@ public class HuaweiInterface implements Serializable {
   private int _mtu;
 
   /** Bandwidth of the interface in bps */
-  @Nullable private Double _bandwidth;
+  private @Nullable Double _bandwidth;
 
   /** ACL applied to inbound traffic */
-  @Nullable private String _incomingFilter;
+  private @Nullable String _incomingFilter;
 
   /** ACL applied to outbound traffic */
-  @Nullable private String _outgoingFilter;
+  private @Nullable String _outgoingFilter;
 
   /** Set of IP addresses for DHCP relay */
   private SortedSet<Ip> _dhcpRelayAddresses;
@@ -62,8 +62,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The interface name
    */
-  @Nonnull
-  public String getName() {
+  public @Nonnull String getName() {
     return _name;
   }
 
@@ -81,8 +80,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The description, or null if not set
    */
-  @Nullable
-  public String getDescription() {
+  public @Nullable String getDescription() {
     return _description;
   }
 
@@ -100,8 +98,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The interface address, or null if not set
    */
-  @Nullable
-  public ConcreteInterfaceAddress getAddress() {
+  public @Nullable ConcreteInterfaceAddress getAddress() {
     return _address;
   }
 
@@ -155,8 +152,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The bandwidth in bps, or null if not set
    */
-  @Nullable
-  public Double getBandwidth() {
+  public @Nullable Double getBandwidth() {
     return _bandwidth;
   }
 
@@ -174,8 +170,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The ACL name, or null if not set
    */
-  @Nullable
-  public String getIncomingFilter() {
+  public @Nullable String getIncomingFilter() {
     return _incomingFilter;
   }
 
@@ -193,8 +188,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return The ACL name, or null if not set
    */
-  @Nullable
-  public String getOutgoingFilter() {
+  public @Nullable String getOutgoingFilter() {
     return _outgoingFilter;
   }
 
@@ -212,8 +206,7 @@ public class HuaweiInterface implements Serializable {
    *
    * @return A sorted set of IP addresses
    */
-  @Nonnull
-  public SortedSet<Ip> getDhcpRelayAddresses() {
+  public @Nonnull SortedSet<Ip> getDhcpRelayAddresses() {
     return _dhcpRelayAddresses;
   }
 

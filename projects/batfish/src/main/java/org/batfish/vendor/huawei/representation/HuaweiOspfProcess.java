@@ -2,7 +2,7 @@ package org.batfish.vendor.huawei.representation;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -55,8 +55,8 @@ public class HuaweiOspfProcess implements Serializable {
   private @Nullable Integer _defaultType;
 
   /** Redistribution policies: protocol to redistribution policy */
-  @Nonnull
-  private Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy> _redistributionPolicies;
+  private @Nonnull Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy>
+      _redistributionPolicies;
 
   public HuaweiOspfProcess(long processId) {
     _processId = processId;
@@ -65,7 +65,7 @@ public class HuaweiOspfProcess implements Serializable {
     _interfaces = new TreeMap<>();
     _virtualLinks = new ArrayList<>();
     _defaultOriginate = false;
-    _redistributionPolicies = new HashMap<>();
+    _redistributionPolicies = new EnumMap<>(HuaweiRedistributionProtocol.class);
   }
 
   /**
@@ -319,8 +319,7 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @return A map of redistribution protocols to policies
    */
-  @Nonnull
-  public Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy>
+  public @Nonnull Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy>
       getRedistributionPolicies() {
     return _redistributionPolicies;
   }
@@ -397,8 +396,7 @@ public class HuaweiOspfProcess implements Serializable {
       _sourceProtocol = sourceProtocol;
     }
 
-    @Nullable
-    public String getRoutePolicy() {
+    public @Nullable String getRoutePolicy() {
       return _routePolicy;
     }
 
@@ -406,8 +404,7 @@ public class HuaweiOspfProcess implements Serializable {
       _routePolicy = routePolicy;
     }
 
-    @Nullable
-    public Long getCost() {
+    public @Nullable Long getCost() {
       return _cost;
     }
 
@@ -415,8 +412,7 @@ public class HuaweiOspfProcess implements Serializable {
       _cost = cost;
     }
 
-    @Nullable
-    public Long getTag() {
+    public @Nullable Long getTag() {
       return _tag;
     }
 
@@ -424,8 +420,7 @@ public class HuaweiOspfProcess implements Serializable {
       _tag = tag;
     }
 
-    @Nullable
-    public Integer getType() {
+    public @Nullable Integer getType() {
       return _type;
     }
 
@@ -470,6 +465,50 @@ public class HuaweiOspfProcess implements Serializable {
     NSSA
   }
 
+  /** Represents an OSPF area range (abr-summary) configuration. */
+  public static class HuaweiOspfAreaRange implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    /** The summary prefix */
+    private Prefix _prefix;
+
+    /** Whether to advertise this summary (false if not-advertise is set) */
+    private boolean _advertise;
+
+    /** Optional cost value for the summary route */
+    private Long _cost;
+
+    public HuaweiOspfAreaRange(Prefix prefix, boolean advertise, @Nullable Long cost) {
+      _prefix = prefix;
+      _advertise = advertise;
+      _cost = cost;
+    }
+
+    public Prefix getPrefix() {
+      return _prefix;
+    }
+
+    public void setPrefix(Prefix prefix) {
+      _prefix = prefix;
+    }
+
+    public boolean isAdvertise() {
+      return _advertise;
+    }
+
+    public void setAdvertise(boolean advertise) {
+      _advertise = advertise;
+    }
+
+    public @Nullable Long getCost() {
+      return _cost;
+    }
+
+    public void setCost(@Nullable Long cost) {
+      _cost = cost;
+    }
+  }
+
   /** Represents an OSPF area configuration. */
   public static class HuaweiOspfArea implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -483,9 +522,13 @@ public class HuaweiOspfProcess implements Serializable {
     private String _authKey;
     private String _authType; // MD5, SIMPLE
 
+    /** OSPF area range (abr-summary) configurations: prefix to summary settings */
+    private @Nonnull Map<Prefix, HuaweiOspfAreaRange> _areaRanges;
+
     public HuaweiOspfArea(long areaId) {
       _areaId = areaId;
       _areaType = OspfAreaType.NORMAL;
+      _areaRanges = new TreeMap<>();
     }
 
     public long getAreaId() {
@@ -550,6 +593,34 @@ public class HuaweiOspfProcess implements Serializable {
 
     public void setAuthType(String authType) {
       _authType = authType;
+    }
+
+    /**
+     * Gets the OSPF area range (abr-summary) configurations.
+     *
+     * @return A map of prefixes to area range settings
+     */
+    public @Nonnull Map<Prefix, HuaweiOspfAreaRange> getAreaRanges() {
+      return _areaRanges;
+    }
+
+    /**
+     * Sets the OSPF area range (abr-summary) configurations.
+     *
+     * @param areaRanges The map of prefixes to area range settings
+     */
+    public void setAreaRanges(@Nonnull Map<Prefix, HuaweiOspfAreaRange> areaRanges) {
+      _areaRanges = areaRanges;
+    }
+
+    /**
+     * Adds an area range (abr-summary) configuration.
+     *
+     * @param prefix The summary prefix
+     * @param range The area range settings
+     */
+    public void addAreaRange(Prefix prefix, HuaweiOspfAreaRange range) {
+      _areaRanges.put(prefix, range);
     }
   }
 

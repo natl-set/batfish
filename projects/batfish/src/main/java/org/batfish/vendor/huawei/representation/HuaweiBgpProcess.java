@@ -193,8 +193,7 @@ public class HuaweiBgpProcess implements Serializable {
    *
    * @return A list of import-route configurations
    */
-  @Nonnull
-  public List<HuaweiBgpImportRoute> getImportRoutes() {
+  public @Nonnull List<HuaweiBgpImportRoute> getImportRoutes() {
     return _importRoutes;
   }
 
@@ -330,6 +329,8 @@ public class HuaweiBgpProcess implements Serializable {
     private boolean _unicast;
     private boolean _multicast;
     private boolean _vpn;
+    private String _importPolicy;
+    private String _exportPolicy;
 
     public enum AddressFamilyType {
       IPV4,
@@ -378,6 +379,22 @@ public class HuaweiBgpProcess implements Serializable {
 
     public void setVpn(boolean vpn) {
       _vpn = vpn;
+    }
+
+    public String getImportPolicy() {
+      return _importPolicy;
+    }
+
+    public void setImportPolicy(String importPolicy) {
+      _importPolicy = importPolicy;
+    }
+
+    public String getExportPolicy() {
+      return _exportPolicy;
+    }
+
+    public void setExportPolicy(String exportPolicy) {
+      _exportPolicy = exportPolicy;
     }
   }
 
