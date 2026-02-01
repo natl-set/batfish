@@ -34,9 +34,6 @@ ospf_substanza
 ospf_area
 :
    AREA area_id = uint32
-   (
-      area_substanza
-   )*
 ;
 
 // Area sub-stanza

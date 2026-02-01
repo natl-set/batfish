@@ -11,7 +11,6 @@ Huawei_static,
 Huawei_acl,
 Huawei_nat,
 Huawei_vrf,
-Huawei_route_policy,
 Huawei_ignored;
 
 options {
@@ -27,20 +26,20 @@ huawei_configuration
 ;
 
 // Stanza at top level (includes return which ends parsing)
+// Order matters: s_return must come BEFORE s_interface to prevent keywords
+// in description text from being parsed as nested interfaces
 s_stanza
 :
    s_sysname
-   | s_interface
    | s_vlan
    | s_bgp
    | s_ospf
    | s_static_route
    | s_acl
-   | s_acl_ipv6
    | s_nat
    | s_vrf
-   | s_route_policy
    | s_return
+   | s_interface
    | s_ignored
 ;
 

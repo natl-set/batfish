@@ -25,7 +25,7 @@ if_substanza
    | if_shutdown
    | if_dot1q_termination
    | if_ospf
-   | if_null
+   | if_ignored
 ;
 
 // OSPF interface configuration
@@ -85,10 +85,10 @@ if_ospf_passive
    (ENABLE | DISABLE) PASSIVE
 ;
 
-// Null interface configuration (parse but ignore)
+// Ignored interface configuration (parse but ignore)
 // Only matches commands that DON'T start with INTERFACE
 // This prevents consuming subsequent interface statements
-if_null
+if_ignored
 :
    NO?
    (

@@ -2265,6 +2265,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts community list from "if-match community &lt;communities&gt;" command.
    */
   @Override
+  @SuppressWarnings("unused")
   public void exitIf_match_community(If_match_communityContext ctx) {
     if (_currentRoutePolicyNode == null || ctx.community_list == null) {
       return;
@@ -2305,6 +2306,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts community value from "apply community &lt;community-value&gt;" command.
    */
   @Override
+  @SuppressWarnings("unused")
   public void exitApply_community(Apply_communityContext ctx) {
     if (_currentRoutePolicyNode == null || ctx.community_val == null) {
       return;

@@ -57,8 +57,7 @@ public class HuaweiRoutePolicy implements Serializable {
    *
    * @return A list of route-policy nodes
    */
-  @Nonnull
-  public List<HuaweiRoutePolicyNode> getNodes() {
+  public @Nonnull List<HuaweiRoutePolicyNode> getNodes() {
     return _nodes;
   }
 
@@ -123,8 +122,7 @@ public class HuaweiRoutePolicy implements Serializable {
      *
      * @return The match conditions
      */
-    @Nonnull
-    public HuaweiRoutePolicyMatchConditions getMatchConditions() {
+    public @Nonnull HuaweiRoutePolicyMatchConditions getMatchConditions() {
       return _matchConditions;
     }
 
@@ -133,8 +131,7 @@ public class HuaweiRoutePolicy implements Serializable {
      *
      * @return The set actions
      */
-    @Nonnull
-    public HuaweiRoutePolicySetActions getSetActions() {
+    public @Nonnull HuaweiRoutePolicySetActions getSetActions() {
       return _setActions;
     }
 
