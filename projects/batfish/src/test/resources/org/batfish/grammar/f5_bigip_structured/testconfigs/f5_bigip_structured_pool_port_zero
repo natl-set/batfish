@@ -1,0 +1,21 @@
+#TMSH-VERSION: 13.1.1
+
+sys global-settings {
+  hostname f5_bigip_structured_pool_port_zero
+}
+
+ltm node /Common/NODE1 {
+    address 192.0.2.1
+}
+
+ltm pool /Common/POOL_WITH_ZERO_PORT {
+    members {
+        /Common/NODE1:0 { }
+    }
+}
+
+ltm pool /Common/POOL_WITH_VALID_PORT {
+    members {
+        /Common/NODE1:80 { }
+    }
+}
