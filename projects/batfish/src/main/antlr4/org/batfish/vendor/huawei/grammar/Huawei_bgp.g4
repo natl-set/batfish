@@ -26,7 +26,6 @@ bgp_substanza
    | bgp_network
    | bgp_import
    | bgp_export
-   | bgp_address_family
    | bgp_null
 ;
 
@@ -47,7 +46,7 @@ bgp_peer
    )*
 ;
 
-// BGP peer parameters
+// BGP peer parameters (simplified)
 bgp_peer_param
 :
    // peer X.X.X.X connect-interface GigabitEthernet0/0/0
@@ -56,14 +55,11 @@ bgp_peer_param
    // peer X.X.X.X password <password>
    PASSWORD password = variable
    |
-   // peer X.X.X.X group <group-name>
-   GROUP group_name = variable
-   |
    // Other parameters (ignore for now)
    null_rest_of_line
 ;
 
-// BGP peer group: group GROUP_NAME [internal|external]
+// BGP peer group: group GROUP_NAME external
 bgp_peer_group
 :
    GROUP group_name = variable
@@ -80,63 +76,31 @@ bgp_group_param
    INTERNAL
    |
    EXTERNAL
-   |
-   // Remote AS: as-number 65002
-   AS_NUMBER as_num = uint32
-   |
-   // Password: password <password>
-   PASSWORD password = variable
-   |
-   // Route policy: route-policy <name> [import|export]
-   ROUTE_POLICY policy = variable (IMPORT | EXPORT)?
-   |
-   // Route reflector client: route-reflector-client [cluster-id <id>]
-   ROUTE_REFLECTOR_CLIENT (CLUSTER_ID id = ip_address)?
-   |
-   // Other parameters (ignore for now)
-   null_rest_of_line
 ;
 
-// Network announcement: network 10.0.0.0 255.255.255.0 [route-policy <name>]
+// Network announcement: network 10.0.0.0 255.255.255.0
 bgp_network
 :
-   NETWORK network_addr = ip_address network_mask = ip_address (ROUTE_POLICY policy = variable)?
+   NETWORK network_addr = ip_address network_mask = ip_address
+   (
+      // Optional route-policy
+      null_rest_of_line
+   )?
 ;
 
-// Import policy: import-route <protocol> [route-policy <name>]
+// Import policy: import-route <protocol>
 bgp_import
 :
-   IMPORT_ROUTE (DIRECT | STATIC | RIP | RIPNG | OSPF | ISIS | protocol = variable) (ROUTE_POLICY policy = variable)?
-   |
-   null_rest_of_line
+   IMPORT_ROUTE protocol = variable
+   (
+      null_rest_of_line
+   )?
 ;
 
-// Export policy
+// Export policy: export-route something (ignore details)
 bgp_export
 :
-   null_rest_of_line
-;
-
-// Address family configuration
-bgp_address_family
-:
-   (IPV4 | IPV6) (FAMILY)?
-   (
-      UNICAST
-      |
-      MULTICAST
-      |
-      VPN
-   )*
-   (
-      // Address family sub-configuration
-      bgp_af_substanza
-   )*
-;
-
-// Address family sub-stanzas
-bgp_af_substanza
-:
+   // Placeholder for export configurations
    null_rest_of_line
 ;
 
