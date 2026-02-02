@@ -361,7 +361,7 @@ public class AciEndToEndTest {
         getClass().getResourceAsStream("/org/batfish/vendor/cisco_aci/end-to-end-config.json")) {
       if (is == null) {
         throw new IOException(
-            "Resource not found: /org/batfish/vendor_cisco_aci/end-to-end-config.json");
+            "Resource not found: /org/batfish/vendor/cisco_aci/end-to-end-config.json");
       }
       return new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
     }
