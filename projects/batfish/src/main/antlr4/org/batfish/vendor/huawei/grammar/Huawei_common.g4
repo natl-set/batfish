@@ -108,6 +108,7 @@ null_rest_of_line
 // Tokens that can appear in values (descriptions, names, etc.)
 // This allows SOME keywords to appear within string values
 // EXCLUDED: Tokens that start new top-level stanzas (IP, ACL, BGP, OSPF, NAT, VLAN, SYSNAME, RETURN)
+// EXCLUDED: Tokens that start new OSPF area sub-stanzas (AREA, STUB, NSSA, AUTHENTICATION_MODE)
 // Note: INTERFACE is allowed for descriptions like "Test interface"
 null_token
 :
@@ -131,11 +132,7 @@ null_token
    | DESTINATION
    | PROTOCOL
    | TO
-   | AREA
    | ROUTER_ID
-   | PEER
-   | GROUP
-   | NETWORK
    | ROUTE_DISTINGUISHER
    | VPN_TARGET
    | SHUTDOWN
@@ -165,6 +162,7 @@ null_token
    | AS_PATH_LIMIT
    | RIP
    | STATIC
+   | DIRECT
    | IMPORT_ROUTE
    | EXPORT
    | UNDO
@@ -173,6 +171,14 @@ null_token
    | ICMP_TYPE
    | ICMP_CODE
    | TIME_RANGE
+   | IF_MATCH
+   | APPLY
+   | LOCAL_PREFERENCE
+   | COMMUNITY
+   | COMMUNITY_FILTER
+   | COST
+   | PREFERENCE
+   | NODE
 ;
 
 // Exit from current configuration mode

@@ -24,7 +24,80 @@ if_substanza
    | if_ip_address
    | if_shutdown
    | if_dot1q_termination
+   | if_ospf
    | if_null
+;
+
+// OSPF interface configuration
+if_ospf
+:
+   OSPF
+   (
+      if_ospf_area
+      | if_ospf_cost
+      | if_ospf_network_type
+      | if_ospf_timers
+      | if_ospf_authentication
+      | if_ospf_passive
+   )
+;
+
+// OSPF area: ospf area <area-id>
+if_ospf_area
+:
+   AREA area_id = uint32
+;
+
+// OSPF cost: ospf cost <value>
+if_ospf_cost
+:
+   COST cost = uint32
+;
+
+// OSPF network type: ospf network-type {broadcast|p2p|p2mp|nbma}
+if_ospf_network_type
+:
+   NETWORK_TYPE (BROADCAST | P2P | P2MP | NBMA)
+;
+
+// OSPF timers: ospf timer {hello|dead|retransmit-interval} <seconds>
+if_ospf_timers
+:
+   TIMER
+   (
+      HELLO h = uint32
+      |
+      DEAD d = uint32
+      |
+      RETRANSMIT_INTERVAL r = uint32
+   )
+;
+
+// OSPF authentication: ospf authentication-mode {md5|simple} <key>
+if_ospf_authentication
+:
+   AUTHENTICATION_MODE (MD5 | SIMPLE) key = variable
+;
+
+// OSPF passive: ospf enable [passive] or ospf disable passive
+if_ospf_passive
+:
+   (ENABLE | DISABLE) PASSIVE
+;
+
+// Null interface configuration (parse but ignore)
+// Only matches commands that DON'T start with INTERFACE
+// This prevents consuming subsequent interface statements
+if_null
+:
+   NO?
+   (
+      // First token must not be INTERFACE
+      // Match one token that's definitely not a stanza-starting keyword
+      (DESCRIPTION | NAME | SHUTDOWN | DOT1Q | TERMINATION | VID | PORT | COMMAND | VARIABLE)
+      // Then optionally match more tokens (including INTERFACE for descriptions)
+      null_token*
+   )
 ;
 
 // Interface description
@@ -60,14 +133,4 @@ if_dot1q_termination
       // Optional: dot1q termination vid <low> <high>
       low_vid = uint16
    )?
-;
-
-// Null interface configuration (parse but ignore)
-if_null
-:
-   NO?
-   (
-      // Add interface-specific commands to ignore here
-      null_rest_of_line
-   )
 ;

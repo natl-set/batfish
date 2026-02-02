@@ -5,26 +5,61 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.batfish.common.NetworkSnapshot;
 import org.batfish.common.Warnings;
+import org.batfish.datamodel.BgpActivePeerConfig;
 import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.LongSpace;
 import org.batfish.datamodel.Prefix;
 import org.batfish.grammar.ControlPlaneExtractor;
 import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
 import org.batfish.vendor.VendorConfiguration;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_communityContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_costContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_local_preferenceContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_preferenceContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_tagContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_abr_summaryContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_authenticationContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_nssaContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_stubContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_importContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_networkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peerContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peer_groupContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_router_idContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Description_lineContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.If_dot1q_terminationContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ip_addressContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_match_communityContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_match_community_filterContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_match_ip_prefixContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_areaContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_authenticationContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_costContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_network_typeContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_passiveContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ospf_timersContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.If_shutdownContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_areaContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_defaultContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_default_costContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_default_originateContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_default_tagContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_default_typeContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_costContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_routeContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_route_policyContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_tagContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_typeContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_networkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_router_idContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_virtual_linkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_aclContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_bgpContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_interfaceContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_natContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_ospfContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_returnContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.S_route_policyContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_static_routeContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_sysnameContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_vlanContext;
@@ -39,9 +74,13 @@ import org.batfish.vendor.huawei.representation.HuaweiAclLine;
 import org.batfish.vendor.huawei.representation.HuaweiBgpProcess;
 import org.batfish.vendor.huawei.representation.HuaweiConfiguration;
 import org.batfish.vendor.huawei.representation.HuaweiInterface;
+import org.batfish.vendor.huawei.representation.HuaweiNatAddressGroup;
 import org.batfish.vendor.huawei.representation.HuaweiNatRule;
 import org.batfish.vendor.huawei.representation.HuaweiNatRule.NatType;
 import org.batfish.vendor.huawei.representation.HuaweiOspfProcess;
+import org.batfish.vendor.huawei.representation.HuaweiRoutePolicy;
+import org.batfish.vendor.huawei.representation.HuaweiRoutePolicy.HuaweiRoutePolicyNode;
+import org.batfish.vendor.huawei.representation.HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action;
 import org.batfish.vendor.huawei.representation.HuaweiStaticRoute;
 import org.batfish.vendor.huawei.representation.HuaweiVlan;
 import org.batfish.vendor.huawei.representation.HuaweiVrf;
@@ -64,6 +103,8 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   private HuaweiVrf _currentVrf;
   private Integer _currentVlanId;
   private String _pendingVlanDescription;
+  private Long _currentOspfAreaId;
+  private HuaweiRoutePolicyNode _currentRoutePolicyNode;
 
   public HuaweiControlPlaneExtractor(
       String text, HuaweiCombinedParser parser, Warnings w, SilentSyntaxCollection silentSyntax) {
@@ -257,6 +298,207 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     // If UNDO SHUTDOWN, the interface is not shutdown (enabled)
     boolean isShutdown = ctx.SHUTDOWN() != null && ctx.UNDO() == null;
     iface.setShutdown(isShutdown);
+  }
+
+  /**
+   * Process exit from if_ospf_area rule - extract OSPF area for interface.
+   *
+   * <p>Extracts OSPF area ID from "ospf area {@code <area-id>}" command on interface.
+   */
+  @Override
+  public void exitIf_ospf_area(If_ospf_areaContext ctx) {
+    if (_currentInterfaceName == null || ctx.area_id == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    try {
+      long areaId = Long.parseLong(ctx.area_id.getText());
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+          ospfProcess
+              .getInterfaces()
+              .computeIfAbsent(
+                  _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+      settings.setAreaId(areaId);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid OSPF area ID at line %d: %s",
+              ctx.area_id.getStart().getLine(), ctx.area_id.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from if_ospf_cost rule - extract OSPF cost for interface.
+   *
+   * <p>Extracts OSPF cost from "ospf cost {@code <value>}" command on interface.
+   */
+  @Override
+  public void exitIf_ospf_cost(If_ospf_costContext ctx) {
+    if (_currentInterfaceName == null || ctx.cost == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    try {
+      int cost = Integer.parseInt(ctx.cost.getText());
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+          ospfProcess
+              .getInterfaces()
+              .computeIfAbsent(
+                  _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+      settings.setCost(cost);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid OSPF cost at line %d: %s",
+              ctx.cost.getStart().getLine(), ctx.cost.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from if_ospf_network_type rule - extract OSPF network type for interface.
+   *
+   * <p>Extracts OSPF network type from "ospf network-type {@code <type>}" command on interface.
+   */
+  @Override
+  public void exitIf_ospf_network_type(If_ospf_network_typeContext ctx) {
+    if (_currentInterfaceName == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    String networkType = null;
+    if (ctx.BROADCAST() != null) {
+      networkType = "BROADCAST";
+    } else if (ctx.P2P() != null) {
+      networkType = "P2P";
+    } else if (ctx.P2MP() != null) {
+      networkType = "P2MP";
+    } else if (ctx.NBMA() != null) {
+      networkType = "NBMA";
+    }
+
+    if (networkType != null) {
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+          ospfProcess
+              .getInterfaces()
+              .computeIfAbsent(
+                  _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+      settings.setNetworkType(networkType);
+    }
+  }
+
+  /**
+   * Process exit from if_ospf_timers rule - extract OSPF timers for interface.
+   *
+   * <p>Extracts OSPF timers from "ospf timer {@code <type>} {@code <seconds>}" command on
+   * interface.
+   */
+  @Override
+  public void exitIf_ospf_timers(If_ospf_timersContext ctx) {
+    if (_currentInterfaceName == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    try {
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+          ospfProcess
+              .getInterfaces()
+              .computeIfAbsent(
+                  _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+
+      if (ctx.h != null) {
+        settings.setHelloInterval(Integer.parseInt(ctx.h.getText()));
+      } else if (ctx.d != null) {
+        settings.setDeadInterval(Integer.parseInt(ctx.d.getText()));
+      } else if (ctx.r != null) {
+        settings.setRetransmitInterval(Integer.parseInt(ctx.r.getText()));
+      }
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format("Invalid OSPF timer value at line %d", ctx.getStart().getLine());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from if_ospf_authentication rule - extract OSPF authentication for interface.
+   *
+   * <p>Extracts OSPF authentication from "ospf authentication-mode {@code <type>} {@code <key>}"
+   * command on interface.
+   */
+  @Override
+  public void exitIf_ospf_authentication(If_ospf_authenticationContext ctx) {
+    if (_currentInterfaceName == null || ctx.key == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    String authType = null;
+    if (ctx.MD5() != null) {
+      authType = "MD5";
+    } else if (ctx.SIMPLE() != null) {
+      authType = "SIMPLE";
+    }
+
+    if (authType != null) {
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+          ospfProcess
+              .getInterfaces()
+              .computeIfAbsent(
+                  _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+      settings.setAuthType(authType);
+      settings.setAuthKey(ctx.key.getText());
+    }
+  }
+
+  /**
+   * Process exit from if_ospf_passive rule - extract OSPF passive setting for interface.
+   *
+   * <p>Extracts OSPF passive setting from "ospf [enable|disable] passive" command on interface.
+   */
+  @Override
+  public void exitIf_ospf_passive(If_ospf_passiveContext ctx) {
+    if (_currentInterfaceName == null) {
+      return;
+    }
+
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    boolean passive = ctx.ENABLE() != null;
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        ospfProcess
+            .getInterfaces()
+            .computeIfAbsent(
+                _currentInterfaceName, k -> new HuaweiOspfProcess.HuaweiOspfInterfaceSettings());
+    settings.setPassive(passive);
   }
 
   /**
@@ -615,26 +857,179 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   /**
    * Process exit from bgp_peer rule - extract BGP peer configuration.
    *
-   * <p>Extracts BGP peer IP address and AS number.
+   * <p>Extracts BGP peer IP address and AS number, and stores the peer configuration in the BGP
+   * process.
    */
   @Override
   public void exitBgp_peer(Bgp_peerContext ctx) {
     HuaweiBgpProcess bgpProcess = _configuration.getBgpProcess();
-    if (bgpProcess == null || ctx.peer_ip == null || ctx.peer_as == null) {
+    if (bgpProcess == null || ctx.peer_ip == null) {
       return;
     }
 
     try {
-      // Store peer info in a simple map for now (Phase 5)
-      // Full BGP conversion will be implemented in future phases
-      // For now, we just track that BGP is configured with peers
-      Ip.parse(ctx.peer_ip.getText());
-      Long.parseLong(ctx.peer_as.getText());
+      // Parse peer IP address
+      Ip peerIp = Ip.parse(ctx.peer_ip.getText());
+
+      // Parse peer AS number (optional in grammar, but required for valid configuration)
+      Long peerAs = null;
+      if (ctx.peer_as != null) {
+        peerAs = Long.parseLong(ctx.peer_as.getText());
+      }
+
+      // Create BGP active peer configuration
+      BgpActivePeerConfig.Builder peerBuilder =
+          BgpActivePeerConfig.builder().setPeerAddress(peerIp);
+
+      if (peerAs != null) {
+        peerBuilder.setRemoteAsns(LongSpace.of(peerAs));
+      }
+
+      // Extract optional peer parameters (e.g., connect-interface, password, group)
+      String groupName = null;
+      if (ctx.bgp_peer_param() != null) {
+        for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peer_paramContext paramCtx :
+            ctx.bgp_peer_param()) {
+          if (paramCtx.iface != null) {
+            // Connect-interface parameter - logged for future use
+            // The BgpActivePeerConfig doesn't have a direct way to store this,
+            // it would need to be resolved to an IP address or stored separately
+          } else if (paramCtx.group_name != null) {
+            // Peer group assignment
+            groupName = paramCtx.group_name.getText();
+            peerBuilder.setGroup(groupName);
+          }
+          // Password and other parameters are ignored for now
+        }
+      }
+
+      // Add the peer to the BGP process
+      bgpProcess.addNeighbor(peerIp, peerBuilder.build());
 
     } catch (Exception e) {
       String warning =
           String.format(
               "Invalid BGP peer configuration at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from bgp_peer_group rule - extract BGP peer group configuration.
+   *
+   * <p>Extracts BGP peer group name and type (internal/external).
+   */
+  @Override
+  public void exitBgp_peer_group(Bgp_peer_groupContext ctx) {
+    HuaweiBgpProcess bgpProcess = _configuration.getBgpProcess();
+    if (bgpProcess == null || ctx.group_name == null) {
+      return;
+    }
+
+    try {
+      String groupName = ctx.group_name.getText();
+      HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgpProcess.getOrCreatePeerGroup(groupName);
+
+      // Extract type (internal/external)
+      for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_group_paramContext paramCtx :
+          ctx.bgp_group_param()) {
+        if (paramCtx.INTERNAL() != null) {
+          peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.INTERNAL);
+        } else if (paramCtx.EXTERNAL() != null) {
+          peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
+        } else if (paramCtx.as_num != null) {
+          peerGroup.setRemoteAs(Long.parseLong(paramCtx.as_num.getText()));
+        } else if (paramCtx.password != null) {
+          peerGroup.setPassword(paramCtx.password.getText());
+        } else if (paramCtx.policy != null) {
+          String policy = paramCtx.policy.getText();
+          if (paramCtx.IMPORT() != null) {
+            peerGroup.setRoutePolicyIn(policy);
+          } else if (paramCtx.EXPORT() != null) {
+            peerGroup.setRoutePolicyOut(policy);
+          } else {
+            // Default to import if not specified
+            peerGroup.setRoutePolicyIn(policy);
+          }
+        } else if (paramCtx.ROUTE_REFLECTOR_CLIENT() != null) {
+          peerGroup.setRouteReflectorClient(true);
+          if (paramCtx.id != null) {
+            peerGroup.setClusterId(paramCtx.id.getText());
+          }
+        }
+      }
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Invalid BGP peer group configuration at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from bgp_network rule - extract BGP network announcement.
+   *
+   * <p>Extracts network prefix and optional route-map.
+   */
+  @Override
+  public void exitBgp_network(Bgp_networkContext ctx) {
+    HuaweiBgpProcess bgpProcess = _configuration.getBgpProcess();
+    if (bgpProcess == null || ctx.network_addr == null || ctx.network_mask == null) {
+      return;
+    }
+
+    try {
+      Ip networkAddr = Ip.parse(ctx.network_addr.getText());
+      Ip networkMask = Ip.parse(ctx.network_mask.getText());
+
+      // Create prefix from address and mask
+      Prefix network = Prefix.create(networkAddr, networkMask);
+
+      HuaweiBgpProcess.HuaweiBgpNetwork bgpNetwork =
+          new HuaweiBgpProcess.HuaweiBgpNetwork(network, networkMask);
+
+      if (ctx.policy != null) {
+        bgpNetwork.setRoutePolicy(ctx.policy.getText());
+      }
+
+      bgpProcess.addNetwork(bgpNetwork);
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing BGP network at line %d: %s", ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from bgp_import rule - extract BGP import-route (redistribution) configuration.
+   *
+   * <p>Extracts the protocol name and optional route-policy for redistribution into BGP.
+   */
+  @Override
+  public void exitBgp_import(Bgp_importContext ctx) {
+    HuaweiBgpProcess bgpProcess = _configuration.getBgpProcess();
+    if (bgpProcess == null || ctx.protocol == null) {
+      return;
+    }
+
+    try {
+      String protocol = ctx.protocol.getText().toLowerCase();
+      HuaweiBgpProcess.HuaweiBgpImportRoute importRoute =
+          new HuaweiBgpProcess.HuaweiBgpImportRoute(protocol);
+
+      if (ctx.policy != null) {
+        importRoute.setRoutePolicy(ctx.policy.getText());
+      }
+
+      bgpProcess.addImportRoute(importRoute);
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing BGP import-route at line %d: %s",
               ctx.getStart().getLine(), e.getMessage());
       _w.redFlag(warning);
     }
@@ -722,8 +1117,8 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         protocol = "icmp";
       } else if (ctx.IP() != null) {
         protocol = "ip";
-      } else if (ctx.variable() != null) {
-        protocol = ctx.variable().getText().toLowerCase();
+      } else if (!ctx.variable().isEmpty()) {
+        protocol = ctx.variable(0).getText().toLowerCase();
       }
       line.setProtocol(protocol);
 
@@ -798,6 +1193,44 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         }
       }
 
+      // Extract ICMP type
+      if (ctx.icmp_type != null) {
+        try {
+          line.setIcmpType(Integer.parseInt(ctx.icmp_type.getText()));
+        } catch (NumberFormatException e) {
+          // Invalid ICMP type, ignore
+        }
+      }
+
+      // Extract ICMP code (requires icmp-type)
+      if (ctx.icmp_code != null) {
+        try {
+          line.setIcmpCode(Integer.parseInt(ctx.icmp_code.getText()));
+        } catch (NumberFormatException e) {
+          // Invalid ICMP code, ignore
+        }
+      }
+
+      // Extract TCP established flag
+      if (ctx.established != null) {
+        line.setEstablished(true);
+      }
+
+      // Extract fragment flag
+      if (ctx.frag != null) {
+        line.setFragment(true);
+      }
+
+      // Extract logging flag
+      if (ctx.log != null) {
+        line.setLogging(true);
+      }
+
+      // Extract time-range name
+      if (ctx.time_range_name != null) {
+        line.setTimeRange(ctx.time_range_name.getText());
+      }
+
       // Add the line to the ACL
       _currentAcl.addLine(line);
 
@@ -805,6 +1238,180 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       String warning =
           String.format(
               "Error parsing ACL rule at line %d: %s", ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process entry to s_acl_ipv6 rule - create IPv6 ACL object.
+   *
+   * <p>Creates HuaweiAcl object with name/number for IPv6 ACL.
+   */
+  @Override
+  public void enterS_acl_ipv6(HuaweiParser.S_acl_ipv6Context ctx) {
+    String aclName = null;
+
+    // Extract ACL name/number
+    if (ctx.acl_name_ipv6 != null) {
+      aclName = ctx.acl_name_ipv6.getText();
+    } else if (ctx.acl_num_ipv6 != null) {
+      aclName = ctx.acl_num_ipv6.getText();
+    }
+
+    if (aclName != null) {
+      _currentAcl = new HuaweiAcl(aclName, AclType.ADVANCED); // IPv6 ACLs are always advanced
+      _currentAcl.setIpv6(true);
+      _configuration.addAcl(aclName, _currentAcl);
+    }
+  }
+
+  /**
+   * Process exit from s_acl_ipv6 rule - clear current ACL context.
+   *
+   * <p>Called when exiting an IPv6 ACL configuration block.
+   */
+  @Override
+  public void exitS_acl_ipv6(HuaweiParser.S_acl_ipv6Context ctx) {
+    _currentAcl = null;
+  }
+
+  /**
+   * Process exit from acl_ipv6_rule rule - extract permit/deny rule for IPv6.
+   *
+   * <p>Extracts IPv6 ACL rule information including action, protocol, source, destination, and
+   * ports.
+   */
+  @Override
+  public void exitAcl_ipv6_rule(HuaweiParser.Acl_ipv6_ruleContext ctx) {
+    if (_currentAcl == null) {
+      return;
+    }
+
+    try {
+      // Extract action (permit/deny)
+      String action = "deny"; // Default to deny
+      if (ctx.action != null) {
+        action = ctx.action.getText().toLowerCase();
+      }
+
+      // Create ACL line with sequence number (use size of existing lines + 1)
+      int seqNum = _currentAcl.getLines().size() + 1;
+      HuaweiAclLine line = new HuaweiAclLine(seqNum, action);
+      line.setIpv6(true);
+
+      // Extract protocol
+      String protocol = "ipv6"; // Default to IPv6 (any protocol)
+      if (ctx.TCP() != null) {
+        protocol = "tcp";
+      } else if (ctx.UDP() != null) {
+        protocol = "udp";
+      } else if (ctx.ICMPV6() != null) {
+        protocol = "icmpv6";
+      } else if (!ctx.variable().isEmpty()) {
+        protocol = ctx.variable(0).getText().toLowerCase();
+      }
+      line.setProtocol(protocol);
+
+      // Extract source IPv6 address (IPV6_PREFIX already includes prefix length)
+      if (ctx.src_addr_ipv6 != null) {
+        line.setSource(ctx.src_addr_ipv6.getText());
+      } else if (ctx.src_any_ipv6 != null) {
+        line.setSource("any");
+      }
+
+      // Extract destination IPv6 address (IPV6_PREFIX already includes prefix length)
+      if (ctx.dest_addr_ipv6 != null) {
+        line.setDestination(ctx.dest_addr_ipv6.getText());
+      } else if (ctx.dest_any_ipv6 != null) {
+        line.setDestination("any");
+      }
+
+      // Extract source port
+      if (ctx.src_port_ipv6 != null || ctx.src_port_start_ipv6 != null) {
+        String portOp = "";
+        if (ctx.eq != null) {
+          portOp = "eq ";
+        } else if (ctx.gt != null) {
+          portOp = "gt ";
+        } else if (ctx.lt != null) {
+          portOp = "lt ";
+        } else if (ctx.range != null
+            && ctx.src_port_start_ipv6 != null
+            && ctx.src_port_end_ipv6 != null) {
+          portOp = "range " + ctx.src_port_start_ipv6.getText() + " ";
+          line.setSourcePort(portOp + ctx.src_port_end_ipv6.getText());
+        }
+        if (!portOp.isEmpty() && ctx.src_port_ipv6 != null) {
+          line.setSourcePort(portOp + ctx.src_port_ipv6.getText());
+        }
+      }
+
+      // Extract destination port
+      if (ctx.dest_port_ipv6 != null || ctx.dest_port_start_ipv6 != null) {
+        String portOp = "";
+        if (ctx.eq2 != null) {
+          portOp = "eq ";
+        } else if (ctx.gt2 != null) {
+          portOp = "gt ";
+        } else if (ctx.lt2 != null) {
+          portOp = "lt ";
+        } else if (ctx.range2 != null
+            && ctx.dest_port_start_ipv6 != null
+            && ctx.dest_port_end_ipv6 != null) {
+          portOp = "range " + ctx.dest_port_start_ipv6.getText() + " ";
+          line.setDestinationPort(portOp + ctx.dest_port_end_ipv6.getText());
+        }
+        if (!portOp.isEmpty() && ctx.dest_port_ipv6 != null) {
+          line.setDestinationPort(portOp + ctx.dest_port_ipv6.getText());
+        }
+      }
+
+      // Extract ICMPv6 type
+      if (ctx.icmp_type_ipv6 != null) {
+        try {
+          line.setIcmpType(Integer.parseInt(ctx.icmp_type_ipv6.getText()));
+        } catch (NumberFormatException e) {
+          // Invalid ICMP type, ignore
+        }
+      }
+
+      // Extract ICMPv6 code (requires icmp-type)
+      if (ctx.icmp_code_ipv6 != null) {
+        try {
+          line.setIcmpCode(Integer.parseInt(ctx.icmp_code_ipv6.getText()));
+        } catch (NumberFormatException e) {
+          // Invalid ICMP code, ignore
+        }
+      }
+
+      // Extract TCP established flag
+      if (ctx.established_ipv6 != null) {
+        line.setEstablished(true);
+      }
+
+      // Extract fragment flag
+      if (ctx.frag != null) {
+        line.setFragment(true);
+      }
+
+      // Extract logging flag
+      if (ctx.log != null) {
+        line.setLogging(true);
+      }
+
+      // Extract time-range name
+      if (ctx.time_range_name_ipv6 != null) {
+        line.setTimeRange(ctx.time_range_name_ipv6.getText());
+      }
+
+      // Add the line to the ACL
+      _currentAcl.addLine(line);
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing IPv6 ACL rule at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
       _w.redFlag(warning);
     }
   }
@@ -894,8 +1501,60 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
 
       // Handle nat address-group
       else if (ctx.ADDRESS_GROUP() != null) {
-        // For now, just note that address groups exist
-        // Full implementation would parse and store the address pool
+        // Extract address group index
+        if (ctx.group_index != null) {
+          try {
+            int groupIndex = Integer.parseInt(ctx.group_index.getText());
+            HuaweiNatAddressGroup addressGroup = new HuaweiNatAddressGroup(groupIndex);
+
+            // Check if we have IP addresses to add
+            if (ctx.ip_address() != null && !ctx.ip_address().isEmpty()) {
+              // Check if SECTION format (section 0 start-ip end-ip)
+              if (ctx.SECTION() != null) {
+                // SECTION format: section 0 <start-ip> <end-ip>
+                if (ctx.ip_address().size() >= 2) {
+                  Ip startIp = Ip.parse(ctx.ip_address(0).getText());
+                  Ip endIp = Ip.parse(ctx.ip_address(1).getText());
+                  addressGroup.addRange(startIp, endIp);
+                }
+              } else if (ctx.ADDRESS() != null) {
+                // ADDRESS format: address <ip> [mask <mask>]
+                Ip startIp = Ip.parse(ctx.ip_address(0).getText());
+                Ip endIp = startIp; // Single IP, so start=end
+                Ip mask = null;
+
+                // Check if MASK is provided (second IP address in the list)
+                if (ctx.MASK() != null && ctx.ip_address().size() >= 2) {
+                  mask = Ip.parse(ctx.ip_address(1).getText());
+                }
+
+                addressGroup.addRange(startIp, endIp, mask);
+              }
+              // Simple format: just IP address (no explicit ADDRESS keyword)
+              else if (!ctx.ip_address().isEmpty()) {
+                Ip ip = Ip.parse(ctx.ip_address(0).getText());
+                // Check if second IP is a mask or end of range
+                if (ctx.ip_address().size() >= 2) {
+                  // Determine if it's a mask or range based on context
+                  Ip secondIp = Ip.parse(ctx.ip_address(1).getText());
+                  // If SECTION was used, second IP is end of range
+                  // Otherwise assume it's a range
+                  addressGroup.addRange(ip, secondIp);
+                } else {
+                  addressGroup.addRange(ip, ip);
+                }
+              }
+            }
+
+            _configuration.addNatAddressGroup(addressGroup);
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid NAT address-group index at line %d: %s",
+                    ctx.group_index.getStart().getLine(), ctx.group_index.getText());
+            _w.redFlag(warning);
+          }
+        }
       }
 
       // Handle nat outbound (dynamic NAT / Easy IP)
@@ -993,6 +1652,23 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts area ID from the "area" command and creates area in OSPF process.
    */
   @Override
+  public void enterOspf_area(Ospf_areaContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || ctx.area_id == null) {
+      return;
+    }
+
+    try {
+      long areaId = Long.parseLong(ctx.area_id.getText());
+      _currentOspfAreaId = areaId;
+      // Create the area immediately so sub-stanzas can access it
+      ospfProcess.getOrCreateArea(areaId);
+    } catch (NumberFormatException e) {
+      // Will be handled in exitOspf_area
+    }
+  }
+
+  @Override
   public void exitOspf_area(Ospf_areaContext ctx) {
     HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
     if (ospfProcess == null) {
@@ -1016,6 +1692,8 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       long areaId = Long.parseLong(ctx.area_id.getText());
       // Create or get the area
       HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getOrCreateArea(areaId);
+      // Track this as the current area for subsequent area sub-stanza processing
+      _currentOspfAreaId = areaId;
       // Verify area was added
       if (area != null) {
         // Successfully created/retrieved area
@@ -1087,6 +1765,344 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   }
 
   /**
+   * Process exit from area_stub rule - extract stub area configuration.
+   *
+   * <p>Extracts stub area settings including no-summary option.
+   */
+  @Override
+  public void exitArea_stub(Area_stubContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || _currentOspfAreaId == null) {
+      return;
+    }
+
+    HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getAreas().get(_currentOspfAreaId);
+    if (area != null) {
+      area.setAreaType(HuaweiOspfProcess.OspfAreaType.STUB);
+      area.setNoSummary(ctx.no_summary != null);
+    }
+  }
+
+  /**
+   * Process exit from area_nssa rule - extract NSSA area configuration.
+   *
+   * <p>Extracts NSSA area settings including no-summary, no-redistribute, and
+   * default-information-originate options.
+   */
+  @Override
+  public void exitArea_nssa(Area_nssaContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || _currentOspfAreaId == null) {
+      return;
+    }
+
+    HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getAreas().get(_currentOspfAreaId);
+    if (area != null) {
+      area.setAreaType(HuaweiOspfProcess.OspfAreaType.NSSA);
+      area.setNoSummary(ctx.NO_SUMMARY() != null);
+      area.setNoRedistribute(ctx.NO_REDISTRIBUTE() != null);
+      area.setDefaultOriginate(ctx.DEFAULT_INFORMATION_ORIGINATE() != null);
+    }
+  }
+
+  /**
+   * Process exit from area_authentication rule - extract area authentication.
+   *
+   * <p>Extracts authentication type (MD5 or SIMPLE) and key.
+   */
+  @Override
+  public void exitArea_authentication(Area_authenticationContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || _currentOspfAreaId == null) {
+      return;
+    }
+
+    HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getAreas().get(_currentOspfAreaId);
+    if (area != null) {
+      if (ctx.MD5() != null) {
+        area.setAuthType("MD5");
+        if (ctx.key != null) {
+          area.setAuthKey(ctx.key.getText());
+        }
+      } else if (ctx.SIMPLE() != null) {
+        area.setAuthType("SIMPLE");
+        if (ctx.key != null) {
+          area.setAuthKey(ctx.key.getText());
+        }
+      }
+    }
+  }
+
+  /**
+   * Process exit from area_abr_summary rule - extract area route summarization.
+   *
+   * <p>Extracts ABR route summarization (abr-summary) settings including prefix, advertise status,
+   * and optional cost value. This is Huawei's equivalent to Cisco's "area range" command.
+   */
+  @Override
+  public void exitArea_abr_summary(Area_abr_summaryContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || _currentOspfAreaId == null) {
+      return;
+    }
+
+    HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getAreas().get(_currentOspfAreaId);
+    if (area == null || ctx.ip_addr == null || ctx.ip_mask == null) {
+      return;
+    }
+
+    try {
+      // Parse IP address and mask to create a prefix
+      Ip addr = Ip.parse(ctx.ip_addr.getText());
+      Ip mask = Ip.parse(ctx.ip_mask.getText());
+      Prefix prefix = Prefix.create(addr, mask);
+
+      // Determine if this summary should be advertised
+      boolean advertise = ctx.NOT_ADVERTISE() == null;
+
+      // Parse optional cost value
+      Long cost = null;
+      if (ctx.cost_value != null) {
+        cost = Long.parseLong(ctx.cost_value.getText());
+      }
+
+      // Create and add the area range
+      HuaweiOspfProcess.HuaweiOspfAreaRange areaRange =
+          new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix, advertise, cost);
+      area.addAreaRange(prefix, areaRange);
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing OSPF area abr-summary at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from ospf_default_originate rule - extract default route origination.
+   *
+   * <p>Extracts default-information originate settings with optional route map.
+   */
+  @Override
+  public void exitOspf_default_originate(Ospf_default_originateContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    ospfProcess.setDefaultOriginate(true);
+    if (ctx.route_map != null) {
+      ospfProcess.setDefaultOriginateRouteMap(ctx.route_map.getText());
+    }
+  }
+
+  /**
+   * Process exit from ospf_virtual_link rule - extract virtual link configuration.
+   *
+   * <p>Extracts virtual link settings including router ID and optional timers.
+   */
+  @Override
+  public void exitOspf_virtual_link(Ospf_virtual_linkContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null || ctx.router_id == null) {
+      return;
+    }
+
+    try {
+      Ip routerId = Ip.parse(ctx.router_id.getText());
+      HuaweiOspfProcess.HuaweiOspfVirtualLink virtualLink =
+          new HuaweiOspfProcess.HuaweiOspfVirtualLink(routerId);
+
+      if (ctx.h != null) {
+        virtualLink.setHelloInterval(Integer.parseInt(ctx.h.getText()));
+      }
+      if (ctx.d != null) {
+        virtualLink.setDeadInterval(Integer.parseInt(ctx.d.getText()));
+      }
+
+      ospfProcess.addVirtualLink(virtualLink);
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing OSPF virtual link at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from ospf_import_route rule - extract route redistribution configuration.
+   *
+   * <p>Extracts import-route settings which configure redistribution of other routing protocols
+   * into OSPF.
+   */
+  @Override
+  public void exitOspf_import_route(Ospf_import_routeContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    try {
+      // Determine the protocol being redistributed
+      HuaweiOspfProcess.HuaweiRedistributionProtocol protocol;
+      if (ctx.DIRECT() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.DIRECT;
+      } else if (ctx.STATIC() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC;
+      } else if (ctx.OSPF() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.OSPF;
+      } else if (ctx.BGP() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.BGP;
+      } else if (ctx.RIP() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.RIP;
+      } else if (ctx.ISIS() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.ISIS;
+      } else if (ctx.UNR() != null) {
+        protocol = HuaweiOspfProcess.HuaweiRedistributionProtocol.UNR;
+      } else {
+        // Unknown protocol - should not happen given grammar
+        String warning =
+            String.format("Unknown redistribution protocol at line %d", ctx.getStart().getLine());
+        _w.redFlag(warning);
+        return;
+      }
+
+      // Create the redistribution policy
+      HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy =
+          new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(protocol);
+
+      // Extract values from child rules
+      for (Ospf_import_costContext costCtx : ctx.ospf_import_cost()) {
+        if (costCtx.cost != null) {
+          try {
+            policy.setCost(Long.parseLong(costCtx.cost.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF redistribution cost at line %d: %s",
+                    costCtx.cost.getStart().getLine(), costCtx.cost.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+      for (Ospf_import_typeContext typeCtx : ctx.ospf_import_type()) {
+        if (typeCtx.type_value != null) {
+          try {
+            policy.setType(Integer.parseInt(typeCtx.type_value.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF redistribution type at line %d: %s",
+                    typeCtx.type_value.getStart().getLine(), typeCtx.type_value.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+      for (Ospf_import_tagContext tagCtx : ctx.ospf_import_tag()) {
+        if (tagCtx.tag != null) {
+          try {
+            policy.setTag(Long.parseLong(tagCtx.tag.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF redistribution tag at line %d: %s",
+                    tagCtx.tag.getStart().getLine(), tagCtx.tag.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+      for (Ospf_import_route_policyContext policyCtx : ctx.ospf_import_route_policy()) {
+        if (policyCtx.route_policy != null) {
+          policy.setRoutePolicy(policyCtx.route_policy.getText());
+        }
+      }
+
+      // Add the redistribution policy to the OSPF process
+      ospfProcess.addRedistributionPolicy(protocol, policy);
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing OSPF import-route at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from ospf_default rule - extract default cost, tag, and type values.
+   *
+   * <p>Extracts "default cost", "default tag", and "default type" commands which set global
+   * defaults for redistributed routes.
+   */
+  @Override
+  public void exitOspf_default(Ospf_defaultContext ctx) {
+    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
+    if (ospfProcess == null) {
+      return;
+    }
+
+    try {
+      // Extract optional default cost
+      for (Ospf_default_costContext costCtx : ctx.ospf_default_cost()) {
+        if (costCtx.cost != null) {
+          try {
+            ospfProcess.setDefaultCost(Long.parseLong(costCtx.cost.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF default cost at line %d: %s",
+                    costCtx.cost.getStart().getLine(), costCtx.cost.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+      // Extract optional default tag
+      for (Ospf_default_tagContext tagCtx : ctx.ospf_default_tag()) {
+        if (tagCtx.tag != null) {
+          try {
+            ospfProcess.setDefaultTag(Long.parseLong(tagCtx.tag.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF default tag at line %d: %s",
+                    tagCtx.tag.getStart().getLine(), tagCtx.tag.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+      // Extract optional default type (1 or 2 for external routes)
+      for (Ospf_default_typeContext typeCtx : ctx.ospf_default_type()) {
+        if (typeCtx.type_value != null) {
+          try {
+            ospfProcess.setDefaultType(Integer.parseInt(typeCtx.type_value.getText()));
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid OSPF default type at line %d: %s",
+                    typeCtx.type_value.getStart().getLine(), typeCtx.type_value.getText());
+            _w.redFlag(warning);
+          }
+        }
+      }
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing OSPF default command at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
    * Process entry to s_vrf rule - create VRF object.
    *
    * <p>Creates HuaweiVrf object with VRF name.
@@ -1149,5 +2165,221 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   @Override
   public void exitS_vrf(S_vrfContext ctx) {
     _currentVrf = null;
+  }
+
+  /**
+   * Process entry to s_route_policy rule - create route-policy node.
+   *
+   * <p>Creates HuaweiRoutePolicy and HuaweiRoutePolicyNode objects for the route-policy definition.
+   * Each route-policy node is defined with: route-policy &lt;name&gt; permit|deny node
+   * &lt;node-id&gt;
+   */
+  @Override
+  public void enterS_route_policy(S_route_policyContext ctx) {
+    if (ctx.name == null || ctx.node_id == null) {
+      return;
+    }
+
+    try {
+      String policyName = ctx.name.getText();
+      int nodeId = Integer.parseInt(ctx.node_id.getText());
+
+      // Determine action (permit or deny)
+      Action action = Action.PERMIT;
+      if (ctx.action != null && ctx.action.DENY() != null) {
+        action = Action.DENY;
+      }
+
+      // Get or create the route-policy
+      HuaweiRoutePolicy policy = _configuration.getRoutePolicy(policyName);
+      if (policy == null) {
+        policy = new HuaweiRoutePolicy(policyName);
+        _configuration.addRoutePolicy(policyName, policy);
+      }
+
+      // Create the route-policy node and set it as current
+      HuaweiRoutePolicyNode node = new HuaweiRoutePolicyNode(nodeId, action);
+      policy.addNode(node);
+      _currentRoutePolicyNode = node;
+
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid route-policy node ID at line %d: %s",
+              ctx.node_id.getStart().getLine(), ctx.node_id.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from s_route_policy rule - clear current route-policy node context.
+   *
+   * <p>Called when exiting a route-policy node definition.
+   */
+  @Override
+  public void exitS_route_policy(S_route_policyContext ctx) {
+    _currentRoutePolicyNode = null;
+  }
+
+  /**
+   * Process exit from if_match_ip_prefix rule.
+   *
+   * <p>Extracts IP prefix list name from "if-match ip-prefix &lt;prefix-list-name&gt;" command.
+   */
+  @Override
+  public void exitIf_match_ip_prefix(If_match_ip_prefixContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.prefix_list == null) {
+      return;
+    }
+
+    String prefixList = ctx.prefix_list.getText();
+    _currentRoutePolicyNode.getMatchConditions().setIpPrefix(prefixList);
+  }
+
+  /**
+   * Process exit from if_match_community_filter rule.
+   *
+   * <p>Extracts community filter number from "if-match community-filter &lt;number&gt;" command.
+   */
+  @Override
+  public void exitIf_match_community_filter(If_match_community_filterContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.filter_num == null) {
+      return;
+    }
+
+    try {
+      int filterNum = Integer.parseInt(ctx.filter_num.getText());
+      _currentRoutePolicyNode.getMatchConditions().setCommunityFilter(filterNum);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid community-filter number at line %d: %s",
+              ctx.filter_num.getStart().getLine(), ctx.filter_num.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from if_match_community rule.
+   *
+   * <p>Extracts community list from "if-match community &lt;communities&gt;" command.
+   */
+  @Override
+  public void exitIf_match_community(If_match_communityContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.community_list == null) {
+      return;
+    }
+
+    // Store the raw community list text for later parsing
+    // Full community parsing would require additional context
+    String communityText = ctx.community_list.getText();
+    // TODO: Parse community list text into Community objects
+  }
+
+  /**
+   * Process exit from apply_local_preference rule.
+   *
+   * <p>Extracts local preference value from "apply local-preference &lt;value&gt;" command.
+   */
+  @Override
+  public void exitApply_local_preference(Apply_local_preferenceContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.pref == null) {
+      return;
+    }
+
+    try {
+      long localPref = Long.parseLong(ctx.pref.getText());
+      _currentRoutePolicyNode.getSetActions().setLocalPreference(localPref);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid local-preference value at line %d: %s",
+              ctx.pref.getStart().getLine(), ctx.pref.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from apply_community rule.
+   *
+   * <p>Extracts community value from "apply community &lt;community-value&gt;" command.
+   */
+  @Override
+  public void exitApply_community(Apply_communityContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.community_val == null) {
+      return;
+    }
+
+    // Store the raw community value text for later parsing
+    // TODO: Parse community value text into Community objects
+    String communityText = ctx.community_val.getText();
+  }
+
+  /**
+   * Process exit from apply_cost rule.
+   *
+   * <p>Extracts cost value from "apply cost &lt;value&gt;" command.
+   */
+  @Override
+  public void exitApply_cost(Apply_costContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.cost == null) {
+      return;
+    }
+
+    try {
+      int cost = Integer.parseInt(ctx.cost.getText());
+      _currentRoutePolicyNode.getSetActions().setCost(cost);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid cost value at line %d: %s",
+              ctx.cost.getStart().getLine(), ctx.cost.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from apply_preference rule.
+   *
+   * <p>Extracts preference value from "apply preference &lt;value&gt;" command.
+   */
+  @Override
+  public void exitApply_preference(Apply_preferenceContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.preference == null) {
+      return;
+    }
+
+    try {
+      int preference = Integer.parseInt(ctx.preference.getText());
+      _currentRoutePolicyNode.getSetActions().setPreference(preference);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid preference value at line %d: %s",
+              ctx.preference.getStart().getLine(), ctx.preference.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from apply_tag rule.
+   *
+   * <p>Extracts tag value from "apply tag &lt;value&gt;" command.
+   */
+  @Override
+  public void exitApply_tag(Apply_tagContext ctx) {
+    if (_currentRoutePolicyNode == null || ctx.tag == null) {
+      return;
+    }
+
+    try {
+      long tag = Long.parseLong(ctx.tag.getText());
+      _currentRoutePolicyNode.getSetActions().setTag(tag);
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid tag value at line %d: %s", ctx.tag.getStart().getLine(), ctx.tag.getText());
+      _w.redFlag(warning);
+    }
   }
 }
