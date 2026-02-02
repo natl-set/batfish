@@ -25,7 +25,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
   private static final long serialVersionUID = 1L;
 
   /** Hostname of the device */
-  @Nullable private String _hostname;
+  private @Nullable String _hostname;
 
   /** Map of interface names to interface configurations */
   private SortedMap<String, HuaweiInterface> _interfaces;
@@ -34,22 +34,34 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
   private SortedMap<Integer, HuaweiVlan> _vlans;
 
   /** List of static routes */
-  @Nonnull private List<HuaweiStaticRoute> _staticRoutes;
+  private @Nonnull List<HuaweiStaticRoute> _staticRoutes;
+
+  /** List of NAT rules */
+  private @Nonnull List<HuaweiNatRule> _natRules;
+
+  /** Map of NAT address group indices to address group configurations */
+  private SortedMap<Integer, HuaweiNatAddressGroup> _natAddressGroups;
 
   /** BGP process configuration (stub for future implementation) */
-  @Nullable private HuaweiBgpProcess _bgpProcess;
+  private @Nullable HuaweiBgpProcess _bgpProcess;
 
   /** OSPF process configuration (stub for future implementation) */
-  @Nullable private HuaweiOspfProcess _ospfProcess;
+  private @Nullable HuaweiOspfProcess _ospfProcess;
 
   /** VRF configurations (stub for future implementation) */
   private SortedMap<String, HuaweiVrf> _vrfs;
+
+  /** Map of ACL names/numbers to ACL configurations */
+  private SortedMap<String, HuaweiAcl> _acls;
 
   public HuaweiConfiguration() {
     _interfaces = ImmutableSortedMap.of();
     _vlans = ImmutableSortedMap.of();
     _staticRoutes = new ArrayList<>();
+    _natRules = new ArrayList<>();
+    _natAddressGroups = ImmutableSortedMap.of();
     _vrfs = ImmutableSortedMap.of();
+    _acls = ImmutableSortedMap.of();
   }
 
   /**
@@ -78,8 +90,8 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return The hostname, or null if not set
    */
-  @Nullable
-  public String getHostname() {
+  @Override
+  public @Nullable String getHostname() {
     return _hostname;
   }
 
@@ -88,6 +100,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @param hostname The hostname to set
    */
+  @Override
   public void setHostname(@Nullable String hostname) {
     _hostname = hostname;
   }
@@ -97,8 +110,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return A sorted map of interface names to interface configurations
    */
-  @Nonnull
-  public SortedMap<String, HuaweiInterface> getInterfaces() {
+  public @Nonnull SortedMap<String, HuaweiInterface> getInterfaces() {
     return _interfaces;
   }
 
@@ -117,8 +129,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    * @param name The interface name
    * @return The interface configuration, or null if not found
    */
-  @Nullable
-  public HuaweiInterface getInterface(String name) {
+  public @Nullable HuaweiInterface getInterface(String name) {
     return _interfaces.get(name);
   }
 
@@ -140,8 +151,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return A sorted map of VLAN IDs to VLAN configurations
    */
-  @Nonnull
-  public SortedMap<Integer, HuaweiVlan> getVlans() {
+  public @Nonnull SortedMap<Integer, HuaweiVlan> getVlans() {
     return _vlans;
   }
 
@@ -160,8 +170,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    * @param vlanId The VLAN ID
    * @return The VLAN configuration, or null if not found
    */
-  @Nullable
-  public HuaweiVlan getVlan(int vlanId) {
+  public @Nullable HuaweiVlan getVlan(int vlanId) {
     return _vlans.get(vlanId);
   }
 
@@ -183,8 +192,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return A list of static routes
    */
-  @Nonnull
-  public List<HuaweiStaticRoute> getStaticRoutes() {
+  public @Nonnull List<HuaweiStaticRoute> getStaticRoutes() {
     return _staticRoutes;
   }
 
@@ -207,12 +215,38 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
   }
 
   /**
+   * Gets the list of NAT rules.
+   *
+   * @return A list of NAT rules
+   */
+  public @Nonnull List<HuaweiNatRule> getNatRules() {
+    return _natRules;
+  }
+
+  /**
+   * Sets the list of NAT rules.
+   *
+   * @param natRules The list of NAT rules to set
+   */
+  public void setNatRules(@Nonnull List<HuaweiNatRule> natRules) {
+    _natRules = natRules;
+  }
+
+  /**
+   * Adds a NAT rule to the configuration.
+   *
+   * @param natRule The NAT rule to add
+   */
+  public void addNatRule(HuaweiNatRule natRule) {
+    _natRules.add(natRule);
+  }
+
+  /**
    * Gets the BGP process configuration.
    *
    * @return The BGP process, or null if not configured
    */
-  @Nullable
-  public HuaweiBgpProcess getBgpProcess() {
+  public @Nullable HuaweiBgpProcess getBgpProcess() {
     return _bgpProcess;
   }
 
@@ -230,8 +264,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return The OSPF process, or null if not configured
    */
-  @Nullable
-  public HuaweiOspfProcess getOspfProcess() {
+  public @Nullable HuaweiOspfProcess getOspfProcess() {
     return _ospfProcess;
   }
 
@@ -249,8 +282,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
    *
    * @return A sorted map of VRF names to VRF configurations
    */
-  @Nonnull
-  public SortedMap<String, HuaweiVrf> getVrfs() {
+  public @Nonnull SortedMap<String, HuaweiVrf> getVrfs() {
     return _vrfs;
   }
 
@@ -274,5 +306,87 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
         ImmutableSortedMap.<String, HuaweiVrf>naturalOrder().putAll(_vrfs);
     builder.put(name, vrf);
     _vrfs = builder.build();
+  }
+
+  /**
+   * Gets the map of ACLs.
+   *
+   * @return A sorted map of ACL names/numbers to ACL configurations
+   */
+  public @Nonnull SortedMap<String, HuaweiAcl> getAcls() {
+    return _acls;
+  }
+
+  /**
+   * Sets the ACLs map.
+   *
+   * @param acls The map of ACL names/numbers to ACL configurations
+   */
+  public void setAcls(@Nonnull SortedMap<String, HuaweiAcl> acls) {
+    _acls = acls;
+  }
+
+  /**
+   * Gets a specific ACL by name or number.
+   *
+   * @param name The ACL name or number
+   * @return The ACL configuration, or null if not found
+   */
+  public @Nullable HuaweiAcl getAcl(String name) {
+    return _acls.get(name);
+  }
+
+  /**
+   * Adds or updates an ACL.
+   *
+   * @param name The ACL name or number
+   * @param acl The ACL configuration
+   */
+  public void addAcl(String name, HuaweiAcl acl) {
+    ImmutableSortedMap.Builder<String, HuaweiAcl> builder =
+        ImmutableSortedMap.<String, HuaweiAcl>naturalOrder().putAll(_acls);
+    builder.put(name, acl);
+    _acls = builder.build();
+  }
+
+  /**
+   * Gets the map of NAT address groups.
+   *
+   * @return A sorted map of address group indices to address group configurations
+   */
+  public @Nonnull SortedMap<Integer, HuaweiNatAddressGroup> getNatAddressGroups() {
+    return _natAddressGroups;
+  }
+
+  /**
+   * Sets the NAT address groups map.
+   *
+   * @param natAddressGroups The map of address group indices to address group configurations
+   */
+  public void setNatAddressGroups(
+      @Nonnull SortedMap<Integer, HuaweiNatAddressGroup> natAddressGroups) {
+    _natAddressGroups = natAddressGroups;
+  }
+
+  /**
+   * Gets a specific NAT address group by index.
+   *
+   * @param index The address group index
+   * @return The address group configuration, or null if not found
+   */
+  public @Nullable HuaweiNatAddressGroup getNatAddressGroup(int index) {
+    return _natAddressGroups.get(index);
+  }
+
+  /**
+   * Adds or updates a NAT address group.
+   *
+   * @param addressGroup The address group configuration to add
+   */
+  public void addNatAddressGroup(HuaweiNatAddressGroup addressGroup) {
+    ImmutableSortedMap.Builder<Integer, HuaweiNatAddressGroup> builder =
+        ImmutableSortedMap.<Integer, HuaweiNatAddressGroup>naturalOrder().putAll(_natAddressGroups);
+    builder.put(addressGroup.getIndex(), addressGroup);
+    _natAddressGroups = builder.build();
   }
 }

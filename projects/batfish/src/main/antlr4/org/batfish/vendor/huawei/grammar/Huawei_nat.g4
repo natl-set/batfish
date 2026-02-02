@@ -13,12 +13,31 @@ s_nat
 :
    NAT
    (
-      // NAT address-group
-      ADDRESS_GROUP uint16
+      // NAT server - put FIRST because "server" keyword might be matched as variable otherwise
+      NO? SERVER
       (
-         ADDRESS ip_address
-         | MASK ip_address
-      )*
+         GLOBAL ip_address INSIDE ip_address
+         |
+         PROTOCOL (TCP | UDP) GLOBAL ip_address global_port_proto = uint16 INSIDE ip_address inside_port_proto = uint16
+         |
+         GLOBAL ip_address global_port_simple = uint16 INSIDE ip_address
+      )
+      (
+         VPN_INSTANCE VARIABLE
+      )?
+      |
+      // NAT address-group
+      // Format: nat address-group <index> [section 0 <start-ip> <end-ip>]
+      // Or: nat address-group <index> <start-ip> <end-ip>
+      // Or: nat address-group <index> address <ip> [mask <mask>]
+      ADDRESS_GROUP group_index = uint16
+      (
+         SECTION uint8 ip_address ip_address
+         |
+         ADDRESS ip_address (MASK ip_address)?
+         |
+         ip_address ip_address
+      )?
       |
       // NAT outbound
       NO? OUTBOUND
@@ -30,7 +49,7 @@ s_nat
       (
          INTERFACE
          |
-         pool_name = variable
+         POOL pool_name = variable
       )?
       (
          VPN_INSTANCE vrf_name = variable
@@ -46,22 +65,6 @@ s_nat
       (
          VPN_INSTANCE VARIABLE
       )?
-      |
-      // NAT server
-      NO? SERVER
-      (
-         GLOBAL ip_address INSIDE ip_address
-         |
-         PROTOCOL (TCP | UDP) GLOBAL ip_address global_port_proto = UINT16 INSIDE ip_address inside_port_proto = UINT16
-         |
-         GLOBAL ip_address global_port_simple = UINT16 INSIDE ip_address
-      )
-      (
-         VPN_INSTANCE VARIABLE
-      )?
-      |
-      // Other NAT commands (ignored)
-      null_rest_of_line
    )
 ;
 
@@ -79,11 +82,14 @@ nat_substanza
 nat_address_group
 :
    NO?
-   ADDRESS_GROUP uint16
+   ADDRESS_GROUP group_index = uint16
    (
-      ADDRESS ip_address
-      | MASK ip_address
-   )*
+      SECTION uint8 ip_address ip_address
+      |
+      ADDRESS ip_address (MASK ip_address)?
+      |
+      ip_address ip_address
+   )?
 ;
 
 // NAT outbound configuration (dynamic NAT / Easy IP)

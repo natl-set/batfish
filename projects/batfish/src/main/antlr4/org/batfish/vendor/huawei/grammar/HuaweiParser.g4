@@ -35,6 +35,7 @@ s_stanza
    | s_ospf
    | s_static_route
    | s_acl
+   | s_acl_ipv6
    | s_nat
    | s_vrf
    | s_return
