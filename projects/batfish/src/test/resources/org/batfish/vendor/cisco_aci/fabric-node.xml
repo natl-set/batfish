@@ -1,35 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<polUni>
-  <attributes>
-    <dn>uni</dn>
-    <name>aci-fabric</name>
-  </attributes>
-  <children>
-    <fabricInst>
-      <attributes>
-        <dn>uni/fabric</dn>
-      </attributes>
-      <children>
-        <fabricProtPol>
-          <attributes/>
-          <children>
-            <fabricExplicitGEp>
-              <attributes/>
-              <children>
-                <fabricNodePEp>
-                  <attributes>
-                    <dn>uni/fabric/nodePEp-101</dn>
-                    <id>101</id>
-                    <name>spine1</name>
-                    <role>spine</role>
-                    <podId>1</podId>
-                  </attributes>
-                </fabricNodePEp>
-              </children>
-            </fabricExplicitGEp>
-          </children>
-        </fabricProtPol>
-      </children>
-    </fabricInst>
-  </children>
+<polUni dn="uni" name="aci-fabric">
+  <fabricInst dn="uni/fabric">
+    <fabricProtPol>
+      <fabricExplicitGEp>
+        <fabricNodePEp dn="uni/fabric/nodePEp-101" id="101" name="spine1" role="spine" podId="1"/>
+      </fabricExplicitGEp>
+    </fabricProtPol>
+  </fabricInst>
 </polUni>

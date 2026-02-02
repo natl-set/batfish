@@ -1,57 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <polUni>
-  <children>
-    <fvTenant>
-      <attributes>
-        <name>tenant1</name>
-        <descr>Test Tenant</descr>
-      </attributes>
-      <children>
-        <fvCtx>
-          <attributes>
-            <name>vrf1</name>
-            <descr>Test VRF</descr>
-          </attributes>
-        </fvCtx>
-        <fvBD>
-          <attributes>
-            <name>bd1</name>
-            <descr>Test Bridge Domain</descr>
-          </attributes>
-          <children>
-            <fvRsCtx>
-              <attributes>
-                <tnFvCtxName>vrf1</tnFvCtxName>
-              </attributes>
-            </fvRsCtx>
-            <fvSubnet>
-              <attributes>
-                <ip>10.0.0.0/24</ip>
-              </attributes>
-            </fvSubnet>
-          </children>
-        </fvBD>
-        <fvAEPg>
-          <attributes>
-            <name>epg1</name>
-            <descr>Test EPG</descr>
-          </attributes>
-          <children>
-            <fvRsBd>
-              <attributes>
-                <tnFvBDName>bd1</tnFvBDName>
-              </attributes>
-            </fvRsBd>
-          </children>
-        </fvAEPg>
-      </children>
-    </fvTenant>
-    <fvTenant>
-      <attributes>
-        <name>tenant2</name>
-        <descr>Second Test Tenant</descr>
-      </attributes>
-      <children/>
-    </fvTenant>
-  </children>
+  <fvTenant name="tenant1" descr="Test Tenant">
+    <fvCtx name="vrf1" descr="Test VRF"/>
+    <fvBD name="bd1" descr="Test Bridge Domain">
+      <fvRsCtx tnFvCtxName="vrf1"/>
+      <fvSubnet ip="10.0.0.0/24"/>
+    </fvBD>
+    <fvAEPg name="epg1" descr="Test EPG">
+      <fvRsBd tnFvBDName="bd1"/>
+    </fvAEPg>
+  </fvTenant>
+  <fvTenant name="tenant2" descr="Second Test Tenant"/>
 </polUni>
