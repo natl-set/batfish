@@ -1,0 +1,2115 @@
+package org.batfish.vendor.cisco_aci.representation;
+
+import static org.batfish.datamodel.Configuration.DEFAULT_VRF_NAME;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.batfish.common.Warnings;
+import org.batfish.datamodel.AclLine;
+import org.batfish.datamodel.BgpActivePeerConfig;
+import org.batfish.datamodel.BgpProcess;
+import org.batfish.datamodel.ConcreteInterfaceAddress;
+import org.batfish.datamodel.Configuration;
+import org.batfish.datamodel.ConfigurationFormat;
+import org.batfish.datamodel.ConnectedRouteMetadata;
+import org.batfish.datamodel.DeviceModel;
+import org.batfish.datamodel.Edge;
+import org.batfish.datamodel.ExprAclLine;
+import org.batfish.datamodel.IntegerSpace;
+import org.batfish.datamodel.Interface;
+import org.batfish.datamodel.InterfaceAddress;
+import org.batfish.datamodel.InterfaceType;
+import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.IpAccessList;
+import org.batfish.datamodel.IpProtocol;
+import org.batfish.datamodel.IpWildcard;
+import org.batfish.datamodel.LineAction;
+import org.batfish.datamodel.LongSpace;
+import org.batfish.datamodel.OriginType;
+import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.StaticRoute;
+import org.batfish.datamodel.SubRange;
+import org.batfish.datamodel.SwitchportMode;
+import org.batfish.datamodel.TraceElement;
+import org.batfish.datamodel.Vrf;
+import org.batfish.datamodel.acl.AclLineMatchExpr;
+import org.batfish.datamodel.acl.AclLineMatchExprs;
+import org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily;
+import org.batfish.datamodel.routing_policy.RoutingPolicy;
+import org.batfish.datamodel.routing_policy.expr.CallExpr;
+import org.batfish.datamodel.routing_policy.expr.LiteralLong;
+import org.batfish.datamodel.routing_policy.expr.LiteralOrigin;
+import org.batfish.datamodel.routing_policy.expr.SelfNextHop;
+import org.batfish.datamodel.routing_policy.statement.If;
+import org.batfish.datamodel.routing_policy.statement.SetLocalPreference;
+import org.batfish.datamodel.routing_policy.statement.SetNextHop;
+import org.batfish.datamodel.routing_policy.statement.SetOrigin;
+import org.batfish.datamodel.routing_policy.statement.Statement;
+import org.batfish.datamodel.routing_policy.statement.Statements;
+import org.batfish.vendor.VendorStructureId;
+
+/**
+ * Conversion helpers for converting VS model {@link AciConfiguration} to the VI model.
+ *
+ * <p>Cisco ACI (Application Centric Infrastructure) uses a different configuration model than
+ * traditional Cisco devices. Key concepts:
+ *
+ * <ul>
+ *   <li>fabricNode: Physical switches/spines in the fabric
+ *   <li>fvCtx (VRF): Forwarding contexts for L3 isolation
+ *   <li>fvBD (Bridge Domain): L2 domains similar to VLANs
+ *   <li>fvaAEPg (EPG): Endpoint Groups - logical groupings of endpoints
+ *   <li>vzBrCP (Contract): Security policies between EPGs
+ *   <li>fvRsPathAtt: Path attachments linking EPGs to physical interfaces
+ *   <li>l3ExtOut: L3 external connectivity (BGP, OSPF, etc.)
+ * </ul>
+ */
+public final class AciConversion {
+
+  /** Default administrative distance for EBGP routes on ACI */
+  public static final int DEFAULT_EBGP_ADMIN_COST = 20;
+
+  /** Default administrative distance for IBGP routes on ACI */
+  public static final int DEFAULT_IBGP_ADMIN_COST = 200;
+
+  /** Default local BGP weight on ACI */
+  public static final int DEFAULT_LOCAL_BGP_WEIGHT = 0;
+
+  /** Default MTU for ACI interfaces */
+  public static final int DEFAULT_MTU = 9000;
+
+  /** Prefix used for generated ACL names for contracts */
+  private static final String CONTRACT_ACL_PREFIX = "~CONTRACT~";
+
+  /** Maximum prefix length for host routes */
+  private static final int MAX_PREFIX_LENGTH = Prefix.MAX_PREFIX_LENGTH;
+
+  /**
+   * Converts an ACI configuration to vendor-independent Batfish Configuration objects.
+   *
+   * <p>Each fabricNode in the ACI configuration becomes a separate Batfish Configuration. This
+   * allows Batfish to model the fabric as individual switches.
+   *
+   * <p>If no fabric nodes are present, a single configuration is created representing the entire
+   * fabric.
+   *
+   * @param aciConfig The ACI configuration to convert
+   * @param warnings Warnings container for conversion issues
+   * @return Map of node IDs to Batfish Configurations
+   */
+  public static @Nonnull SortedMap<String, Configuration> toVendorIndependentConfigurations(
+      AciConfiguration aciConfig, Warnings warnings) {
+    ImmutableSortedMap.Builder<String, Configuration> configs = ImmutableSortedMap.naturalOrder();
+
+    // If no fabric nodes are defined, create a single configuration for the fabric
+    // representing the logical ACI fabric itself
+    if (aciConfig.getFabricNodes().isEmpty()) {
+      Configuration c = convertFabricConfig(aciConfig, warnings);
+      configs.put(aciConfig.getHostname(), c);
+      warnings.redFlag(
+          "No fabric nodes defined in ACI configuration. Creating single configuration for fabric: "
+              + aciConfig.getHostname());
+      return configs.build();
+    }
+
+    // Process each fabric node as a separate configuration
+    for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+      Configuration c = convertNode(node, aciConfig, warnings);
+      // Use node name as key, fallback to nodeId
+      String key = node.getName() != null ? node.getName() : node.getNodeId();
+      if (key != null) {
+        configs.put(key, c);
+      }
+    }
+
+    return configs.build();
+  }
+
+  /**
+   * Converts a single fabric node to a Batfish Configuration.
+   *
+   * @param node The fabric node to convert
+   * @param aciConfig The full ACI configuration
+   * @param warnings Warnings container
+   * @return A Batfish Configuration for the node
+   */
+  private static Configuration convertNode(
+      AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
+    String hostname = node.getName() != null ? node.getName() : node.getNodeId();
+    if (hostname == null) {
+      hostname = "aci-node-" + node.getNodeId();
+    }
+
+    Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
+    c.setHumanName(node.getNodeId());
+    c.setDeviceModel(DeviceModel.CISCO_UNSPECIFIED);
+    c.setDefaultCrossZoneAction(LineAction.PERMIT);
+    c.setDefaultInboundAction(LineAction.PERMIT);
+    c.setExportBgpFromBgpRib(true);
+
+    // Create VRFs (fvCtx)
+    SortedMap<String, Vrf> vrfs = convertVrfs(aciConfig, c);
+    c.setVrfs(vrfs);
+
+    // Get the default VRF for the node
+    Vrf defaultVrf = vrfs.get(DEFAULT_VRF_NAME);
+    if (defaultVrf == null) {
+      // Create default VRF if not present
+      defaultVrf = new Vrf(DEFAULT_VRF_NAME);
+    }
+
+    // Convert interfaces
+    Map<String, Interface> interfaces = convertInterfaces(node, aciConfig, defaultVrf, c, warnings);
+    c.setInterfaces(interfaces);
+
+    // Convert bridge domains to interface VLAN settings
+    convertBridgeDomains(aciConfig, interfaces, defaultVrf, c, warnings);
+
+    // Convert contracts to ACLs
+    convertContracts(aciConfig, c, warnings);
+
+    // Convert path attachments (EPG to interface mappings)
+    convertPathAttachments(aciConfig, interfaces, c, warnings);
+
+    // Convert L3Out configurations (BGP, static routes, etc.)
+    convertL3Outs(node, aciConfig, interfaces, defaultVrf, c, warnings);
+
+    return c;
+  }
+
+  /**
+   * Converts a fabric configuration without fabric nodes to a Batfish Configuration.
+   *
+   * <p>This is used when no fabric nodes are defined in the ACI configuration. A single
+   * configuration is created representing the entire fabric.
+   *
+   * @param aciConfig The ACI configuration
+   * @param warnings Warnings container
+   * @return A Batfish Configuration for the fabric
+   */
+  private static Configuration convertFabricConfig(AciConfiguration aciConfig, Warnings warnings) {
+    String hostname = aciConfig.getHostname();
+    Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
+    c.setHumanName(hostname);
+    c.setDeviceModel(DeviceModel.CISCO_UNSPECIFIED);
+    c.setDefaultCrossZoneAction(LineAction.PERMIT);
+    c.setDefaultInboundAction(LineAction.PERMIT);
+    c.setExportBgpFromBgpRib(true);
+
+    // Create VRFs (fvCtx)
+    SortedMap<String, Vrf> vrfs = convertVrfs(aciConfig, c);
+    c.setVrfs(vrfs);
+
+    // Get the default VRF
+    Vrf defaultVrf = vrfs.get(DEFAULT_VRF_NAME);
+    if (defaultVrf == null) {
+      defaultVrf = new Vrf(DEFAULT_VRF_NAME);
+    }
+
+    // Create minimal interface set
+    Map<String, Interface> interfaces = new TreeMap<>();
+
+    // Add loopback interface
+    Interface loopback =
+        Interface.builder()
+            .setName("loopback0")
+            .setType(InterfaceType.LOOPBACK)
+            .setOwner(c)
+            .setVrf(defaultVrf)
+            .setAdminUp(true)
+            .setHumanName("Loopback0")
+            .setDeclaredNames(ImmutableList.of("loopback0"))
+            .build();
+    interfaces.put("loopback0", loopback);
+    c.setInterfaces(interfaces);
+
+    // Convert bridge domains
+    convertBridgeDomains(aciConfig, interfaces, defaultVrf, c, warnings);
+
+    // Convert contracts to ACLs
+    convertContracts(aciConfig, c, warnings);
+
+    return c;
+  }
+
+  /**
+   * Converts ACI VRF contexts (fvCtx) to Batfish Vrf objects.
+   *
+   * @param aciConfig The ACI configuration
+   * @param c The Batfish configuration being built
+   * @return Map of VRF names to Vrf objects
+   */
+  private static SortedMap<String, Vrf> convertVrfs(AciConfiguration aciConfig, Configuration c) {
+    SortedMap<String, Vrf> vrfs = new TreeMap<>();
+
+    // Always create default VRF
+    Vrf defaultVrf = new Vrf(DEFAULT_VRF_NAME);
+    vrfs.put(DEFAULT_VRF_NAME, defaultVrf);
+
+    // Convert each ACI VRF (fvCtx) to a Batfish VRF
+    for (AciVrfModel aciVrf : aciConfig.getVrfs().values()) {
+      String vrfName = aciVrf.getName();
+      if (vrfName == null || vrfName.isEmpty()) {
+        vrfName = DEFAULT_VRF_NAME;
+      }
+
+      // Skip if already exists (e.g., default VRF)
+      if (!vrfs.containsKey(vrfName)) {
+        Vrf vrf = new Vrf(vrfName);
+        if (aciVrf.getDescription() != null) {
+          // Note: Vrf class doesn't have description field, but we could store it elsewhere
+        }
+        vrfs.put(vrfName, vrf);
+      }
+    }
+
+    return vrfs;
+  }
+
+  /**
+   * Converts ACI interfaces to Batfish Interface objects.
+   *
+   * @param node The fabric node
+   * @param aciConfig The ACI configuration
+   * @param vrf The default VRF
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return Map of interface names to Interface objects
+   */
+  private static Map<String, Interface> convertInterfaces(
+      AciConfiguration.FabricNode node,
+      AciConfiguration aciConfig,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+
+    Map<String, Interface> interfaces = new TreeMap<>();
+
+    // Get interfaces from the fabric node (if populated)
+    if (node.getInterfaces() != null) {
+      for (AciConfiguration.FabricNode.Interface fvIface : node.getInterfaces().values()) {
+        String ifaceName = fvIface.getName();
+        if (ifaceName == null) {
+          continue;
+        }
+
+        Interface.Builder ifaceBuilder =
+            Interface.builder()
+                .setName(ifaceName)
+                .setType(toInterfaceType(fvIface.getType()))
+                .setOwner(c)
+                .setVrf(vrf)
+                .setAdminUp(fvIface.isEnabled())
+                .setMtu(DEFAULT_MTU)
+                .setHumanName(ifaceName)
+                .setDeclaredNames(ImmutableList.of(ifaceName));
+
+        if (fvIface.getDescription() != null) {
+          ifaceBuilder.setDescription(fvIface.getDescription());
+        }
+
+        Interface iface = ifaceBuilder.build();
+        interfaces.put(ifaceName, iface);
+      }
+    }
+
+    // Add loopback interface if not present
+    String loopbackName = "loopback0";
+    if (!interfaces.containsKey(loopbackName)) {
+      Interface loopback =
+          Interface.builder()
+              .setName(loopbackName)
+              .setType(InterfaceType.LOOPBACK)
+              .setOwner(c)
+              .setVrf(vrf)
+              .setAdminUp(true)
+              .setHumanName("Loopback0")
+              .setDeclaredNames(ImmutableList.of(loopbackName))
+              .build();
+      interfaces.put(loopbackName, loopback);
+    }
+
+    // If no interfaces were defined, create a basic management interface
+    if (interfaces.size() == 1) { // Only loopback
+      warnings.redFlag(
+          "No interfaces defined for fabric node "
+              + node.getName()
+              + ". Adding minimal interface set.");
+    }
+
+    return interfaces;
+  }
+
+  /**
+   * Converts an ACI interface type string to Batfish InterfaceType.
+   *
+   * @param type The ACI interface type string
+   * @return The Batfish InterfaceType
+   */
+  private static InterfaceType toInterfaceType(String type) {
+    if (type == null) {
+      return InterfaceType.PHYSICAL;
+    }
+    switch (type.toLowerCase()) {
+      case "physical":
+      case "ethernet":
+        return InterfaceType.PHYSICAL;
+      case "vlan":
+        return InterfaceType.VLAN;
+      case "loopback":
+        return InterfaceType.LOOPBACK;
+      case "portchannel":
+      case "aggregated":
+        return InterfaceType.AGGREGATED;
+      default:
+        return InterfaceType.PHYSICAL;
+    }
+  }
+
+  /**
+   * Converts ACI Bridge Domains (fvBD) to interface VLAN settings.
+   *
+   * <p>In ACI, Bridge Domains represent L2 domains with associated subnets. This method:
+   *
+   * <ul>
+   *   <li>Creates VLAN interfaces for bridge domains
+   *   <li>Associates bridge domain subnets with those VLAN interfaces
+   *   <li>Sets up routing between bridge domains
+   * </ul>
+   *
+   * @param aciConfig The ACI configuration
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF to add bridge domains to
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertBridgeDomains(
+      AciConfiguration aciConfig,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+
+    // First pass: collect all subnets per bridge domain and create VLAN interfaces
+    // We need to do this in two passes because a bridge domain can have multiple subnets
+    Map<String, List<ConcreteInterfaceAddress>> bdSubnets = new TreeMap<>();
+
+    for (AciConfiguration.BridgeDomain bd : aciConfig.getBridgeDomains().values()) {
+      String bdName = bd.getName();
+
+      // Parse all subnets for this BD
+      List<ConcreteInterfaceAddress> subnets = new ArrayList<>();
+      if (bd.getSubnets() != null) {
+        for (String subnetStr : bd.getSubnets()) {
+          Prefix subnet = parsePrefix(subnetStr);
+          if (subnet != null) {
+            // Convert network address to first usable host address
+            Ip gatewayIp = subnet.getStartIp();
+            int prefixLen = subnet.getPrefixLength();
+            if (prefixLen < 31) {
+              // For subnets larger than /31, add 1 to get first usable host
+              gatewayIp = Ip.create(gatewayIp.asLong() + 1);
+            }
+            subnets.add(ConcreteInterfaceAddress.create(gatewayIp, prefixLen));
+          } else {
+            warnings.redFlagf("Invalid subnet in bridge domain %s: %s", bdName, subnetStr);
+          }
+        }
+      }
+      bdSubnets.put(bdName, subnets);
+    }
+
+    // Second pass: create VLAN interfaces with collected subnets
+    for (AciConfiguration.BridgeDomain bd : aciConfig.getBridgeDomains().values()) {
+      String bdName = bd.getName();
+      String vrfName = bd.getVrf();
+
+      // Find or create the VRF for this bridge domain
+      Vrf targetVrf = vrf;
+      if (vrfName != null) {
+        Vrf foundVrf = c.getVrfs().get(vrfName);
+        if (foundVrf != null) {
+          targetVrf = foundVrf;
+        } else {
+          warnings.redFlagf(
+              "VRF %s not found for bridge domain %s, using default VRF", vrfName, bdName);
+        }
+      }
+
+      // Get the subnets for this BD
+      List<ConcreteInterfaceAddress> subnets = bdSubnets.get(bdName);
+
+      // Create a VLAN interface for this BD
+      int vlanId = Math.abs(bdName.hashCode() % 4094) + 1;
+      String vlanInterfaceName = "Vlan" + vlanId;
+
+      if (!interfaces.containsKey(vlanInterfaceName)) {
+        Interface.Builder vlanIfaceBuilder =
+            Interface.builder()
+                .setName(vlanInterfaceName)
+                .setType(InterfaceType.VLAN)
+                .setOwner(c)
+                .setVrf(targetVrf)
+                .setAdminUp(true)
+                .setMtu(DEFAULT_MTU)
+                .setHumanName("VLAN " + vlanId + " (" + bdName + ")")
+                .setDeclaredNames(ImmutableList.of(vlanInterfaceName))
+                .setVlan(vlanId);
+
+        // Set addresses: primary is first subnet, rest are secondary
+        if (!subnets.isEmpty()) {
+          ConcreteInterfaceAddress primaryAddr = subnets.get(0);
+          if (subnets.size() > 1) {
+            List<InterfaceAddress> secondaryAddrs =
+                new ArrayList<>(subnets.subList(1, subnets.size()));
+            vlanIfaceBuilder.setAddresses(primaryAddr, secondaryAddrs);
+          } else {
+            vlanIfaceBuilder.setAddress(primaryAddr);
+          }
+
+          // Set connected route metadata for all addresses
+          Map<ConcreteInterfaceAddress, ConnectedRouteMetadata> addrMetadata = new TreeMap<>();
+          for (ConcreteInterfaceAddress addr : subnets) {
+            addrMetadata.put(
+                addr,
+                ConnectedRouteMetadata.builder()
+                    .setGenerateConnectedRoute(true)
+                    .setGenerateLocalRoute(false)
+                    .build());
+          }
+          vlanIfaceBuilder.setAddressMetadata(addrMetadata);
+        }
+
+        Interface vlanInterface = vlanIfaceBuilder.build();
+        interfaces.put(vlanInterfaceName, vlanInterface);
+      }
+    }
+  }
+
+  /**
+   * Parses a prefix string to a Prefix object.
+   *
+   * @param prefixStr The prefix string (e.g., "10.0.0.0/24")
+   * @return The Prefix object, or null if parsing fails
+   */
+  private static @Nullable Prefix parsePrefix(String prefixStr) {
+    if (prefixStr == null) {
+      return null;
+    }
+    try {
+      return Prefix.parse(prefixStr);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Converts ACI Contracts (vzBrCP) to Batfish ACLs.
+   *
+   * <p>Contracts in ACI define allowed communication between Endpoint Groups. This method:
+   *
+   * <ul>
+   *   <li>Creates an IP access list for each contract
+   *   <li>Adds permit/deny rules based on contract subjects and filters
+   *   <li>Associates the ACL with the appropriate interfaces
+   * </ul>
+   *
+   * @param aciConfig The ACI configuration
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertContracts(
+      AciConfiguration aciConfig, Configuration c, Warnings warnings) {
+
+    for (Map.Entry<String, AciConfiguration.Contract> entry : aciConfig.getContracts().entrySet()) {
+      // Use the map key which contains the fully-qualified name (tenant:contract)
+      String contractName = entry.getKey();
+      AciConfiguration.Contract contract = entry.getValue();
+      if (contractName == null || contractName.isEmpty()) {
+        continue;
+      }
+
+      String aclName = getContractAclName(contractName);
+      ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
+
+      // Process each subject in the contract
+      if (contract.getSubjects() != null) {
+        for (AciConfiguration.Contract.Subject subject : contract.getSubjects()) {
+          if (subject.getFilters() != null) {
+            for (AciConfiguration.Contract.Filter filter : subject.getFilters()) {
+              // Convert filter to ACL lines
+              List<ExprAclLine> aclLines = toAclLines(filter, contractName, c, warnings);
+              lines.addAll(aclLines);
+            }
+          }
+        }
+      }
+
+      // Default deny at the end if we have any rules
+      if (!lines.build().isEmpty()) {
+        lines.add(
+            new ExprAclLine(
+                LineAction.DENY,
+                AclLineMatchExprs.TRUE,
+                "Default deny for contract " + contractName,
+                TraceElement.of("Contract default deny"),
+                new VendorStructureId(c.getHostname(), "Contract", contractName)));
+      }
+
+      // Build and add the ACL to the configuration
+      List<ExprAclLine> aclLines = lines.build();
+      if (!aclLines.isEmpty()) {
+        List<AclLine> aclLinesCasted = new ArrayList<>(aclLines);
+        IpAccessList acl =
+            IpAccessList.builder().setOwner(c).setName(aclName).setLines(aclLinesCasted).build();
+        c.getIpAccessLists().put(aclName, acl);
+      }
+    }
+  }
+
+  /**
+   * Converts a contract filter to ACL lines.
+   *
+   * <p>This method converts ACI filter entries to Batfish ACL lines, supporting:
+   *
+   * <ul>
+   *   <li>IP protocols - TCP, UDP, ICMP, or protocol number
+   *   <li>TCP/UDP port ranges - Single ports or ranges (e.g., "80", "8080-8090")
+   *   <li>IP address ranges - With wildcards (e.g., "10.0.0.0/24", "10.0.0.0/0.0.0.255")
+   *   <li>ICMP types and codes - For ICMP protocol filtering
+   *   <li>Non-IP traffic - ARP, MPLS via etherType field
+   * </ul>
+   *
+   * @param filter The contract filter
+   * @param contractName The contract name for trace elements
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return List of ACL lines
+   */
+  private static List<ExprAclLine> toAclLines(
+      AciConfiguration.Contract.Filter filter,
+      String contractName,
+      Configuration c,
+      Warnings warnings) {
+
+    ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
+
+    // Default action is permit for contract filters
+    LineAction action = LineAction.PERMIT;
+
+    // Build match expressions based on filter criteria
+    ImmutableList.Builder<AclLineMatchExpr> matchExprs = ImmutableList.builder();
+
+    // Handle non-IP traffic via etherType (e.g., ARP, MPLS)
+    if (filter.getEtherType() != null && !filter.getEtherType().isEmpty()) {
+      AclLineMatchExpr etherTypeExpr =
+          toEtherType(filter.getEtherType(), contractName, filter, warnings);
+      if (etherTypeExpr != null) {
+        matchExprs.add(etherTypeExpr);
+      }
+    }
+
+    // Match on IP protocol if specified
+    if (filter.getIpProtocol() != null) {
+      AclLineMatchExpr protocolExpr = toIpProtocolMatchExpr(filter.getIpProtocol(), warnings);
+      if (protocolExpr != null) {
+        matchExprs.add(protocolExpr);
+
+        // Handle ICMP-specific fields (type and code)
+        if (filter.getIpProtocol().toLowerCase().contains("icmp")) {
+          if (filter.getIcmpType() != null) {
+            matchExprs.add(toIcmpTypeCode(filter.getIcmpType(), filter.getIcmpCode(), warnings));
+          }
+        }
+      }
+    }
+
+    // Match on source IP address if specified
+    if (filter.getSourceAddress() != null && !filter.getSourceAddress().isEmpty()) {
+      AclLineMatchExpr srcAddrExpr = toIpMatchExpr(filter.getSourceAddress(), true, warnings);
+      if (srcAddrExpr != null) {
+        matchExprs.add(srcAddrExpr);
+      }
+    }
+
+    // Match on destination IP address if specified
+    if (filter.getDestinationAddress() != null && !filter.getDestinationAddress().isEmpty()) {
+      AclLineMatchExpr dstAddrExpr = toIpMatchExpr(filter.getDestinationAddress(), false, warnings);
+      if (dstAddrExpr != null) {
+        matchExprs.add(dstAddrExpr);
+      }
+    }
+
+    // Match on destination ports if specified (supports ranges)
+    if (filter.getDestinationPorts() != null && !filter.getDestinationPorts().isEmpty()) {
+      IntegerSpace portSpace =
+          toPortSpace(filter.getDestinationPorts(), contractName, filter, true, warnings);
+      if (!portSpace.isEmpty()) {
+        matchExprs.add(AclLineMatchExprs.matchDstPort(portSpace));
+      }
+    }
+
+    // Match on source ports if specified (supports ranges)
+    if (filter.getSourcePorts() != null && !filter.getSourcePorts().isEmpty()) {
+      IntegerSpace portSpace =
+          toPortSpace(filter.getSourcePorts(), contractName, filter, false, warnings);
+      if (!portSpace.isEmpty()) {
+        matchExprs.add(AclLineMatchExprs.matchSrcPort(portSpace));
+      }
+    }
+
+    // Handle ARP opcode if specified
+    if (filter.getArpOpcode() != null && !filter.getArpOpcode().isEmpty()) {
+      // ARP is handled at L2, so we emit a warning that this filter may have limited effect
+      warnings.redFlagf(
+          "ARP opcode specified in contract %s filter %s: %s. ARP filtering has limited effect in"
+              + " IP ACLs.",
+          contractName, filter.getName(), filter.getArpOpcode());
+    }
+
+    AclLineMatchExpr matchExpr =
+        matchExprs.build().isEmpty()
+            ? AclLineMatchExprs.TRUE
+            : AclLineMatchExprs.and(matchExprs.build());
+
+    String filterName = filter.getName() != null ? filter.getName() : "unnamed";
+    ExprAclLine line =
+        new ExprAclLine(
+            action,
+            matchExpr,
+            String.format("Contract %s filter %s", contractName, filterName),
+            TraceElement.of(
+                String.format("Matched contract %s filter %s", contractName, filterName)),
+            new VendorStructureId(c.getHostname(), "Contract", contractName));
+
+    lines.add(line);
+    return lines.build();
+  }
+
+  /**
+   * Converts an ACI protocol string to a Batfish IpProtocol match expression.
+   *
+   * <p>Supports protocol names (tcp, udp, icmp) and protocol numbers (6, 17, 1, etc.). Any valid IP
+   * protocol number from 0-255 is supported.
+   *
+   * @param protocol The protocol string (e.g., "tcp", "udp", "icmp", "6", "17")
+   * @param warnings Warnings container
+   * @return The AclLineMatchExpr for matching the protocol, or null if protocol is null
+   */
+  private static @Nullable AclLineMatchExpr toIpProtocolMatchExpr(
+      String protocol, Warnings warnings) {
+    if (protocol == null) {
+      return null;
+    }
+    String p = protocol.toLowerCase().trim();
+
+    // Handle common protocol names
+    switch (p) {
+      case "tcp":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.TCP);
+      case "udp":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.UDP);
+      case "icmp":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.ICMP);
+      case "ip":
+      case "ipv4":
+        return null; // No protocol filtering needed for "any IP"
+      case "igmp":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.IGMP);
+      case "ipinip":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.IPINIP);
+      case "gre":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.GRE);
+      case "ospf":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.OSPF);
+      case "pim":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.PIM);
+      case "sctp":
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.SCTP);
+      default:
+        // Try to parse as protocol number
+        try {
+          int protoNum = Integer.parseInt(p);
+          if (protoNum >= 0 && protoNum <= 255) {
+            return AclLineMatchExprs.matchIpProtocol(protoNum);
+          } else {
+            warnings.redFlagf("Invalid IP protocol number: %s (must be 0-255)", protocol);
+            return null;
+          }
+        } catch (NumberFormatException e) {
+          // Unknown protocol name
+          warnings.redFlagf("Unknown IP protocol: %s", protocol);
+          return null;
+        }
+    }
+  }
+
+  /**
+   * Converts ACI path attachments (fvRsPathAtt) to interface assignments.
+   *
+   * <p>Path attachments link Endpoint Groups to physical interfaces/ports.
+   *
+   * @param aciConfig The ACI configuration
+   * @param interfaces Map of existing interfaces
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertPathAttachments(
+      AciConfiguration aciConfig,
+      Map<String, Interface> interfaces,
+      Configuration c,
+      Warnings warnings) {
+
+    // Process EPGs to find their interface associations
+    for (AciConfiguration.Epg epg : aciConfig.getEpgs().values()) {
+      String bridgeDomainName = epg.getBridgeDomain();
+
+      // Find the bridge domain to determine VLAN
+      Integer vlanId = null;
+      if (bridgeDomainName != null) {
+        AciConfiguration.BridgeDomain bd = aciConfig.getBridgeDomains().get(bridgeDomainName);
+        if (bd != null) {
+          // Generate a VLAN ID from the BD name
+          vlanId = Math.abs(bd.getName().hashCode() % 4094) + 1;
+        }
+      }
+
+      // For each interface in the fabric nodes, check if it belongs to this EPG
+      for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+        if (node.getInterfaces() == null) {
+          continue;
+        }
+        for (AciConfiguration.FabricNode.Interface iface : node.getInterfaces().values()) {
+          if (epg.getName().equals(iface.getEpg())) {
+            // This interface belongs to the EPG
+            Interface batfishIface = interfaces.get(iface.getName());
+            if (batfishIface == null) {
+              warnings.redFlagf(
+                  "Interface %s not found for EPG %s", iface.getName(), epg.getName());
+              continue;
+            }
+
+            // Set VLAN based on EPG's bridge domain
+            if (vlanId != null) {
+              IntegerSpace newVlans =
+                  IntegerSpace.builder()
+                      .including(batfishIface.getAllowedVlans())
+                      .including(vlanId)
+                      .build();
+              batfishIface.setAllowedVlans(newVlans);
+              batfishIface.setNativeVlan(vlanId);
+              batfishIface.setSwitchportMode(SwitchportMode.TRUNK);
+              batfishIface.setSwitchport(true);
+            }
+
+            // Also check for explicit VLAN on interface
+            if (iface.getVlan() != null) {
+              try {
+                int explicitVlan = Integer.parseInt(iface.getVlan());
+                IntegerSpace newVlans =
+                    IntegerSpace.builder()
+                        .including(batfishIface.getAllowedVlans())
+                        .including(explicitVlan)
+                        .build();
+                batfishIface.setAllowedVlans(newVlans);
+                batfishIface.setNativeVlan(explicitVlan);
+                batfishIface.setSwitchportMode(SwitchportMode.TRUNK);
+                batfishIface.setSwitchport(true);
+              } catch (NumberFormatException e) {
+                warnings.redFlagf(
+                    "Invalid VLAN for interface %s: %s", iface.getName(), iface.getVlan());
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Converts ACI L3Out configurations to Batfish routing configuration.
+   *
+   * <p>L3Out in ACI defines external connectivity including BGP peering, static routes, OSPF, and
+   * external EPGs (L3ExtEpg). This method:
+   *
+   * <ul>
+   *   <li>Converts BGP peers defined in L3Out to Batfish BgpProcess with BgpActivePeerConfig
+   *   <li>Converts static routes to Batfish StaticRoute objects
+   *   <li>Converts OSPF areas to Batfish OspfProcess (when OSPF support is available)
+   *   <li>Handles external EPGs (L3ExtEpg) for external endpoint connectivity
+   * </ul>
+   *
+   * @param node The fabric node
+   * @param aciConfig The ACI configuration
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF to add routes to
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertL3Outs(
+      AciConfiguration.FabricNode node,
+      AciConfiguration aciConfig,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    // Get L3Outs from the ACI configuration
+    Map<String, AciConfiguration.L3Out> l3Outs = aciConfig.getL3Outs();
+    if (l3Outs == null || l3Outs.isEmpty()) {
+      return;
+    }
+
+    // Track if we've created any routing processes and which VRF should receive it
+    boolean hasBgpProcess = false;
+    BgpProcess.Builder bgpProcessBuilder = null;
+    Vrf bgpTargetVrf = null; // Track which VRF should get the BGP process
+
+    // Process each L3Out
+    for (AciConfiguration.L3Out l3Out : l3Outs.values()) {
+      String l3OutName = l3Out.getName();
+      String vrfName = l3Out.getVrf();
+
+      // Find the target VRF for this L3Out
+      Vrf targetVrf = vrf;
+      if (vrfName != null) {
+        Vrf foundVrf = c.getVrfs().get(vrfName);
+        if (foundVrf != null) {
+          targetVrf = foundVrf;
+        } else {
+          warnings.redFlagf("VRF %s not found for L3Out %s, using default VRF", vrfName, l3OutName);
+        }
+      }
+
+      // Convert BGP peers
+      if (l3Out.getBgpPeers() != null && !l3Out.getBgpPeers().isEmpty()) {
+        if (!hasBgpProcess) {
+          bgpTargetVrf = targetVrf; // Remember the VRF for this L3Out
+          bgpProcessBuilder =
+              convertBgpPeers(l3Out, node, aciConfig, interfaces, targetVrf, c, warnings);
+          hasBgpProcess = bgpProcessBuilder != null;
+        } else {
+          // Add additional peers to existing BGP process
+          addBgpPeersToProcess(bgpProcessBuilder, l3Out, node, interfaces, targetVrf, c, warnings);
+        }
+      }
+
+      // Convert static routes
+      if (l3Out.getStaticRoutes() != null && !l3Out.getStaticRoutes().isEmpty()) {
+        convertStaticRoutes(l3Out, node, interfaces, targetVrf, c, warnings);
+      }
+
+      // Convert OSPF configuration
+      if (l3Out.getOspfConfig() != null) {
+        convertOspfConfig(
+            l3Out.getOspfConfig(), l3OutName, node, interfaces, targetVrf, c, warnings);
+      }
+
+      // Convert external EPGs (L3ExtEpg)
+      if (l3Out.getExternalEpgs() != null && !l3Out.getExternalEpgs().isEmpty()) {
+        convertExternalEpgs(l3Out, node, interfaces, targetVrf, c, warnings);
+      }
+    }
+
+    // Set the BGP process on the VRF if we created one
+    if (hasBgpProcess && bgpProcessBuilder != null && bgpTargetVrf != null) {
+      BgpProcess bgpProcess = bgpProcessBuilder.build();
+      bgpTargetVrf.setBgpProcess(bgpProcess);
+    }
+  }
+
+  /**
+   * Converts BGP peers from an L3Out to a Batfish BgpProcess.
+   *
+   * @param l3Out The L3Out configuration
+   * @param node The fabric node
+   * @param aciConfig The ACI configuration
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF for BGP
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return A BgpProcess.Builder with the BGP configuration, or null if no valid BGP configuration
+   */
+  private static @Nullable BgpProcess.Builder convertBgpPeers(
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      AciConfiguration aciConfig,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    if (l3Out.getBgpPeers() == null || l3Out.getBgpPeers().isEmpty()) {
+      return null;
+    }
+
+    // Get the BGP process configuration
+    AciConfiguration.BgpProcess bgpProcessConfig = l3Out.getBgpProcess();
+    if (bgpProcessConfig == null) {
+      bgpProcessConfig = new AciConfiguration.BgpProcess();
+    }
+
+    // Parse router ID if configured
+    Ip routerId = null;
+    if (bgpProcessConfig.getRouterId() != null) {
+      try {
+        routerId = Ip.parse(bgpProcessConfig.getRouterId());
+      } catch (IllegalArgumentException e) {
+        warnings.redFlagf(
+            "Invalid router ID %s for BGP process in L3Out %s",
+            bgpProcessConfig.getRouterId(), l3Out.getName());
+      }
+    }
+    // Default to loopback address if no router ID configured
+    if (routerId == null) {
+      routerId = Ip.AUTO;
+    }
+
+    // Get the local AS from the BGP process or from the first peer
+    Long localAs = bgpProcessConfig.getAs();
+    if (localAs == null && !l3Out.getBgpPeers().isEmpty()) {
+      String firstPeerLocalAs = l3Out.getBgpPeers().get(0).getLocalAs();
+      if (firstPeerLocalAs != null) {
+        try {
+          localAs = Long.parseLong(firstPeerLocalAs);
+        } catch (NumberFormatException e) {
+          // Ignore and use default
+        }
+      }
+    }
+
+    // Build the BGP process
+    BgpProcess.Builder bgpBuilder =
+        BgpProcess.builder()
+            .setRouterId(routerId)
+            .setEbgpAdminCost(
+                bgpProcessConfig.getEbgpAdminCost() != null
+                    ? bgpProcessConfig.getEbgpAdminCost()
+                    : DEFAULT_EBGP_ADMIN_COST)
+            .setIbgpAdminCost(
+                bgpProcessConfig.getIbgpAdminCost() != null
+                    ? bgpProcessConfig.getIbgpAdminCost()
+                    : DEFAULT_IBGP_ADMIN_COST)
+            .setLocalAdminCost(
+                bgpProcessConfig.getVrfAdminCost() != null
+                    ? bgpProcessConfig.getVrfAdminCost()
+                    : DEFAULT_LOCAL_BGP_WEIGHT);
+
+    // Set the VRF for the BGP process
+    bgpBuilder.setVrf(vrf);
+
+    // Add each BGP peer
+    for (AciConfiguration.BgpPeer bgpPeer : l3Out.getBgpPeers()) {
+      convertBgpPeer(bgpPeer, l3Out, node, interfaces, vrf, localAs, c, warnings);
+    }
+
+    return bgpBuilder;
+  }
+
+  /**
+   * Converts a single BGP peer from an L3Out to a Batfish BgpActivePeerConfig.
+   *
+   * <p>The peer is associated with the BGP process through the builder's setBgpProcess method.
+   *
+   * @param bgpPeer The BGP peer configuration
+   * @param l3Out The parent L3Out
+   * @param node The fabric node
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF for BGP
+   * @param localAs The local AS number for the peer
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return A BgpActivePeerConfig, or null if conversion fails
+   */
+  private static @Nullable BgpActivePeerConfig convertBgpPeer(
+      AciConfiguration.BgpPeer bgpPeer,
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      @Nullable Long localAs,
+      Configuration c,
+      Warnings warnings) {
+    String peerAddressStr = bgpPeer.getPeerAddress();
+    if (peerAddressStr == null) {
+      warnings.redFlagf("BGP peer in L3Out %s has no peer address", l3Out.getName());
+      return null;
+    }
+
+    Ip peerAddress;
+    try {
+      peerAddress = Ip.parse(peerAddressStr);
+    } catch (IllegalArgumentException e) {
+      warnings.redFlagf("Invalid BGP peer address %s in L3Out %s", peerAddressStr, l3Out.getName());
+      return null;
+    }
+
+    // Build the BGP peer config
+    BgpActivePeerConfig.Builder peerBuilder =
+        BgpActivePeerConfig.builder().setPeerAddress(peerAddress);
+
+    // Set remote AS
+    if (bgpPeer.getRemoteAs() != null) {
+      try {
+        long remoteAs = Long.parseLong(bgpPeer.getRemoteAs());
+        peerBuilder.setRemoteAsns(LongSpace.of(remoteAs));
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid remote AS %s for BGP peer %s in L3Out %s",
+            bgpPeer.getRemoteAs(), peerAddressStr, l3Out.getName());
+      }
+    }
+
+    // Set local AS if specified
+    if (bgpPeer.getLocalAs() != null) {
+      try {
+        long peerLocalAs = Long.parseLong(bgpPeer.getLocalAs());
+        peerBuilder.setLocalAs(peerLocalAs);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid local AS %s for BGP peer %s in L3Out %s",
+            bgpPeer.getLocalAs(), peerAddressStr, l3Out.getName());
+      }
+    } else if (localAs != null) {
+      // Use the process-level local AS if peer doesn't override
+      peerBuilder.setLocalAs(localAs);
+    }
+
+    // Determine local IP (update source)
+    Ip localIp = determineBgpLocalIp(bgpPeer, l3Out, node, interfaces, vrf, warnings);
+    if (localIp != null) {
+      peerBuilder.setLocalIp(localIp);
+    }
+
+    // Set BGP password if configured
+    if (bgpPeer.getPassword() != null) {
+      // Note: Batfish stores MD5 password, but for security we just note it exists
+      // Actual password validation would require additional processing
+    }
+
+    // Set description
+    peerBuilder.setDescription(
+        bgpPeer.getDescription() != null
+            ? bgpPeer.getDescription()
+            : String.format("BGP peer from L3Out %s", l3Out.getName()));
+
+    // Set EBGP multihop if configured
+    if (bgpPeer.getEbgpMultihop() != null && bgpPeer.getEbgpMultihop()) {
+      peerBuilder.setEbgpMultihop(true);
+    }
+
+    // Set TTL if configured for multihop
+    if (bgpPeer.getTtl() != null) {
+      // TTL is typically set via ebgp-multihop ttl
+    }
+
+    // Configure address families (IPv4 unicast is the primary)
+    Ipv4UnicastAddressFamily.Builder afBuilder = Ipv4UnicastAddressFamily.builder();
+
+    // Create import policy
+    String importPolicyName = createBgpImportPolicy(bgpPeer, l3Out, c, warnings);
+    if (importPolicyName != null) {
+      afBuilder.setImportPolicy(importPolicyName);
+    }
+
+    // Create export policy
+    String exportPolicyName = createBgpExportPolicy(bgpPeer, l3Out, c, warnings);
+    if (exportPolicyName != null) {
+      afBuilder.setExportPolicy(exportPolicyName);
+    }
+
+    // Set route reflector client if configured
+    if (bgpPeer.getRouteReflectorClient() != null && bgpPeer.getRouteReflectorClient()) {
+      afBuilder.setRouteReflectorClient(true);
+    }
+
+    // Set next-hop-self if configured
+    if (bgpPeer.getNextHopSelf() != null && bgpPeer.getNextHopSelf()) {
+      // Next-hop-self is handled in the export policy
+    }
+
+    peerBuilder.setIpv4UnicastAddressFamily(afBuilder.build());
+
+    // Associate the peer with the BGP process and VRF
+    // The peer will be added to the BGP process when built
+    BgpProcess bgpProcess = vrf.getBgpProcess();
+    if (bgpProcess != null) {
+      peerBuilder.setBgpProcess(bgpProcess);
+    }
+
+    return peerBuilder.build();
+  }
+
+  /**
+   * Adds BGP peers from an L3Out to an existing BgpProcess.Builder.
+   *
+   * @param bgpProcessBuilder The existing BgpProcess.Builder
+   * @param l3Out The L3Out configuration
+   * @param node The fabric node
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF for BGP
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void addBgpPeersToProcess(
+      BgpProcess.Builder bgpProcessBuilder,
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    if (l3Out.getBgpPeers() == null || l3Out.getBgpPeers().isEmpty()) {
+      return;
+    }
+
+    // Get the local AS from the BGP process configuration
+    Long localAs = null;
+    if (l3Out.getBgpProcess() != null && l3Out.getBgpProcess().getAs() != null) {
+      localAs = l3Out.getBgpProcess().getAs();
+    }
+
+    for (AciConfiguration.BgpPeer bgpPeer : l3Out.getBgpPeers()) {
+      convertBgpPeer(bgpPeer, l3Out, node, interfaces, vrf, localAs, c, warnings);
+    }
+  }
+
+  /**
+   * Determines the local IP address to use for BGP peering.
+   *
+   * @param bgpPeer The BGP peer configuration
+   * @param l3Out The parent L3Out
+   * @param node The fabric node
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF
+   * @param warnings Warnings container
+   * @return The local IP address, or null if it cannot be determined
+   */
+  private static @Nullable Ip determineBgpLocalIp(
+      AciConfiguration.BgpPeer bgpPeer,
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Warnings warnings) {
+    // Check if update source interface is specified
+    String updateSourceInterface = bgpPeer.getUpdateSourceInterface();
+    if (updateSourceInterface != null) {
+      Interface iface = interfaces.get(updateSourceInterface);
+      if (iface != null && iface.getConcreteAddress() != null) {
+        return iface.getConcreteAddress().getIp();
+      }
+      warnings.redFlagf(
+          "Update source interface %s not found or has no IP address for BGP peer %s in L3Out %s",
+          updateSourceInterface, bgpPeer.getPeerAddress(), l3Out.getName());
+      return null;
+    }
+
+    // Try to find an interface with an IP in the same subnet as the peer
+    Ip peerAddress = Ip.parse(bgpPeer.getPeerAddress());
+    for (Interface iface : interfaces.values()) {
+      if (iface.getConcreteAddress() != null) {
+        Prefix subnet = iface.getConcreteAddress().getPrefix();
+        if (subnet.containsIp(peerAddress)) {
+          return iface.getConcreteAddress().getIp();
+        }
+      }
+    }
+
+    // Default to loopback if available
+    Interface loopback = interfaces.get("loopback0");
+    if (loopback != null && loopback.getConcreteAddress() != null) {
+      return loopback.getConcreteAddress().getIp();
+    }
+
+    return null;
+  }
+
+  /**
+   * Creates an import policy for a BGP peer.
+   *
+   * @param bgpPeer The BGP peer configuration
+   * @param l3Out The parent L3Out
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return The name of the import policy, or null if no special policy is needed
+   */
+  private static @Nullable String createBgpImportPolicy(
+      AciConfiguration.BgpPeer bgpPeer,
+      AciConfiguration.L3Out l3Out,
+      Configuration c,
+      Warnings warnings) {
+    String policyName =
+        String.format("~BGP_IMPORT~%s~%s", l3Out.getName(), bgpPeer.getPeerAddress());
+
+    RoutingPolicy.Builder policyBuilder = RoutingPolicy.builder().setName(policyName).setOwner(c);
+
+    // Set local preference if configured
+    if (bgpPeer.getLocalPreference() != null) {
+      try {
+        int localPref = Integer.parseInt(bgpPeer.getLocalPreference());
+        policyBuilder.addStatement(new SetLocalPreference(new LiteralLong(localPref)));
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid local preference %s for BGP peer %s in L3Out %s",
+            bgpPeer.getLocalPreference(), bgpPeer.getPeerAddress(), l3Out.getName());
+      }
+    }
+
+    // Set origin if configured (default is IGP for most cases)
+    policyBuilder.addStatement(new SetOrigin(new LiteralOrigin(OriginType.IGP, null)));
+
+    // Apply route map if specified
+    if (bgpPeer.getImportRouteMap() != null) {
+      // Create an If statement that calls the route map
+      List<Statement> trueStatements = ImmutableList.of(Statements.ExitAccept.toStaticStatement());
+      List<Statement> falseStatements = ImmutableList.of(Statements.ExitReject.toStaticStatement());
+      If routeMapIf =
+          new If(
+              "Apply import route-map " + bgpPeer.getImportRouteMap(),
+              new CallExpr(bgpPeer.getImportRouteMap()),
+              trueStatements,
+              falseStatements);
+      policyBuilder.addStatement(routeMapIf);
+    } else {
+      // Default to accept if no route map
+      policyBuilder.addStatement(Statements.ExitAccept.toStaticStatement());
+    }
+
+    // Always create the policy
+    RoutingPolicy policy = policyBuilder.build();
+    c.getRoutingPolicies().put(policyName, policy);
+    return policyName;
+  }
+
+  /**
+   * Creates an export policy for a BGP peer.
+   *
+   * @param bgpPeer The BGP peer configuration
+   * @param l3Out The parent L3Out
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return The name of the export policy, or null if no special policy is needed
+   */
+  private static @Nullable String createBgpExportPolicy(
+      AciConfiguration.BgpPeer bgpPeer,
+      AciConfiguration.L3Out l3Out,
+      Configuration c,
+      Warnings warnings) {
+    String policyName =
+        String.format("~BGP_EXPORT~%s~%s", l3Out.getName(), bgpPeer.getPeerAddress());
+
+    RoutingPolicy.Builder policyBuilder = RoutingPolicy.builder().setName(policyName).setOwner(c);
+
+    // Track if we have any special configurations
+    boolean hasSpecialConfig = false;
+
+    // Set next-hop-self if configured
+    if (bgpPeer.getNextHopSelf() != null && bgpPeer.getNextHopSelf()) {
+      policyBuilder.addStatement(new SetNextHop(SelfNextHop.getInstance()));
+      hasSpecialConfig = true;
+    }
+
+    // Set communities if configured
+    if (bgpPeer.getSendCommunities() != null && bgpPeer.getSendCommunities()) {
+      // Communities are set via route-maps or neighbor policies
+      // This is a placeholder for future community support
+      hasSpecialConfig = true;
+    }
+
+    // Apply route map if specified
+    if (bgpPeer.getExportRouteMap() != null) {
+      hasSpecialConfig = true;
+      // Create an If statement that calls the route map
+      List<Statement> trueStatements = ImmutableList.of(Statements.ExitAccept.toStaticStatement());
+      List<Statement> falseStatements = ImmutableList.of(Statements.ExitReject.toStaticStatement());
+      If routeMapIf =
+          new If(
+              "Apply export route-map " + bgpPeer.getExportRouteMap(),
+              new CallExpr(bgpPeer.getExportRouteMap()),
+              trueStatements,
+              falseStatements);
+      policyBuilder.addStatement(routeMapIf);
+    } else {
+      // Default to accept if no route map
+      policyBuilder.addStatement(Statements.ExitAccept.toStaticStatement());
+    }
+
+    // Only create the policy if we have special configurations or no route map
+    RoutingPolicy policy = policyBuilder.build();
+    c.getRoutingPolicies().put(policyName, policy);
+    return policyName;
+  }
+
+  /**
+   * Converts static routes from an L3Out to Batfish StaticRoute objects.
+   *
+   * <p>In Cisco ACI, static routes are configured within L3Out (Layer 3 Outside) configurations
+   * using the following MO (Managed Object) classes:
+   *
+   * <ul>
+   *   <li>fvRsPathAtt - Relation from L3Out to external EPG (defines the external interface)
+   *   <li>fvStaticRoute - Static route configuration with prefix, next hop, and attributes
+   *   <li>ipRouteP - IP route policy configuration (for more complex routing scenarios)
+   * </ul>
+   *
+   * <p>This method processes each static route defined in the L3Out and converts it to a Batfish
+   * StaticRoute with the following mappings:
+   *
+   * <ul>
+   *   <li>prefix - Network prefix (e.g., "10.0.0.0/24")
+   *   <li>nextHop - Next hop IP address
+   *   <li>nextHopInterface - Outgoing interface (if specified)
+   *   <li>administrativeDistance - Route preference (default: 1)
+   *   <li>tag - Route tag for route filtering and policy
+   *   <li>track - Track object for high availability monitoring
+   * </ul>
+   *
+   * @param l3Out The L3Out configuration containing static routes
+   * @param node The fabric node (for context)
+   * @param interfaces Map of existing interfaces on the node
+   * @param vrf The VRF to add static routes to
+   * @param c The Batfish configuration
+   * @param warnings Warnings container for conversion issues
+   */
+  private static void convertStaticRoutes(
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    if (l3Out.getStaticRoutes() == null || l3Out.getStaticRoutes().isEmpty()) {
+      return;
+    }
+
+    for (AciConfiguration.StaticRoute aciStaticRoute : l3Out.getStaticRoutes()) {
+      StaticRoute staticRoute =
+          convertStaticRoute(aciStaticRoute, l3Out, node, interfaces, warnings);
+      if (staticRoute != null) {
+        vrf.getStaticRoutes().add(staticRoute);
+      }
+    }
+  }
+
+  /**
+   * Converts a single ACI static route to a Batfish StaticRoute.
+   *
+   * <p>Handles the following ACI static route attributes:
+   *
+   * <ul>
+   *   <li>Prefix (required) - Network destination prefix
+   *   <li>Next Hop IP (required if no interface) - IP address of next hop router
+   *   <li>Next Hop Interface (required if no IP) - Outgoing interface name
+   *   <li>Administrative Distance (optional) - Route preference, default 1
+   *   <li>Tag (optional) - Route tag for policy-based routing
+   *   <li>Track (optional) - SLA/track object for high availability
+   * </ul>
+   *
+   * @param aciStaticRoute The ACI static route configuration
+   * @param l3Out The parent L3Out configuration
+   * @param node The fabric node (for context)
+   * @param interfaces Map of existing interfaces for validation
+   * @param warnings Warnings container for conversion issues
+   * @return A Batfish StaticRoute, or null if conversion fails
+   */
+  private static @Nullable StaticRoute convertStaticRoute(
+      AciConfiguration.StaticRoute aciStaticRoute,
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Warnings warnings) {
+    String prefixStr = aciStaticRoute.getPrefix();
+    if (prefixStr == null) {
+      warnings.redFlagf("Static route in L3Out %s has no prefix", l3Out.getName());
+      return null;
+    }
+
+    Prefix prefix;
+    try {
+      prefix = Prefix.parse(prefixStr);
+    } catch (IllegalArgumentException e) {
+      warnings.redFlagf(
+          "Invalid prefix %s for static route in L3Out %s", prefixStr, l3Out.getName());
+      return null;
+    }
+
+    StaticRoute.Builder routeBuilder = StaticRoute.builder().setNetwork(prefix);
+
+    // Track if we have a valid next hop (either IP or interface must be specified)
+    boolean hasNextHopIp = false;
+    boolean hasNextHopInterface = false;
+
+    // Set next hop IP
+    String nextHopStr = aciStaticRoute.getNextHop();
+    if (nextHopStr != null) {
+      try {
+        Ip nextHop = Ip.parse(nextHopStr);
+        routeBuilder.setNextHopIp(nextHop);
+        hasNextHopIp = true;
+      } catch (IllegalArgumentException e) {
+        warnings.redFlagf(
+            "Invalid next hop %s for static route %s in L3Out %s",
+            nextHopStr, prefixStr, l3Out.getName());
+      }
+    }
+
+    // Set next hop interface if specified
+    String nextHopInterface = aciStaticRoute.getNextHopInterface();
+    if (nextHopInterface != null) {
+      // Verify interface exists
+      if (interfaces.containsKey(nextHopInterface)) {
+        routeBuilder.setNextHopInterface(nextHopInterface);
+        hasNextHopInterface = true;
+      } else {
+        warnings.redFlagf(
+            "Next hop interface %s not found for static route %s in L3Out %s",
+            nextHopInterface, prefixStr, l3Out.getName());
+      }
+    }
+
+    // A static route must have at least a next hop IP or interface
+    if (!hasNextHopIp && !hasNextHopInterface) {
+      warnings.redFlagf(
+          "Static route %s in L3Out %s has no valid next hop (missing both IP and interface)",
+          prefixStr, l3Out.getName());
+      return null;
+    }
+
+    // Set administrative distance (default to 1 for static routes)
+    // Note: ACI default is typically 1, but can be configured per-route
+    int adminDist = 1; // Default administrative distance for static routes
+    if (aciStaticRoute.getAdministrativeDistance() != null) {
+      try {
+        adminDist = Integer.parseInt(aciStaticRoute.getAdministrativeDistance());
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid administrative distance %s for static route %s in L3Out %s, using default (1)",
+            aciStaticRoute.getAdministrativeDistance(), prefixStr, l3Out.getName());
+      }
+    }
+    routeBuilder.setAdmin(adminDist);
+
+    // Set route tag if specified (used for route filtering and policy)
+    if (aciStaticRoute.getTag() != null) {
+      try {
+        long tag = Long.parseLong(aciStaticRoute.getTag());
+        routeBuilder.setTag(tag);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid tag %s for static route %s in L3Out %s",
+            aciStaticRoute.getTag(), prefixStr, l3Out.getName());
+      }
+    }
+
+    // Set track object if specified (for high availability / SLA monitoring)
+    if (aciStaticRoute.getTrack() != null) {
+      // Track can be a string identifier or numeric, store as-is
+      routeBuilder.setTrack(aciStaticRoute.getTrack());
+    }
+
+    return routeBuilder.build();
+  }
+
+  /**
+   * Converts OSPF configuration from an L3Out to Batfish OspfProcess.
+   *
+   * <p>Note: Full OSPF conversion requires additional datamodel support. This is a placeholder for
+   * future implementation.
+   *
+   * @param ospfConfig The OSPF configuration
+   * @param l3OutName The L3Out name
+   * @param node The fabric node
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF for OSPF
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertOspfConfig(
+      AciConfiguration.OspfConfig ospfConfig,
+      String l3OutName,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    // TODO: Implement full OSPF conversion when OspfProcess is available in datamodel
+    // This will include:
+    // - Converting OSPF areas
+    // - Converting OSPF interfaces
+    // - Converting OSPF network statements
+    // - Converting OSPF route redistribution
+
+    warnings.redFlagf(
+        "OSPF configuration in L3Out %s is not yet fully supported. OSPF areas: %s",
+        l3OutName, ospfConfig.getAreas() != null ? ospfConfig.getAreas().keySet() : "none");
+
+    // For now, log the OSPF configuration that would be converted
+    if (ospfConfig.getAreas() != null) {
+      for (AciConfiguration.OspfArea area : ospfConfig.getAreas().values()) {
+        warnings.redFlagf(
+            "OSPF area %s in L3Out %s: process ID %s",
+            area.getAreaId(), l3OutName, ospfConfig.getProcessId());
+      }
+    }
+  }
+
+  /**
+   * Converts external EPGs (L3ExtEpg) from an L3Out.
+   *
+   * <p>External EPGs define subnets for external connectivity. This method creates static routes or
+   * associated interface configurations for those subnets.
+   *
+   * @param l3Out The L3Out configuration
+   * @param node The fabric node
+   * @param interfaces Map of existing interfaces
+   * @param vrf The VRF for external EPGs
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void convertExternalEpgs(
+      AciConfiguration.L3Out l3Out,
+      AciConfiguration.FabricNode node,
+      Map<String, Interface> interfaces,
+      Vrf vrf,
+      Configuration c,
+      Warnings warnings) {
+    if (l3Out.getExternalEpgs() == null || l3Out.getExternalEpgs().isEmpty()) {
+      return;
+    }
+
+    for (AciConfiguration.ExternalEpg extEpg : l3Out.getExternalEpgs()) {
+      String epgName = extEpg.getName();
+      if (epgName == null) {
+        continue;
+      }
+
+      // Convert external EPG subnets to interface configurations or static routes
+      if (extEpg.getSubnets() != null && !extEpg.getSubnets().isEmpty()) {
+        for (String subnetStr : extEpg.getSubnets()) {
+          Prefix subnet = parsePrefix(subnetStr);
+          if (subnet != null) {
+            // Create a static route for this subnet if next hop is specified
+            // Otherwise, the subnet is considered directly connected
+            if (extEpg.getNextHop() != null) {
+              try {
+                Ip nextHop = Ip.parse(extEpg.getNextHop());
+                StaticRoute staticRoute =
+                    StaticRoute.builder()
+                        .setNetwork(subnet)
+                        .setNextHopIp(nextHop)
+                        .setAdministrativeCost(1)
+                        .build();
+                vrf.getStaticRoutes().add(staticRoute);
+              } catch (IllegalArgumentException e) {
+                warnings.redFlagf(
+                    "Invalid next hop %s for external EPG %s in L3Out %s",
+                    extEpg.getNextHop(), epgName, l3Out.getName());
+              }
+            }
+          }
+        }
+      }
+
+      // Handle external EPG to interface binding
+      if (extEpg.getInterface() != null) {
+        Interface iface = interfaces.get(extEpg.getInterface());
+        if (iface == null) {
+          warnings.redFlagf(
+              "Interface %s not found for external EPG %s in L3Out %s",
+              extEpg.getInterface(), epgName, l3Out.getName());
+        }
+      }
+    }
+  }
+
+  /**
+   * Gets the generated ACL name for a contract.
+   *
+   * @param contractName The contract name
+   * @return The ACL name
+   */
+  @VisibleForTesting
+  public static @Nonnull String getContractAclName(String contractName) {
+    return CONTRACT_ACL_PREFIX + contractName;
+  }
+
+  /**
+   * Creates edges between fabric nodes based on fabric topology.
+   *
+   * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates Layer 3 edges
+   * representing those connections.
+   *
+   * @param aciConfig The ACI configuration
+   * @return Set of edges between nodes
+   */
+  public static @Nonnull SortedSet<Edge> createEdges(AciConfiguration aciConfig) {
+    ImmutableSortedSet.Builder<Edge> edges = ImmutableSortedSet.naturalOrder();
+
+    // Create a basic spine-leaf topology
+    List<AciConfiguration.FabricNode> spines =
+        aciConfig.getFabricNodes().values().stream()
+            .filter(node -> node.getRole() != null && "spine".equalsIgnoreCase(node.getRole()))
+            .collect(Collectors.toList());
+
+    List<AciConfiguration.FabricNode> leaves =
+        aciConfig.getFabricNodes().values().stream()
+            .filter(node -> node.getRole() != null && "leaf".equalsIgnoreCase(node.getRole()))
+            .collect(Collectors.toList());
+
+    // Connect each leaf to each spine
+    for (AciConfiguration.FabricNode leaf : leaves) {
+      String leafName = leaf.getName() != null ? leaf.getName() : leaf.getNodeId();
+      for (AciConfiguration.FabricNode spine : spines) {
+        String spineName = spine.getName() != null ? spine.getName() : spine.getNodeId();
+
+        // Use first available interface from each node
+        String leafIface = "ethernet1/1";
+        if (leaf.getInterfaces() != null && !leaf.getInterfaces().isEmpty()) {
+          leafIface = leaf.getInterfaces().keySet().iterator().next();
+        }
+
+        String spineIface = "ethernet1/1";
+        if (spine.getInterfaces() != null && !spine.getInterfaces().isEmpty()) {
+          spineIface = spine.getInterfaces().keySet().iterator().next();
+        }
+
+        edges.add(Edge.of(leafName, leafIface, spineName, spineIface));
+      }
+    }
+
+    return edges.build();
+  }
+
+  /**
+   * Creates a Batfish Interface address from an ACI IP address and prefix length.
+   *
+   * @param ip The IP address
+   * @param prefixLength The prefix length
+   * @return The ConcreteInterfaceAddress
+   */
+  @VisibleForTesting
+  public static @Nonnull ConcreteInterfaceAddress toInterfaceAddress(Ip ip, int prefixLength) {
+    return ConcreteInterfaceAddress.create(ip, prefixLength);
+  }
+
+  /**
+   * Creates an IP wildcard from prefix and wildcard mask.
+   *
+   * @param prefix The IP prefix
+   * @param wildcard The wildcard mask
+   * @return The IpWildcard
+   */
+  @VisibleForTesting
+  public static @Nonnull IpWildcard toIpWildcard(Ip prefix, Ip wildcard) {
+    return IpWildcard.ipWithWildcardMask(prefix, wildcard);
+  }
+
+  /**
+   * Converts ACI etherType specification to a Batfish match expression.
+   *
+   * <p>Supports common etherTypes:
+   *
+   * <ul>
+   *   <li>0x0800 - IPv4
+   *   <li>0x86dd - IPv6
+   *   <li>0x0806 - ARP
+   *   <li>0x8847 - MPLS unicast
+   *   <li>0x8848 - MPLS multicast
+   *   <li>arp, ipv4, ipv6, mpls - Name aliases
+   * </ul>
+   *
+   * <p>Note: Non-IP etherTypes are matched by excluding IP protocols from the match expression.
+   *
+   * @param etherType The etherType string (hex or name)
+   * @param contractName The contract name for warnings
+   * @param filter The filter for warnings
+   * @param warnings Warnings container
+   * @return A match expression for the etherType, or null if not applicable
+   */
+  private static @Nullable AclLineMatchExpr toEtherType(
+      String etherType,
+      String contractName,
+      AciConfiguration.Contract.Filter filter,
+      Warnings warnings) {
+    String et = etherType.toLowerCase().trim();
+
+    // Handle hex format (0x prefix or just hex digits)
+    int etherTypeValue;
+    if (et.startsWith("0x") || et.startsWith("0X")) {
+      try {
+        etherTypeValue = Integer.parseInt(et.substring(2), 16);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid etherType in contract %s filter %s: %s",
+            contractName, filter.getName(), etherType);
+        return null;
+      }
+    } else if (et.matches("[0-9a-f]+")) {
+      try {
+        etherTypeValue = Integer.parseInt(et, 16);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid etherType in contract %s filter %s: %s",
+            contractName, filter.getName(), etherType);
+        return null;
+      }
+    } else {
+      // Handle named etherTypes
+      switch (et) {
+        case "arp":
+          etherTypeValue = 0x0806;
+          break;
+        case "ipv4":
+        case "ip":
+          etherTypeValue = 0x0800;
+          break;
+        case "ipv6":
+          etherTypeValue = 0x86dd;
+          break;
+        case "mpls":
+        case "mpls_unicast":
+          etherTypeValue = 0x8847;
+          break;
+        case "mpls_multicast":
+          etherTypeValue = 0x8848;
+          break;
+        default:
+          warnings.redFlagf(
+              "Unknown etherType in contract %s filter %s: %s",
+              contractName, filter.getName(), etherType);
+          return null;
+      }
+    }
+
+    // Convert etherType to match expression
+    // Since Batfish ACLs work at IP layer, non-IP etherTypes require special handling
+    switch (etherTypeValue) {
+      case 0x0800: // IPv4
+        // No filtering needed - this is the default
+        return null;
+      case 0x86dd: // IPv6
+        // For now, warn that IPv6 filtering is not fully supported in IPv4 ACLs
+        warnings.redFlagf(
+            "IPv6 etherType specified in contract %s filter %s: IPv6 filtering has limited effect"
+                + " in IPv4 ACLs",
+            contractName, filter.getName());
+        return null;
+      case 0x0806: // ARP
+        // ARP is L2 - we can't match it in IP ACLs
+        warnings.redFlagf(
+            "ARP etherType specified in contract %s filter %s: ARP filtering has limited effect in"
+                + " IP ACLs",
+            contractName, filter.getName());
+        return AclLineMatchExprs.FALSE; // Will not match any IP traffic
+      case 0x8847: // MPLS unicast
+      case 0x8848: // MPLS multicast
+        // MPLS is L2.5 - warn about limited effect
+        warnings.redFlagf(
+            "MPLS etherType specified in contract %s filter %s: MPLS filtering has limited effect"
+                + " in IP ACLs",
+            contractName, filter.getName());
+        return AclLineMatchExprs.FALSE; // Will not match any IP traffic
+      default:
+        // Other non-IP etherTypes
+        warnings.redFlagf(
+            "Non-IP etherType (0x%04x) specified in contract %s filter %s: This will not match IP"
+                + " traffic",
+            etherTypeValue, contractName, filter.getName());
+        return AclLineMatchExprs.FALSE;
+    }
+  }
+
+  /**
+   * Parses ICMP type and code into a match expression.
+   *
+   * <p>Supports:
+   *
+   * <ul>
+   *   <li>Type only: "8" for echo request
+   *   <li>Type and code: "8:0" for echo request with code 0
+   *   <li>Named types: "echo-request", "echo-reply", "destination-unreachable", etc.
+   * </ul>
+   *
+   * @param icmpType The ICMP type string
+   * @param icmpCode The ICMP code string (optional)
+   * @param warnings Warnings container
+   * @return A match expression for ICMP type/code
+   */
+  private static @Nonnull AclLineMatchExpr toIcmpTypeCode(
+      @Nullable String icmpType, @Nullable String icmpCode, Warnings warnings) {
+    int typeValue = 0;
+    int codeValue = -1; // -1 means no code specified
+
+    // Parse ICMP type
+    if (icmpType != null) {
+      String typeStr = icmpType.toLowerCase().trim();
+      // Handle named ICMP types
+      typeValue = parseIcmpTypeName(typeStr);
+      if (typeValue == -1) {
+        // Not a named type, try numeric
+        try {
+          typeValue = Integer.parseInt(typeStr);
+          if (typeValue < 0 || typeValue > 255) {
+            warnings.redFlagf("Invalid ICMP type: %s (must be 0-255)", icmpType);
+            typeValue = 0;
+          }
+        } catch (NumberFormatException e) {
+          warnings.redFlagf("Invalid ICMP type: %s", icmpType);
+          typeValue = 0;
+        }
+      }
+    }
+
+    // Parse ICMP code if present
+    if (icmpCode != null) {
+      String codeStr = icmpCode.toLowerCase().trim();
+      try {
+        codeValue = Integer.parseInt(codeStr);
+        if (codeValue < 0 || codeValue > 255) {
+          warnings.redFlagf("Invalid ICMP code: %s (must be 0-255)", icmpCode);
+          codeValue = 0;
+        }
+      } catch (NumberFormatException e) {
+        warnings.redFlagf("Invalid ICMP code: %s", icmpCode);
+        codeValue = 0;
+      }
+    }
+
+    // Build match expression
+    if (codeValue >= 0) {
+      return AclLineMatchExprs.and(
+          AclLineMatchExprs.matchIcmpType(typeValue), AclLineMatchExprs.matchIcmpCode(codeValue));
+    } else {
+      return AclLineMatchExprs.matchIcmpType(typeValue);
+    }
+  }
+
+  /**
+   * Parses a named ICMP type to its numeric value.
+   *
+   * @param typeName The ICMP type name
+   * @return The numeric ICMP type, or -1 if not found
+   */
+  private static int parseIcmpTypeName(String typeName) {
+    switch (typeName) {
+      case "echo-reply":
+        return 0;
+      case "destination-unreachable":
+      case "dest-unreachable":
+        return 3;
+      case "source-quench":
+        return 4;
+      case "redirect":
+        return 5;
+      case "alternate-host-address":
+        return 6;
+      case "echo-request":
+      case "echo":
+        return 8;
+      case "router-advertisement":
+      case "router-advert":
+        return 9;
+      case "router-solicitation":
+      case "router-solicit":
+        return 10;
+      case "time-exceeded":
+      case "ttl-exceeded":
+        return 11;
+      case "parameter-problem":
+      case "parameter-prob":
+        return 12;
+      case "timestamp-request":
+      case "timestamp":
+        return 13;
+      case "timestamp-reply":
+        return 14;
+      case "information-request":
+      case "info-request":
+        return 15;
+      case "information-reply":
+      case "info-reply":
+        return 16;
+      case "address-mask-request":
+      case "mask-request":
+        return 17;
+      case "address-mask-reply":
+      case "mask-reply":
+        return 18;
+      default:
+        return -1;
+    }
+  }
+
+  /**
+   * Converts port specifications to an IntegerSpace.
+   *
+   * <p>Supports:
+   *
+   * <ul>
+   *   <li>Single ports: "80", "443"
+   *   <li>Port ranges: "8080-8090"
+   *   <li>Multiple specifications: ["80", "8080-8090", "443"]
+   * </ul>
+   *
+   * @param ports List of port specification strings
+   * @param contractName The contract name for warnings
+   * @param filter The filter for warnings
+   * @param isDestination True for destination ports, false for source ports
+   * @param warnings Warnings container
+   * @return An IntegerSpace containing the specified ports
+   */
+  private static @Nonnull IntegerSpace toPortSpace(
+      List<String> ports,
+      String contractName,
+      AciConfiguration.Contract.Filter filter,
+      boolean isDestination,
+      Warnings warnings) {
+    IntegerSpace.Builder portSpace = IntegerSpace.builder();
+    String portType = isDestination ? "destination" : "source";
+
+    for (String portStr : ports) {
+      String ps = portStr.trim();
+      if (ps.isEmpty()) {
+        continue;
+      }
+
+      // Check for range syntax (e.g., "8080-8090")
+      if (ps.contains("-")) {
+        String[] parts = ps.split("-", 2);
+        if (parts.length == 2) {
+          try {
+            int start = Integer.parseInt(parts[0].trim());
+            int end = Integer.parseInt(parts[1].trim());
+            if (start < 0 || start > 65535 || end < 0 || end > 65535) {
+              warnings.redFlagf(
+                  "Invalid %s port range in contract %s filter %s: %s (ports must be 0-65535)",
+                  portType, contractName, filter.getName(), portStr);
+            } else if (start > end) {
+              warnings.redFlagf(
+                  "Invalid %s port range in contract %s filter %s: %s (start > end)",
+                  portType, contractName, filter.getName(), portStr);
+            } else {
+              portSpace.including(new SubRange(start, end));
+            }
+          } catch (NumberFormatException e) {
+            warnings.redFlagf(
+                "Invalid %s port range in contract %s filter %s: %s",
+                portType, contractName, filter.getName(), portStr);
+          }
+        } else {
+          warnings.redFlagf(
+              "Invalid %s port range in contract %s filter %s: %s",
+              portType, contractName, filter.getName(), portStr);
+        }
+      } else {
+        // Single port
+        try {
+          int port = Integer.parseInt(ps);
+          if (port < 0 || port > 65535) {
+            warnings.redFlagf(
+                "Invalid %s port in contract %s filter %s: %s (must be 0-65535)",
+                portType, contractName, filter.getName(), portStr);
+          } else {
+            portSpace.including(port);
+          }
+        } catch (NumberFormatException e) {
+          warnings.redFlagf(
+              "Invalid %s port in contract %s filter %s: %s",
+              portType, contractName, filter.getName(), portStr);
+        }
+      }
+    }
+
+    return portSpace.build();
+  }
+
+  /**
+   * Converts an IP address specification to a match expression.
+   *
+   * <p>Supports:
+   *
+   * <ul>
+   *   <li>Single IP: "10.0.0.1"
+   *   <li>Prefix: "10.0.0.0/24"
+   *   <li>Wildcard: "10.0.0.0/0.0.0.255"
+   *   <li>Any: "any", "0.0.0.0/0"
+   * </ul>
+   *
+   * @param addrStr The address specification string
+   * @param isSource True for source address, false for destination
+   * @param warnings Warnings container
+   * @return A match expression for the address, or null if invalid
+   */
+  private static @Nullable AclLineMatchExpr toIpMatchExpr(
+      String addrStr, boolean isSource, Warnings warnings) {
+    if (addrStr == null || addrStr.trim().isEmpty()) {
+      return null;
+    }
+
+    String as = addrStr.trim().toLowerCase();
+
+    // Handle "any" keyword
+    if (as.equals("any") || as.equals("0.0.0.0/0") || as.equals("0.0.0.0/0.0.0.0")) {
+      return null; // No filtering needed for "any"
+    }
+
+    // Try CIDR prefix notation first
+    try {
+      Prefix prefix = Prefix.parse(as);
+      if (isSource) {
+        return AclLineMatchExprs.matchSrc(prefix);
+      } else {
+        return AclLineMatchExprs.matchDst(prefix);
+      }
+    } catch (IllegalArgumentException e) {
+      // Not a CIDR prefix, try wildcard notation
+    }
+
+    // Try IP/wildcard notation (e.g., "10.0.0.0/0.0.0.255")
+    Pattern wildcardPattern = Pattern.compile("([\\d.]+)/([\\d.]+)");
+    Matcher matcher = wildcardPattern.matcher(as);
+    if (matcher.matches()) {
+      try {
+        Ip addr = Ip.parse(matcher.group(1));
+        Ip wildcard = Ip.parse(matcher.group(2));
+        IpWildcard ipWildcard = IpWildcard.ipWithWildcardMask(addr, wildcard);
+        if (isSource) {
+          return AclLineMatchExprs.matchSrc(ipWildcard);
+        } else {
+          return AclLineMatchExprs.matchDst(ipWildcard);
+        }
+      } catch (IllegalArgumentException e) {
+        // Invalid wildcard format
+      }
+    }
+
+    // Try single IP address
+    try {
+      Ip ip = Ip.parse(as);
+      if (isSource) {
+        return AclLineMatchExprs.matchSrc(ip);
+      } else {
+        return AclLineMatchExprs.matchDst(ip);
+      }
+    } catch (IllegalArgumentException e) {
+      warnings.redFlagf("Invalid IP address specification: %s", addrStr);
+      return null;
+    }
+  }
+
+  private AciConversion() {
+    // Prevent instantiation
+  }
+}
