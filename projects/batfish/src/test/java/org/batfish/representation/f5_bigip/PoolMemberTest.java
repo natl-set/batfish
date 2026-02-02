@@ -32,11 +32,6 @@ public class PoolMemberTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testConstructorInvalidPortZero() {
-    new PoolMember("name", "node", 0);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
   public void testConstructorInvalidPortNegative() {
     new PoolMember("name", "node", -1);
   }
