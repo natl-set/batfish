@@ -3640,4 +3640,21 @@ public final class F5BigipStructuredGrammarTest {
     // detect all structure references
     assertThat(ans, hasNumReferrers(file, VLAN, used, 3));
   }
+
+  @Test
+  public void testPoolMemberPortZero() throws IOException {
+    String hostname = "f5_bigip_structured_pool_port_zero";
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    batfish.loadConfigurations(batfish.getSnapshot());
+
+    // Verify that the port 0 warning was issued
+    // The pool member with port 0 should generate a warning
+    Map<String, Warnings> warningsMap =
+        batfish.initInfo(batfish.getSnapshot(), false, true).getWarnings();
+    assertTrue(
+        "Port 0 warning expected",
+        warningsMap.values().stream()
+            .flatMap(w -> w.getParseWarnings().stream())
+            .anyMatch(w -> w.getComment().contains("0 is not a valid port")));
+  }
 }

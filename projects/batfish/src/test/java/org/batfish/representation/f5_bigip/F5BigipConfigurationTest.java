@@ -186,4 +186,69 @@ public class F5BigipConfigurationTest {
             new VendorStructureId(
                 "file", F5BigipStructureType.PREFIX_LIST.getDescription(), "name")));
   }
+
+  /**
+   * Tests that {@link F5BigipConfiguration#toRouteFilterList(PrefixList, Warnings, String)} returns
+   * null for IPv6 prefix lists
+   */
+  @Test
+  public void testToRouterFilterList_prefixList_ipv6ReturnsNull() {
+    PrefixList plist = new PrefixList("name");
+    PrefixListEntry entry = new PrefixListEntry(1L);
+    entry.setPrefix6(org.batfish.datamodel.Prefix6.parse("::/0"));
+    plist.getEntries().put(1L, entry);
+
+    RouteFilterList rfl = toRouteFilterList(plist, new Warnings(), "file");
+    assertThat(rfl, equalTo(null));
+  }
+
+  /**
+   * Tests that {@link F5BigipConfiguration#toRouteFilterList(PrefixList, Warnings, String)} returns
+   * non-null for IPv4-only prefix lists
+   */
+  @Test
+  public void testToRouterFilterList_prefixList_ipv4ReturnsNonNull() {
+    PrefixList plist = new PrefixList("name");
+    PrefixListEntry entry = new PrefixListEntry(1L);
+    entry.setPrefix(org.batfish.datamodel.Prefix.parse("0.0.0.0/0"));
+    plist.getEntries().put(1L, entry);
+
+    RouteFilterList rfl = toRouteFilterList(plist, new Warnings(), "file");
+    assertThat(
+        rfl.getVendorStructureId(),
+        equalTo(
+            new VendorStructureId(
+                "file", F5BigipStructureType.PREFIX_LIST.getDescription(), "name")));
+  }
+
+  /** Test toAddressGroup with null address and non-null address6 */
+  @Test
+  public void testToAddressGroupPoolMemberAddress6Only() {
+    PoolMember m1 = new PoolMember("m1", null, 80);
+    m1.setAddress6(org.batfish.datamodel.Ip6.parse("::1"));
+    m1.setAddress(null); // Explicitly null
+
+    Pool p1 = new Pool("p1");
+    p1.getMembers().put(m1.getName(), m1);
+
+    // Address6 should not be included in the address group (IPv4 addresses only)
+    assertThat(
+        toAddressGroup(p1), equalTo(new AddressGroup(ImmutableSortedSet.of(), p1.getName())));
+  }
+
+  /** Test toAddressGroup with both address and address6 */
+  @Test
+  public void testToAddressGroupPoolMemberBothAddresses() {
+    PoolMember m1 = new PoolMember("m1", null, 80);
+    m1.setAddress(org.batfish.datamodel.Ip.parse("1.1.1.1"));
+    m1.setAddress6(org.batfish.datamodel.Ip6.parse("::1"));
+
+    Pool p1 = new Pool("p1");
+    p1.getMembers().put(m1.getName(), m1);
+
+    // Only IPv4 address should be included
+    assertThat(
+        toAddressGroup(p1),
+        equalTo(new AddressGroup(ImmutableSortedSet.of("1.1.1.1"), p1.getName())));
+  }
 }
