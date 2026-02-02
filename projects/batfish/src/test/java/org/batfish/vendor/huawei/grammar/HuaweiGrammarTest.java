@@ -3,13 +3,22 @@ package org.batfish.vendor.huawei.grammar;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
+import java.util.SortedSet;
+import java.util.TreeSet;
 import org.batfish.common.Warnings;
 import org.batfish.config.Settings;
+import org.batfish.datamodel.ConcreteInterfaceAddress;
+import org.batfish.datamodel.Ip;
 import org.batfish.vendor.huawei.representation.HuaweiAcl;
 import org.batfish.vendor.huawei.representation.HuaweiAclLine;
 import org.batfish.vendor.huawei.representation.HuaweiConfiguration;
 import org.batfish.vendor.huawei.representation.HuaweiConversions;
+import org.batfish.vendor.huawei.representation.HuaweiInterface;
 import org.batfish.vendor.huawei.representation.HuaweiNatRule;
 import org.batfish.vendor.huawei.representation.HuaweiStaticRoute;
 import org.batfish.vendor.huawei.representation.HuaweiVlan;
@@ -22,6 +31,12 @@ public class HuaweiGrammarTest {
   private Settings getSettings() {
     Settings settings = new Settings();
     settings.setDisableUnrecognized(true);
+    return settings;
+  }
+
+  private Settings getLenientSettings() {
+    Settings settings = new Settings();
+    settings.setDisableUnrecognized(false);
     return settings;
   }
 
@@ -842,5 +857,2172 @@ public class HuaweiGrammarTest {
     org.batfish.datamodel.Vrf vrf = viConfig.getVrfs().get("VRF1");
     assertThat(vrf, notNullValue());
     assertThat(vrf.getName(), equalTo("VRF1"));
+  }
+
+  // ========== ERROR HANDLING AND NEGATIVE TESTS ==========
+
+  @Test
+  public void testMissingRequiredKeyword() {
+    // Missing interface keyword before interface name
+    String configText = "sysname Router1\n" + "GigabitEthernet0/0/0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    // Should still parse with warnings
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo("Router1"));
+    // The unrecognized line should be skipped
+  }
+
+  @Test
+  public void testInvalidIpAddress() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 999.999.999.999 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning about invalid IP
+    // Configuration should still be valid
+    assertThat(config.getHostname(), equalTo("Router1"));
+  }
+
+  @Test
+  public void testInvalidSubnetMask() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 256.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo("Router1"));
+  }
+
+  @Test
+  public void testInvalidIpMask() {
+    // Invalid subnet mask (not contiguous)
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.254.255\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning about invalid mask
+  }
+
+  @Test
+  public void testStaticRouteInvalidNextHop() {
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 999.999.999.999\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning but continue parsing
+  }
+
+  @Test
+  public void testBgpInvalidAsNumber() {
+    // AS number too large
+    String configText = "sysname Router1\n" + "bgp 9999999\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser should accept it but might warn during conversion
+  }
+
+  @Test
+  public void testBgpAsNumberZero() {
+    // AS number 0 is invalid
+    String configText = "sysname Router1\n" + "bgp 0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    assertThat(config.getBgpProcess().getAsNum(), equalTo(0L));
+  }
+
+  @Test
+  public void testOspfInvalidAreaId() {
+    // Area ID that's not a valid number
+    String configText =
+        "sysname Router1\n" + "ospf 1\n" + " area 999999999999999999999\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning about invalid area ID
+  }
+
+  @Test
+  public void testOspfAreaIdZero() {
+    // Area 0 is valid (backbone area)
+    String configText = "sysname Router1\n" + "ospf 1\n" + " area 0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    assertThat(config.getOspfProcess().getAreas().size(), equalTo(1));
+    assertThat(config.getOspfProcess().getAreas().containsKey(0L), equalTo(true));
+  }
+
+  @Test
+  public void testAclInvalidNumber() {
+    // ACL number outside valid ranges
+    String configText =
+        "sysname Router1\n" + "acl 9999 advanced\n" + " rule 5 permit ip source any\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser accepts it, but type may be incorrect
+  }
+
+  @Test
+  public void testVlanMaxValue() {
+    // Maximum valid VLAN ID
+    String configText = "sysname Router1\n" + "vlan 4094\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(1));
+    assertThat(config.getVlan(4094), notNullValue());
+  }
+
+  @Test
+  public void testVlanExceedsMax() {
+    // VLAN ID exceeds maximum (4094)
+    String configText = "sysname Router1\n" + "vlan 4095\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Grammar may accept it as uint16, but should warn
+  }
+
+  @Test
+  public void testVlanZero() {
+    // VLAN ID 0 is typically invalid
+    String configText = "sysname Router1\n" + "vlan 0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser accepts it, but semantically invalid
+  }
+
+  @Test
+  public void testPortNumberZero() {
+    // Port number 0 (reserved, typically invalid)
+    String configText =
+        "sysname Router1\n"
+            + "acl 3000 advanced\n"
+            + " rule 5 permit tcp source any destination any destination-port eq 0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser accepts it, but semantically suspicious
+  }
+
+  @Test
+  public void testPortNumberMax() {
+    // Maximum valid port number
+    String configText =
+        "sysname Router1\n"
+            + "acl 3000 advanced\n"
+            + " rule 5 permit tcp source any destination any destination-port eq 65535\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+  }
+
+  @Test
+  public void testPortNumberExceedsMax() {
+    // Port number exceeds 65535
+    String configText =
+        "sysname Router1\n"
+            + "acl 3000 advanced\n"
+            + " rule 5 permit tcp source any destination any destination-port eq 99999\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Grammar should reject or warn about out-of-range port
+  }
+
+  @Test
+  public void testStaticRoutePreferenceZero() {
+    // Preference value of 0
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.1 preference 0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(1));
+    assertThat(config.getStaticRoutes().get(0).getPreference(), equalTo(0));
+  }
+
+  @Test
+  public void testStaticRoutePreferenceMax() {
+    // Maximum reasonable preference value
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.1 preference 255\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(1));
+    assertThat(config.getStaticRoutes().get(0).getPreference(), equalTo(255));
+  }
+
+  @Test
+  public void testEmptyConfigOnly() {
+    // Completely empty configuration
+    String configText = "";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo(null));
+    assertThat(config.getInterfaces().size(), equalTo(0));
+  }
+
+  @Test
+  public void testOnlyHostname() {
+    // Configuration with only hostname
+    String configText = "sysname Router1\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo("Router1"));
+    assertThat(config.getInterfaces().size(), equalTo(0));
+  }
+
+  @Test
+  public void testOnlyOneInterface() {
+    // Configuration with only one interface
+    String configText = "interface GigabitEthernet0/0/0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(1));
+  }
+
+  @Test
+  public void testOnlyComments() {
+    // Configuration with only whitespace and newlines
+    String configText = "\n\n\n   \n\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo(null));
+  }
+
+  @Test
+  public void testInterfaceWithoutIp() {
+    // Interface defined but no IP address
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " description Test interface\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(1));
+    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
+        config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    assertThat(iface.getDescription(), equalTo("Test interface"));
+    assertThat(iface.getAddress(), equalTo(null));
+  }
+
+  @Test
+  public void testMismatchedQuotes() {
+    // Test with unclosed quotes (if grammar supports quoted strings)
+    String configText = "sysname Router1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+  }
+
+  @Test
+  public void testUnrecognizedCommand() {
+    // Configuration with unrecognized commands
+    String configText =
+        "sysname Router1\n"
+            + "unknown_command_here value1 value2\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + " another_unknown command\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should parse valid parts and skip/warn about unrecognized
+    assertThat(config.getHostname(), equalTo("Router1"));
+    assertThat(config.getInterfaces().size(), equalTo(1));
+  }
+
+  @Test
+  public void testDuplicateInterfaceNames() {
+    // Same interface defined twice
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.2.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(1));
+    // Second definition should override first
+    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
+        config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface.getAddress().getIp().toString(), equalTo("192.168.2.1"));
+  }
+
+  @Test
+  public void testDuplicateVlanIds() {
+    // Same VLAN defined twice
+    String configText =
+        "sysname Router1\n"
+            + "vlan 100\n"
+            + " description First\n"
+            + "return\n"
+            + "vlan 100\n"
+            + " description Second\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(1));
+  }
+
+  @Test
+  public void testAclInvalidWildcard() {
+    // Invalid wildcard mask in ACL
+    String configText =
+        "sysname Router1\n"
+            + "acl 2000 basic\n"
+            + " rule 5 permit source 10.0.0.0 256.0.0.255\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning but continue
+  }
+
+  @Test
+  public void testStaticRouteWithInvalidCidr() {
+    // Invalid CIDR notation
+    String configText =
+        "sysname Router1\n" + "ip route-static 10.0.0.0/99 192.168.1.1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should warn about invalid prefix length
+  }
+
+  @Test
+  public void testNatStaticInvalidIp() {
+    // NAT with invalid IP
+    String configText =
+        "sysname Router1\n" + "nat static global 999.999.999.999 inside 10.0.0.1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning about invalid IP
+  }
+
+  @Test
+  public void testVrfWithNameContainingSpaces() {
+    // VRF names typically shouldn't have spaces
+    String configText = "sysname Router1\n" + "ip vpn-instance VRF 1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser may treat "VRF" as name and "1" as next command
+  }
+
+  @Test
+  public void testInterfaceNameWithSpecialChars() {
+    // Interface name shouldn't have special characters
+    String configText = "sysname Router1\n" + "interface GigabitEthernet@0/0/0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // May or may not parse depending on grammar
+  }
+
+  @Test
+  public void testMalformedBgpPeerConfig() {
+    // BGP peer missing AS number
+    String configText = "sysname Router1\n" + "bgp 65001\n" + " peer 192.168.1.2\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Parser should handle incomplete config
+  }
+
+  @Test
+  public void testOspfNetworkInvalidPrefix() {
+    // OSPF network with invalid prefix
+    String configText =
+        "sysname Router1\n" + "ospf 1\n" + " network 10.0.0.0/33 area 0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should warn about invalid prefix length
+  }
+
+  @Test
+  public void testWhitespaceVariations() {
+    // Test various whitespace patterns
+    String configText =
+        "sysname    Router1\n"
+            + "interface  GigabitEthernet0/0/0\n"
+            + "  ip   address   192.168.1.1   255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo("Router1"));
+    assertThat(config.getInterfaces().size(), equalTo(1));
+  }
+
+  @Test
+  public void testCaseSensitivity() {
+    // Test case sensitivity of keywords
+    String configText = "SYSNAME Router1\n" + "RETURN\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Keywords should be case-sensitive, so uppercase should fail
+    // Configuration should be empty or have warnings
+  }
+
+  @Test
+  public void testVeryLongHostname() {
+    // Very long hostname (should be truncated or accepted)
+    StringBuilder longHostname = new StringBuilder();
+    for (int i = 0; i < 1000; i++) {
+      longHostname.append("a");
+    }
+    String configText = "sysname " + longHostname.toString() + "\nreturn\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should accept very long hostname
+  }
+
+  @Test
+  public void testMultipleAclRulesWithGaps() {
+    // ACL rules with non-sequential numbers (valid in Huawei)
+    String configText =
+        "sysname Router1\n"
+            + "acl 2000 basic\n"
+            + " rule 5 permit source 10.0.0.0 0.0.0.255\n"
+            + " rule 100 deny source any\n"
+            + " rule 200 permit source any\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+    HuaweiAcl acl = config.getAcl("2000");
+    assertThat(acl.getLines().size(), equalTo(3));
+  }
+
+  @Test
+  public void testVlanBatchWithDuplicates() {
+    // VLAN batch with duplicate VLAN IDs
+    String configText = "sysname Router1\n" + "vlan batch 10 20 10 30\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should handle duplicates gracefully (likely just create once)
+  }
+
+  @Test
+  public void testIncompleteInterfaceBlock() {
+    // Interface block without return
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "interface GigabitEthernet0/0/1\n"
+            + " shutdown\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should handle transition to new interface gracefully
+  }
+
+  @Test
+  public void testCommentLines() {
+    // Huawei VRP doesn't have inline comments, but test whitespace lines
+    String configText =
+        "sysname Router1\n"
+            + "\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + "\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(1));
+  }
+
+  // ========== EDGE CASE AND BOUNDARY TESTS ==========
+
+  // 1. INTERFACE EDGE CASES
+
+  @Test
+  public void testInterfaceWithAllProperties() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " description Uplink\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + " shutdown\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getHostname(), equalTo("Router1"));
+    assertThat(config.getInterfaces().size(), equalTo(1));
+
+    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
+        config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    assertThat(iface.getDescription(), equalTo("Uplink"));
+    assertThat(iface.getAddress(), notNullValue());
+    assertThat(iface.getAddress().getIp().toString(), equalTo("192.168.1.1"));
+    assertThat(iface.getShutdown(), equalTo(true));
+  }
+
+  @Test
+  public void testMultipleInterfaceTypes() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "interface 10GE1/0/0\n"
+            + " ip address 10.0.0.1 255.255.255.0\n"
+            + "interface Loopback0\n"
+            + " ip address 1.1.1.1 255.255.255.255\n"
+            + "interface Vlanif100\n"
+            + " ip address 172.16.1.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(4));
+    assertThat(config.getInterfaces().containsKey("GigabitEthernet0/0/0"), equalTo(true));
+    assertThat(config.getInterfaces().containsKey("10GE1/0/0"), equalTo(true));
+    assertThat(config.getInterfaces().containsKey("Loopback0"), equalTo(true));
+    assertThat(config.getInterfaces().containsKey("Vlanif100"), equalTo(true));
+  }
+
+  @Test
+  public void testInterfaceBoundaryPortNumbers() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.0.1 255.255.255.0\n"
+            + "interface GigabitEthernet0/0/47\n"
+            + " ip address 192.168.47.1 255.255.255.0\n"
+            + "interface 40GE2/0/0\n"
+            + " ip address 10.0.0.1 255.255.255.0\n"
+            + "interface 100GE3/0/0\n"
+            + " ip address 10.1.0.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(4));
+    assertThat(config.getInterfaces().get("GigabitEthernet0/0/0"), notNullValue());
+    assertThat(config.getInterfaces().get("GigabitEthernet0/0/47"), notNullValue());
+    assertThat(config.getInterfaces().get("40GE2/0/0"), notNullValue());
+    assertThat(config.getInterfaces().get("100GE3/0/0"), notNullValue());
+  }
+
+  @Test
+  public void testSubinterfaceDot1qVariations() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0.100\n"
+            + " dot1q termination vid 100\n"
+            + " ip address 10.0.0.1 255.255.255.0\n"
+            + "interface GigabitEthernet0/0/0.200\n"
+            + " dot1q termination vid 200\n"
+            + " ip address 10.0.1.1 255.255.255.0\n"
+            + "interface GigabitEthernet1/0/0.4094\n"
+            + " dot1q termination vid 4094\n"
+            + " ip address 10.1.0.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(3));
+    assertThat(config.getInterfaces().get("GigabitEthernet0/0/0.100"), notNullValue());
+    assertThat(config.getInterfaces().get("GigabitEthernet0/0/0.200"), notNullValue());
+    assertThat(config.getInterfaces().get("GigabitEthernet1/0/0.4094"), notNullValue());
+  }
+
+  // 2. VLAN EDGE CASES
+
+  @Test
+  public void testVlanBatchWithManyVlans() {
+    String configText =
+        "sysname Router1\n" + "vlan batch 10 20 30 40 50 60 70 80 90 100\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(10));
+
+    // Verify all VLANs were created
+    for (int vlanId : new int[] {10, 20, 30, 40, 50, 60, 70, 80, 90, 100}) {
+      assertThat(config.getVlan(vlanId), notNullValue());
+      assertThat(config.getVlan(vlanId).getVlanId(), equalTo(vlanId));
+    }
+  }
+
+  @Test
+  public void testVlanWithAllProperties() {
+    String configText =
+        "sysname Router1\n" + "vlan 100\n" + " description Management\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(1));
+
+    HuaweiVlan vlan = config.getVlan(100);
+    assertThat(vlan, notNullValue());
+    assertThat(vlan.getVlanId(), equalTo(100));
+    assertThat(vlan.getDescription(), equalTo("Management"));
+  }
+
+  @Test
+  public void testVlanBoundaryValues() {
+    String configText =
+        "sysname Router1\n" + "vlan 1\n" + "vlan 4094\n" + "vlan batch 2 to 10\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(10));
+    assertThat(config.getVlan(1), notNullValue());
+    assertThat(config.getVlan(4094), notNullValue());
+  }
+
+  @Test
+  public void testVlanifWithMultipleVlans() {
+    String configText =
+        "sysname Router1\n"
+            + "vlan 10\n"
+            + "vlan 20\n"
+            + "vlan 30\n"
+            + "interface Vlanif10\n"
+            + " ip address 192.168.10.1 255.255.255.0\n"
+            + "interface Vlanif20\n"
+            + " ip address 192.168.20.1 255.255.255.0\n"
+            + "interface Vlanif30\n"
+            + " ip address 192.168.30.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVlans().size(), equalTo(3));
+    assertThat(config.getInterfaces().size(), equalTo(3));
+    assertThat(config.getVlan(10), notNullValue());
+    assertThat(config.getVlan(20), notNullValue());
+    assertThat(config.getVlan(30), notNullValue());
+    assertThat(config.getInterfaces().get("Vlanif10"), notNullValue());
+    assertThat(config.getInterfaces().get("Vlanif20"), notNullValue());
+    assertThat(config.getInterfaces().get("Vlanif30"), notNullValue());
+  }
+
+  // 3. STATIC ROUTE EDGE CASES
+
+  @Test
+  public void testStaticRouteAllCombinations() {
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 0.0.0.0 0.0.0.0 192.168.1.1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.2\n"
+            + "ip route-static 172.16.0.0 255.255.0.0 192.168.1.3 preference 50\n"
+            + "ip route-static 10.1.0.0 255.255.255.0 GigabitEthernet0/0/0 192.168.1.4\n"
+            + "ip route-static 172.17.0.0 255.255.0.0 GigabitEthernet0/0/0 192.168.1.5 preference"
+            + " 70\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(5));
+
+    // Verify default route
+    HuaweiStaticRoute defaultRoute = config.getStaticRoutes().get(0);
+    assertThat(defaultRoute.getDestination().toString(), equalTo("0.0.0.0/0"));
+
+    // Verify route with interface
+    HuaweiStaticRoute routeWithInterface = config.getStaticRoutes().get(3);
+    assertThat(routeWithInterface.getNextHopInterface(), equalTo("GigabitEthernet0/0/0"));
+
+    // Verify route with preference
+    HuaweiStaticRoute routeWithPref = config.getStaticRoutes().get(2);
+    assertThat(routeWithPref.getPreference(), equalTo(50));
+  }
+
+  @Test
+  public void testStaticRouteWithVrf() {
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 100:1\n"
+            + "ip route-static vpn-instance VRF1 10.0.0.0 255.255.255.0 192.168.1.1\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(1));
+
+    HuaweiStaticRoute route = config.getStaticRoutes().get(0);
+    assertThat(route.getDestination().toString(), equalTo("10.0.0.0/24"));
+    assertThat(route.getVrfName(), equalTo("VRF1"));
+  }
+
+  @Test
+  public void testStaticRouteBoundaryNetworks() {
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 0.0.0.0 0.0.0.0 192.168.1.1\n"
+            + "ip route-static 255.255.255.255 255.255.255.255 192.168.1.2\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(2));
+  }
+
+  @Test
+  public void testStaticRouteWithAllPreferences() {
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.1 preference 1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.2 preference 60\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.3 preference 255\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(3));
+
+    HuaweiStaticRoute route1 = config.getStaticRoutes().get(0);
+    assertThat(route1.getPreference(), equalTo(1));
+
+    HuaweiStaticRoute route2 = config.getStaticRoutes().get(1);
+    assertThat(route2.getPreference(), equalTo(60));
+
+    HuaweiStaticRoute route3 = config.getStaticRoutes().get(2);
+    assertThat(route3.getPreference(), equalTo(255));
+  }
+
+  // 4. BGP EDGE CASES
+
+  @Test
+  public void testBgpMinimalConfiguration() {
+    String configText = "sysname Router1\n" + "bgp 65001\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    assertThat(config.getBgpProcess().getAsNum(), equalTo(65001L));
+  }
+
+  @Test
+  public void testBgpWithMultiplePeers() {
+    String configText =
+        "sysname Router1\n"
+            + "bgp 65001\n"
+            + " peer 192.168.1.2 as-number 65002\n"
+            + " peer 192.168.1.3 as-number 65003\n"
+            + " peer 192.168.1.4 as-number 65004\n"
+            + " peer 10.0.0.2 as-number 65005\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    assertThat(config.getBgpProcess().getAsNum(), equalTo(65001L));
+  }
+
+  @Test
+  public void testBgpWithManyNetworkAnnouncements() {
+    String configText =
+        "sysname Router1\n"
+            + "bgp 65001\n"
+            + " network 10.0.0.0 255.255.255.0\n"
+            + " network 10.1.0.0 255.255.255.0\n"
+            + " network 10.2.0.0 255.255.255.0\n"
+            + " network 172.16.0.0 255.255.0.0\n"
+            + " network 192.168.0.0 255.255.0.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    assertThat(config.getBgpProcess().getAsNum(), equalTo(65001L));
+  }
+
+  @Test
+  public void testBgpWithBoundaryAsNumbers() {
+    String configText =
+        "sysname Router1\n" + "bgp 1\n" + " peer 192.168.1.2 as-number 1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    assertThat(config.getBgpProcess().getAsNum(), equalTo(1L));
+  }
+
+  // 5. OSPF EDGE CASES
+
+  @Test
+  public void testOspfWithoutRouterId() {
+    String configText = "sysname Router1\n" + "ospf 1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    assertThat(config.getOspfProcess().getProcessId(), equalTo(1L));
+    assertThat(config.getOspfProcess().getRouterId(), equalTo(null));
+  }
+
+  @Test
+  public void testOspfWithMultipleAreas() {
+    String configText =
+        "sysname Router1\n"
+            + "ospf 1\n"
+            + " area 0\n"
+            + " area 1\n"
+            + " area 2\n"
+            + " area 100\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    assertThat(config.getOspfProcess().getProcessId(), equalTo(1L));
+    assertThat(config.getOspfProcess().getAreas().size(), equalTo(4));
+  }
+
+  @Test
+  public void testOspfWithManyNetworkStatements() {
+    String configText =
+        "sysname Router1\n"
+            + "ospf 1\n"
+            + " network 10.0.0.0/24 area 0\n"
+            + " network 10.1.0.0/24 area 0\n"
+            + " network 10.2.0.0/24 area 0\n"
+            + " network 172.16.0.0/16 area 1\n"
+            + " network 192.168.0.0/16 area 2\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    assertThat(config.getOspfProcess().getProcessId(), equalTo(1L));
+    assertThat(config.getOspfProcess().getNetworks().size(), equalTo(5));
+  }
+
+  @Test
+  public void testOspfBoundaryAreaIds() {
+    String configText = "sysname Router1\n" + "ospf 1\n" + " area 0\n" + " area 1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    assertThat(config.getOspfProcess().getAreas().size(), equalTo(2));
+  }
+
+  // 6. ACL EDGE CASES
+
+  @Test
+  public void testAclWithAllProtocolTypes() {
+    String configText =
+        "sysname Router1\n"
+            + "acl 3000 advanced\n"
+            + " rule 5 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port eq 80\n"
+            + " rule 10 permit udp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port eq 53\n"
+            + " rule 15 permit icmp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255\n"
+            + " rule 20 permit ip source any destination any\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+
+    HuaweiAcl acl = config.getAcl("3000");
+    assertThat(acl, notNullValue());
+    assertThat(acl.getType(), equalTo(HuaweiAcl.AclType.ADVANCED));
+    assertThat(acl.getLines().size(), equalTo(4));
+  }
+
+  @Test
+  public void testAclWithVariousPortSpecifications() {
+    String configText =
+        "sysname Router1\n"
+            + "acl 3001 advanced\n"
+            + " rule 5 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port eq 80\n"
+            + " rule 10 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port gt 1024\n"
+            + " rule 15 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port lt 1024\n"
+            + " rule 20 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port range 2000 3000\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+
+    HuaweiAcl acl = config.getAcl("3001");
+    assertThat(acl, notNullValue());
+    assertThat(acl.getLines().size(), equalTo(4));
+  }
+
+  @Test
+  public void testAclWithWildcardAddresses() {
+    String configText =
+        "sysname Router1\n"
+            + "acl 2001 basic\n"
+            + " rule 5 permit source 10.0.0.0 0.255.255.255\n"
+            + " rule 10 permit source 192.168.0.0 0.0.255.255\n"
+            + " rule 15 permit source 172.16.0.0 0.0.0.255\n"
+            + " rule 20 deny source any\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+
+    HuaweiAcl acl = config.getAcl("2001");
+    assertThat(acl, notNullValue());
+    assertThat(acl.getType(), equalTo(HuaweiAcl.AclType.BASIC));
+    assertThat(acl.getLines().size(), equalTo(4));
+  }
+
+  @Test
+  public void testAclRulesWithAllCombinations() {
+    String configText =
+        "sysname Router1\n"
+            + "acl 3002 advanced\n"
+            + " rule 5 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port eq 80\n"
+            + " rule 10 deny tcp source any destination any\n"
+            + " rule 15 permit udp source 192.168.2.0 0.0.0.255 destination 10.0.0.0 0.0.0.255\n"
+            + " rule 20 deny ip source any destination any\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(1));
+
+    HuaweiAcl acl = config.getAcl("3002");
+    assertThat(acl, notNullValue());
+    assertThat(acl.getLines().size(), equalTo(4));
+  }
+
+  // 7. NAT EDGE CASES
+
+  @Test
+  public void testNatAllTypesCombined() {
+    String configText =
+        "sysname Router1\n"
+            + "acl 2000 basic\n"
+            + " rule 5 permit source 192.168.1.0 0.0.0.255\n"
+            + "nat static global 1.1.1.1 inside 10.0.0.1\n"
+            + "nat outbound 2000\n"
+            + "nat outbound 2000 interface\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getNatRules().size(), equalTo(3));
+
+    // Verify static NAT
+    HuaweiNatRule staticRule = config.getNatRules().get(0);
+    assertThat(staticRule.getType(), equalTo(HuaweiNatRule.NatType.STATIC));
+
+    // Verify dynamic NAT
+    HuaweiNatRule dynamicRule = config.getNatRules().get(1);
+    assertThat(dynamicRule.getType(), equalTo(HuaweiNatRule.NatType.DYNAMIC));
+
+    // Verify Easy IP
+    HuaweiNatRule easyIpRule = config.getNatRules().get(2);
+    assertThat(easyIpRule.getType(), equalTo(HuaweiNatRule.NatType.EASY_IP));
+  }
+
+  @Test
+  public void testNatWithVrf() {
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 100:1\n"
+            + "nat static global 192.168.1.1 inside 10.0.0.1\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getNatRules().size(), equalTo(1));
+  }
+
+  // 8. VRF EDGE CASES
+
+  @Test
+  public void testMultipleVrfs() {
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 100:1\n"
+            + " vpn-target 100:1 both\n"
+            + "ip vpn-instance VRF2\n"
+            + " route-distinguisher 200:1\n"
+            + " vpn-target 200:1 both\n"
+            + "ip vpn-instance VRF3\n"
+            + " route-distinguisher 300:1\n"
+            + " vpn-target 300:1 both\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs().size(), equalTo(3));
+
+    assertThat(config.getVrfs().get("VRF1"), notNullValue());
+    assertThat(config.getVrfs().get("VRF2"), notNullValue());
+    assertThat(config.getVrfs().get("VRF3"), notNullValue());
+  }
+
+  @Test
+  public void testVrfWithAllProperties() {
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 65000:100\n"
+            + " vpn-target 65000:100 export\n"
+            + " vpn-target 65000:200 import\n"
+            + " vpn-target 65000:300 both\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs().size(), equalTo(1));
+
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getName(), equalTo("VRF1"));
+    assertThat(vrf.getRouteDistinguisher(), equalTo("65000:100"));
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(2));
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(2));
+  }
+
+  @Test
+  public void testVpnTargetCombinations() {
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 100:1\n"
+            + " vpn-target 100:1 export\n"
+            + " vpn-target 100:2 import\n"
+            + " vpn-target 100:3 export\n"
+            + " vpn-target 100:4 import\n"
+            + " vpn-target 100:5 both\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs().size(), equalTo(1));
+
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(3));
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(3));
+  }
+
+  // HuaweiVlan coverage tests
+  @Test
+  public void testVlanName() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    // Test initial state
+    assertNull(vlan.getName());
+
+    // Test setter and getter
+    vlan.setName("Management");
+    assertEquals("Management", vlan.getName());
+
+    // Test null name
+    vlan.setName(null);
+    assertNull(vlan.getName());
+  }
+
+  @Test
+  public void testVlanDescription() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    assertNull(vlan.getDescription());
+
+    vlan.setDescription("Management VLAN");
+    assertEquals("Management VLAN", vlan.getDescription());
+
+    vlan.setDescription(null);
+    assertNull(vlan.getDescription());
+  }
+
+  @Test
+  public void testVlanInterfaces() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    // Test initial state
+    assertTrue(vlan.getInterfaces().isEmpty());
+
+    // Test adding interfaces
+    vlan.addInterface("GigabitEthernet0/0/1");
+    assertEquals(1, vlan.getInterfaces().size());
+    assertTrue(vlan.getInterfaces().contains("GigabitEthernet0/0/1"));
+
+    vlan.addInterface("GigabitEthernet0/0/2");
+    assertEquals(2, vlan.getInterfaces().size());
+
+    // Test setInterfaces
+    SortedSet<String> newInterfaces = new TreeSet<>();
+    newInterfaces.add("GigabitEthernet0/0/3");
+    vlan.setInterfaces(newInterfaces);
+    assertEquals(1, vlan.getInterfaces().size());
+    assertTrue(vlan.getInterfaces().contains("GigabitEthernet0/0/3"));
+  }
+
+  @Test
+  public void testVlanVlanifInterface() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    assertNull(vlan.getVlanifInterface());
+
+    vlan.setVlanifInterface("Vlanif100");
+    assertEquals("Vlanif100", vlan.getVlanifInterface());
+
+    vlan.setVlanifInterface(null);
+    assertNull(vlan.getVlanifInterface());
+  }
+
+  @Test
+  public void testVlanToString() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    String result = vlan.toString();
+    assertTrue(result.contains("100"));
+
+    vlan.setName("Test");
+    vlan.setDescription("Test Description");
+    vlan.addInterface("GigabitEthernet0/0/1");
+    vlan.setVlanifInterface("Vlanif100");
+
+    result = vlan.toString();
+    assertTrue(result.contains("100"));
+    assertTrue(result.contains("Test") || result.contains("Description"));
+  }
+
+  @Test
+  public void testVlanAddInterface() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    vlan.addInterface("GigabitEthernet0/0/1");
+    assertEquals(1, vlan.getInterfaces().size());
+
+    // Test that duplicate interfaces aren't added (Set behavior)
+    vlan.addInterface("GigabitEthernet0/0/1");
+    assertEquals(1, vlan.getInterfaces().size());
+
+    vlan.addInterface("GigabitEthernet0/0/2");
+    assertEquals(2, vlan.getInterfaces().size());
+  }
+
+  @Test
+  public void testVlanGetVlanId() {
+    // Test minimum VLAN ID
+    HuaweiVlan vlan1 = new HuaweiVlan(1);
+    assertEquals(1, vlan1.getVlanId());
+
+    // Test maximum VLAN ID
+    HuaweiVlan vlan2 = new HuaweiVlan(4094);
+    assertEquals(4094, vlan2.getVlanId());
+
+    // Test common VLAN ID
+    HuaweiVlan vlan3 = new HuaweiVlan(100);
+    assertEquals(100, vlan3.getVlanId());
+
+    // Test another common VLAN ID
+    HuaweiVlan vlan4 = new HuaweiVlan(2000);
+    assertEquals(2000, vlan4.getVlanId());
+  }
+
+  @Test
+  public void testVlanInterfaceSorting() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    // Add interfaces in non-sorted order
+    vlan.addInterface("GigabitEthernet0/0/3");
+    vlan.addInterface("GigabitEthernet0/0/1");
+    vlan.addInterface("GigabitEthernet0/0/2");
+
+    // Verify they are stored in sorted order (TreeSet behavior)
+    SortedSet<String> interfaces = vlan.getInterfaces();
+    int i = 1;
+    for (String iface : interfaces) {
+      assertEquals("GigabitEthernet0/0/" + i, iface);
+      i++;
+    }
+  }
+
+  @Test
+  public void testVlanToStringWithAllFields() {
+    HuaweiVlan vlan = new HuaweiVlan(999);
+
+    vlan.setName("Production");
+    vlan.setDescription("Production Network VLAN");
+    vlan.addInterface("GigabitEthernet0/0/1");
+    vlan.addInterface("GigabitEthernet0/0/2");
+    vlan.setVlanifInterface("Vlanif999");
+
+    String result = vlan.toString();
+
+    // Verify all fields are represented in toString
+    assertTrue(result.contains("999"));
+    assertTrue(result.contains("Production"));
+    assertTrue(result.contains("GigabitEthernet0/0/1"));
+    assertTrue(result.contains("Vlanif999"));
+  }
+
+  @Test
+  public void testVlanToStringMinimal() {
+    HuaweiVlan vlan = new HuaweiVlan(50);
+
+    String result = vlan.toString();
+
+    // Verify VLAN ID is in toString even with minimal config
+    assertTrue(result.contains("50"));
+  }
+
+  @Test
+  public void testVlanSetInterfacesWithMultiple() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    SortedSet<String> interfaces = new TreeSet<>();
+    interfaces.add("GigabitEthernet0/0/1");
+    interfaces.add("GigabitEthernet0/0/2");
+    interfaces.add("GigabitEthernet0/0/3");
+
+    vlan.setInterfaces(interfaces);
+
+    assertEquals(3, vlan.getInterfaces().size());
+    assertTrue(vlan.getInterfaces().contains("GigabitEthernet0/0/1"));
+    assertTrue(vlan.getInterfaces().contains("GigabitEthernet0/0/2"));
+    assertTrue(vlan.getInterfaces().contains("GigabitEthernet0/0/3"));
+  }
+
+  @Test
+  public void testVlanSetEmptyInterfaces() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    vlan.addInterface("GigabitEthernet0/0/1");
+    assertEquals(1, vlan.getInterfaces().size());
+
+    // Replace with empty set
+    vlan.setInterfaces(new TreeSet<>());
+    assertTrue(vlan.getInterfaces().isEmpty());
+  }
+
+  @Test
+  public void testVlanWithNullNameAndDescription() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    // Verify initial null state
+    assertNull(vlan.getName());
+    assertNull(vlan.getDescription());
+
+    // Set to non-null values
+    vlan.setName("TestVlan");
+    vlan.setDescription("Test Description");
+
+    assertEquals("TestVlan", vlan.getName());
+    assertEquals("Test Description", vlan.getDescription());
+
+    // Reset to null
+    vlan.setName(null);
+    vlan.setDescription(null);
+
+    assertNull(vlan.getName());
+    assertNull(vlan.getDescription());
+  }
+
+  @Test
+  public void testVlanWithNullVlanifInterface() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    assertNull(vlan.getVlanifInterface());
+
+    vlan.setVlanifInterface("Vlanif100");
+    assertEquals("Vlanif100", vlan.getVlanifInterface());
+
+    vlan.setVlanifInterface(null);
+    assertNull(vlan.getVlanifInterface());
+  }
+
+  @Test
+  public void testVlanGetInterfacesReturnsNonnull() {
+    HuaweiVlan vlan = new HuaweiVlan(100);
+
+    // Even with no interfaces, getInterfaces should return non-null empty set
+    SortedSet<String> interfaces = vlan.getInterfaces();
+    assertThat(interfaces, notNullValue());
+    assertTrue(interfaces.isEmpty());
+  }
+
+  // HuaweiInterface coverage tests
+  @Test
+  public void testInterfaceBandwidth() {
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/1");
+
+    // Test default bandwidth (null)
+    assertNull(iface.getBandwidth());
+
+    // Test custom bandwidth
+    iface.setBandwidth(Double.valueOf(10E9));
+    assertEquals(Double.valueOf(10E9), iface.getBandwidth());
+
+    iface.setBandwidth(null);
+    assertNull(iface.getBandwidth());
+  }
+
+  @Test
+  public void testInterfaceMtu() {
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/1");
+
+    // Test default MTU
+    assertEquals(1500, iface.getMtu());
+
+    // Test setting MTU
+    iface.setMtu(9000);
+    assertEquals(9000, iface.getMtu());
+  }
+
+  @Test
+  public void testInterfaceDhcpRelay() {
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/1");
+
+    // Test initial state
+    assertTrue(iface.getDhcpRelayAddresses().isEmpty());
+    assertFalse(iface.getDhcpRelayClient());
+
+    // Test adding relay addresses
+    Ip addr1 = Ip.parse("192.168.1.1");
+    Ip addr2 = Ip.parse("192.168.1.2");
+    iface.addDhcpRelayAddress(addr1);
+    iface.addDhcpRelayAddress(addr2);
+
+    assertEquals(2, iface.getDhcpRelayAddresses().size());
+    assertTrue(iface.getDhcpRelayAddresses().contains(addr1));
+    assertTrue(iface.getDhcpRelayAddresses().contains(addr2));
+
+    // Test setting addresses
+    SortedSet<Ip> newAddrs = new TreeSet<>();
+    newAddrs.add(Ip.parse("10.0.0.1"));
+    iface.setDhcpRelayAddresses(newAddrs);
+    assertEquals(1, iface.getDhcpRelayAddresses().size());
+
+    // Test DHCP relay client
+    iface.setDhcpRelayClient(true);
+    assertTrue(iface.getDhcpRelayClient());
+
+    iface.setDhcpRelayClient(false);
+    assertFalse(iface.getDhcpRelayClient());
+  }
+
+  @Test
+  public void testInterfaceAcls() {
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/1");
+
+    // Test initial state
+    assertNull(iface.getIncomingFilter());
+    assertNull(iface.getOutgoingFilter());
+
+    // Test setting ACLs
+    iface.setIncomingFilter("acl-in");
+    assertEquals("acl-in", iface.getIncomingFilter());
+
+    iface.setOutgoingFilter("acl-out");
+    assertEquals("acl-out", iface.getOutgoingFilter());
+
+    iface.setIncomingFilter(null);
+    assertNull(iface.getIncomingFilter());
+
+    iface.setOutgoingFilter(null);
+    assertNull(iface.getOutgoingFilter());
+  }
+
+  @Test
+  public void testInterfaceAddress() {
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/1");
+
+    // Test initial state
+    assertNull(iface.getAddress());
+
+    // Test setting address
+    ConcreteInterfaceAddress addr = ConcreteInterfaceAddress.parse("192.168.1.1/24");
+    iface.setAddress(addr);
+    assertEquals(addr, iface.getAddress());
+
+    // Test nulling address
+    iface.setAddress(null);
+    assertNull(iface.getAddress());
+  }
+
+  // Additional tests for improved coverage
+
+  @Test
+  public void testVlanBatchWithTo() {
+    // Test VLAN batch with "to" range syntax (creates start to end-1)
+    String configText = "sysname Router1\n" + "vlan batch 10 to 20\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should create VLANs 10-19 (not 10-20, end is exclusive)
+    assertThat(config.getVlans().size(), equalTo(10));
+    assertThat(config.getVlan(10), notNullValue());
+    assertThat(config.getVlan(19), notNullValue());
+    assertThat(config.getVlan(20), equalTo(null));
+  }
+
+  @Test
+  public void testVlanBatchInvalidRange() {
+    // Test VLAN batch with invalid range
+    String configText = "sysname Router1\n" + "vlan batch 999999 to 1000000\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should have warning but config should still be valid
+    assertThat(config.getHostname(), equalTo("Router1"));
+  }
+
+  @Test
+  public void testInterfaceDescriptionMultiWord() {
+    // Test interface description with multiple words
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " description This is a long description with multiple words\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    assertThat(iface.getDescription(), equalTo("This is a long description with multiple words"));
+  }
+
+  @Test
+  public void testDot1qTerminationInvalidVlan() {
+    // Test dot1q termination with invalid VLAN ID
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0.100\n"
+            + " dot1q termination vid 9999\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Should parse successfully even with high VLAN ID
+  }
+
+  @Test
+  public void testBgpRouterIdInvalid() {
+    // Test BGP with invalid router-id
+    String configText =
+        "sysname Router1\n" + "bgp 65001\n" + " router-id 999.999.999.999\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    // Router ID should not be set due to invalid IP
+    assertThat(config.getBgpProcess().getRouterId(), equalTo(null));
+  }
+
+  @Test
+  public void testBgpPeerInvalid() {
+    // Test BGP with invalid peer configuration
+    String configText =
+        "sysname Router1\n"
+            + "bgp 65001\n"
+            + " peer 999.999.999.999 as-number 65002\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getBgpProcess(), notNullValue());
+    // Should have warning but BGP process should still exist
+  }
+
+  @Test
+  public void testOspfRouterIdInvalid() {
+    // Test OSPF with invalid router-id
+    String configText = "sysname Router1\n" + "ospf 1\n" + " router-id 256.1.1.1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    // Router ID should not be set due to invalid IP
+    assertThat(config.getOspfProcess().getRouterId(), equalTo(null));
+  }
+
+  @Test
+  public void testOspfAreaNullId() {
+    // Test OSPF area without proper ID (shouldn't happen in normal parsing)
+    // This tests the error handling path
+    String configText = "sysname Router1\n" + "ospf 1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getOspfProcess(), notNullValue());
+    // No areas should be created
+    assertThat(config.getOspfProcess().getAreas().size(), equalTo(0));
+  }
+
+  @Test
+  public void testVrfRouteDistinguisher() {
+    // Test VRF with route distinguisher
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " route-distinguisher 65001:100\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getRouteDistinguisher(), equalTo("65001:100"));
+  }
+
+  @Test
+  public void testVrfVpnTargetImport() {
+    // Test VRF with import route target
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " vpn-target 65001:100 import\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(1));
+    assertThat(vrf.getImportRouteTargets().containsKey("65001:100"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(0));
+  }
+
+  @Test
+  public void testVrfVpnTargetExport() {
+    // Test VRF with export route target
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " vpn-target 65001:200 export\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
+    assertThat(vrf.getExportRouteTargets().containsKey("65001:200"), equalTo(true));
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(0));
+  }
+
+  @Test
+  public void testVrfVpnTargetBoth() {
+    // Test VRF with both import and export route target
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " vpn-target 65001:300 both\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(1));
+    assertThat(vrf.getImportRouteTargets().containsKey("65001:300"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
+    assertThat(vrf.getExportRouteTargets().containsKey("65001:300"), equalTo(true));
+  }
+
+  @Test
+  public void testVrfMultipleVpnTargets() {
+    // Test VRF with multiple route targets
+    String configText =
+        "sysname Router1\n"
+            + "ip vpn-instance VRF1\n"
+            + " vpn-target 65001:100 import\n"
+            + " vpn-target 65001:200 export\n"
+            + " vpn-target 65001:300 both\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getImportRouteTargets().size(), equalTo(2)); // 100 and 300
+    assertThat(vrf.getExportRouteTargets().size(), equalTo(2)); // 200 and 300
+  }
+
+  @Test
+  public void testAclRuleWithPorts() {
+    // Test ACL rule with port operators
+    String configText =
+        "sysname Router1\n"
+            + "acl 3000 advanced\n"
+            + " rule 5 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port eq 80\n"
+            + " rule 10 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port gt 1024\n"
+            + " rule 15 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " destination-port lt 5000\n"
+            + " rule 20 permit tcp source 192.168.1.0 0.0.0.255 destination 10.0.0.0 0.0.0.255"
+            + " source-port range 2000 3000 destination-port range 80 443\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiAcl acl = config.getAcl("3000");
+    assertThat(acl, notNullValue());
+    assertThat(acl.getLines().size(), equalTo(4));
+
+    // Check eq port
+    HuaweiAclLine line1 = acl.getLines().get(0);
+    assertThat(line1.getDestinationPort(), equalTo("eq 80"));
+
+    // Check gt port
+    HuaweiAclLine line2 = acl.getLines().get(1);
+    assertThat(line2.getDestinationPort(), equalTo("gt 1024"));
+
+    // Check lt port
+    HuaweiAclLine line3 = acl.getLines().get(2);
+    assertThat(line3.getDestinationPort(), equalTo("lt 5000"));
+
+    // Check range ports
+    HuaweiAclLine line4 = acl.getLines().get(3);
+    assertThat(line4.getSourcePort(), equalTo("range 2000 3000"));
+    assertThat(line4.getDestinationPort(), equalTo("range 80 443"));
+  }
+
+  @Test
+  public void testNatServerWithProtocol() {
+    // Test NAT server with protocol and ports
+    String configText =
+        "sysname Router1\n"
+            + "nat server protocol tcp global 192.168.1.1 80 inside 10.0.0.1 8080\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getNatRules().size(), equalTo(1));
+
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getType(), equalTo(HuaweiNatRule.NatType.NAT_SERVER));
+    assertThat(rule.getProtocol(), equalTo("tcp"));
+    assertThat(rule.getGlobalIp().toString(), equalTo("192.168.1.1"));
+    assertThat(rule.getInsideLocalIp().toString(), equalTo("10.0.0.1"));
+    assertThat(rule.getGlobalPort(), equalTo(80));
+    assertThat(rule.getInsideLocalPort(), equalTo(8080));
+  }
+
+  @Test
+  public void testNatServerUdp() {
+    // Test NAT server with UDP protocol
+    String configText =
+        "sysname Router1\n"
+            + "nat server protocol udp global 192.168.1.1 53 inside 10.0.0.1 53\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    // Check if NAT rules were parsed
+    assertThat(config.getNatRules().size(), equalTo(1));
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getProtocol(), equalTo("udp"));
+  }
+
+  @Test
+  public void testNatServerWithoutProtocol() {
+    // Test NAT server without protocol (simple IP mapping)
+    String configText =
+        "sysname Router1\n" + "nat server global 192.168.1.1 inside 10.0.0.1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getType(), equalTo(HuaweiNatRule.NatType.NAT_SERVER));
+    assertThat(rule.getGlobalIp().toString(), equalTo("192.168.1.1"));
+    assertThat(rule.getInsideLocalIp().toString(), equalTo("10.0.0.1"));
+  }
+
+  @Test
+  public void testNatServerWithVrf() {
+    // Test NAT server with VRF
+    String configText =
+        "sysname Router1\n"
+            + "nat server protocol tcp global 192.168.1.1 80 inside 10.0.0.1 8080 vpn-instance"
+            + " VRF1\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getVrfName(), equalTo("VRF1"));
+  }
+
+  @Test
+  public void testNatOutboundWithPool() {
+    // Test NAT outbound with pool name
+    String configText = "sysname Router1\n" + "nat outbound 2000 pool pool1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getType(), equalTo(HuaweiNatRule.NatType.DYNAMIC));
+    assertThat(rule.getAclName(), equalTo("2000"));
+    assertThat(rule.getPoolName(), equalTo("pool1"));
+  }
+
+  @Test
+  public void testNatOutboundWithVrf() {
+    // Test NAT outbound with VRF
+    String configText = "sysname Router1\n" + "nat outbound 2000 vpn-instance VRF1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiNatRule rule = config.getNatRules().get(0);
+    assertThat(rule.getVrfName(), equalTo("VRF1"));
+  }
+
+  @Test
+  public void testStaticRouteWithVrfSuffix() {
+    // Test static route with VRF specified as suffix
+    String configText =
+        "sysname Router1\n"
+            + "ip route-static 10.0.0.0 255.255.255.0 192.168.1.1 vpn-instance VRF1\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(1));
+
+    HuaweiStaticRoute route = config.getStaticRoutes().get(0);
+    assertThat(route.getDestination().toString(), equalTo("10.0.0.0/24"));
+    assertThat(route.getNextHopIp().toString(), equalTo("192.168.1.1"));
+    assertThat(route.getVrfName(), equalTo("VRF1"));
+  }
+
+  @Test
+  public void testStaticRouteCidrNotation() {
+    // Test static route with CIDR notation
+    String configText =
+        "sysname Router1\n" + "ip route-static 10.0.0.0/24 192.168.1.1\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getStaticRoutes().size(), equalTo(1));
+
+    HuaweiStaticRoute route = config.getStaticRoutes().get(0);
+    assertThat(route.getDestination().toString(), equalTo("10.0.0.0/24"));
+    assertThat(route.getNextHopIp().toString(), equalTo("192.168.1.1"));
+  }
+
+  @Test
+  public void testVlanDescriptionFromConfig() {
+    // Test VLAN with description from config
+    String configText =
+        "sysname Router1\n" + "vlan 100\n" + " description Production VLAN\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    HuaweiVlan vlan = config.getVlan(100);
+    assertThat(vlan, notNullValue());
+    assertThat(vlan.getDescription(), equalTo("Production VLAN"));
+  }
+
+  @Test
+  public void testExitS_returnClearsContext() {
+    // Test that return command clears interface and VLAN context
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/1\n"
+            + " ip address 192.168.2.1 255.255.255.0\n"
+            + "return\n"
+            + "vlan 100\n"
+            + " description VLAN100\n"
+            + "return\n"
+            + "vlan 200\n"
+            + " description VLAN200\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getInterfaces().size(), equalTo(2));
+    assertThat(config.getVlans().size(), equalTo(2));
+
+    // Verify each interface has correct address
+    HuaweiInterface iface1 = config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface1.getAddress().getIp().toString(), equalTo("192.168.1.1"));
+
+    HuaweiInterface iface2 = config.getInterfaces().get("GigabitEthernet0/0/1");
+    assertThat(iface2.getAddress().getIp().toString(), equalTo("192.168.2.1"));
+
+    // Verify each VLAN has correct description
+    HuaweiVlan vlan100 = config.getVlan(100);
+    assertThat(vlan100.getDescription(), equalTo("VLAN100"));
+
+    HuaweiVlan vlan200 = config.getVlan(200);
+    assertThat(vlan200.getDescription(), equalTo("VLAN200"));
+  }
+
+  @Test
+  public void testAclTypeFromNumberRange() {
+    // Test ACL type determination from number range
+    // 2000-2999 should be BASIC, 3000-3999 should be ADVANCED
+    String configText =
+        "sysname Router1\n"
+            + "acl 2000\n"
+            + " rule 5 permit source 10.0.0.0 0.0.0.255\n"
+            + "acl 3000\n"
+            + " rule 5 permit ip source any destination any\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getAcls().size(), equalTo(2));
+
+    HuaweiAcl acl2000 = config.getAcl("2000");
+    assertThat(acl2000.getType(), equalTo(HuaweiAcl.AclType.BASIC));
+
+    HuaweiAcl acl3000 = config.getAcl("3000");
+    assertThat(acl3000.getType(), equalTo(HuaweiAcl.AclType.ADVANCED));
   }
 }

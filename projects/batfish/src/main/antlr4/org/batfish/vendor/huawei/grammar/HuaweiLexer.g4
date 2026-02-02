@@ -6,7 +6,8 @@ options {
 
 tokens {
    IPV6_ADDRESS,
-   IPV6_PREFIX
+   IPV6_PREFIX,
+   IPV6
 }
 
 // Huawei VRP Keywords
@@ -219,6 +220,8 @@ HW_DLD: 'hw.dld';
 
 ICMP: 'icmp';
 
+ICMPV6: 'icmpv6';
+
 ID: 'id';
 
 IF_INDEX: 'if-index';
@@ -376,6 +379,8 @@ POLICY_MAP: 'policy-map';
 PORT: 'port';
 
 PORTAL: 'portal';
+
+POOL: 'pool';
 
 PRECEDENCE: 'precedence';
 
@@ -556,6 +561,8 @@ TIMES: 'times';
 TLS: 'tls';
 
 TOPOLOGY: 'topology';
+
+TO: 'to';
 
 TRACK: 'track';
 

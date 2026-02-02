@@ -38,6 +38,10 @@ static_route_body
       PREFERENCE pref = uint16
    )?
    (
+      // Optional VRF suffix: vpn-instance <vrf>
+      VPN_INSTANCE vrf_suffix = variable
+   )?
+   (
       // Optional track: track <number>
       TRACK track_num = uint16
    )?

@@ -24,6 +24,20 @@ s_acl
    )*
 ;
 
+// IPv6 ACL stanza - matches "acl ipv6 <name/number> [basic|advanced]"
+s_acl_ipv6
+:
+   ACL ACL_IPV6
+   (
+      acl_name_ipv6 = variable
+      |
+      acl_num_ipv6 = uint16
+   )
+   (
+      acl_ipv6_substanza
+   )*
+;
+
 // ACL sub-stanza
 acl_substanza
 :
@@ -110,4 +124,83 @@ acl_null
    (
       null_rest_of_line
    )
+;
+
+// IPv6 ACL sub-stanza
+acl_ipv6_substanza
+:
+   acl_ipv6_rule
+   |
+   acl_null
+;
+
+// IPv6 ACL rule - permit/deny statements for IPv6
+acl_ipv6_rule
+:
+   RULE uint16
+   (
+      action = PERMIT
+      |
+      action = DENY
+   )
+   (
+      // Protocol specification for IPv6
+      TCP
+      |
+      UDP
+      |
+      ICMPV6
+      |
+      IPV6
+      |
+      variable
+   )?
+   (
+      // IPv6 Source address - use IPV6_PREFIX for prefix notation
+      SOURCE src_addr_ipv6 = IPV6_PREFIX
+      |
+      SOURCE src_addr_ipv6 = IPV6_ADDRESS
+      |
+      SOURCE src_any_ipv6 = ANY
+   )?
+   (
+      // IPv6 Destination address - use IPV6_PREFIX for prefix notation
+      DESTINATION dest_addr_ipv6 = IPV6_PREFIX
+      |
+      DESTINATION dest_addr_ipv6 = IPV6_ADDRESS
+      |
+      DESTINATION dest_any_ipv6 = ANY
+   )?
+   (
+      // Source port (for TCP/UDP)
+      SOURCE_PORT
+      (
+         eq = EQ src_port_ipv6 = uint16
+         |
+         gt = GT src_port_ipv6 = uint16
+         |
+         lt = LT src_port_ipv6 = uint16
+         |
+         range = RANGE src_port_start_ipv6 = uint16 src_port_end_ipv6 = uint16
+      )
+   )?
+   (
+      // Destination port (for TCP/UDP)
+      DESTINATION_PORT
+      (
+         eq2 = EQ dest_port_ipv6 = uint16
+         |
+         gt2 = GT dest_port_ipv6 = uint16
+         |
+         lt2 = LT dest_port_ipv6 = uint16
+         |
+         range2 = RANGE dest_port_start_ipv6 = uint16 dest_port_end_ipv6 = uint16
+      )
+   )?
+   (
+      // Other options
+      log = LOG
+      |
+      frag = FRAGMENT
+   )?
 ;

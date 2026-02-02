@@ -1,5 +1,6 @@
 package org.batfish.vendor.huawei.grammar;
 
+import java.util.List;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.batfish.common.NetworkSnapshot;
@@ -58,21 +59,23 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   private final String _text;
   private final HuaweiCombinedParser _parser;
   private final Warnings _w;
-  private final SilentSyntaxCollection _silentSyntax;
   private String _currentInterfaceName;
   private HuaweiAcl _currentAcl;
   private HuaweiVrf _currentVrf;
+  private Integer _currentVlanId;
+  private String _pendingVlanDescription;
 
   public HuaweiControlPlaneExtractor(
       String text, HuaweiCombinedParser parser, Warnings w, SilentSyntaxCollection silentSyntax) {
     _text = text;
     _parser = parser;
     _w = w;
-    _silentSyntax = silentSyntax;
     _configuration = new HuaweiConfiguration();
     _currentInterfaceName = null;
     _currentAcl = null;
     _currentVrf = null;
+    _currentVlanId = null;
+    _pendingVlanDescription = null;
   }
 
   public String getInputText() {
@@ -265,33 +268,85 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   public void exitS_return(S_returnContext ctx) {
     // Clear the current interface context when we exit the interface block
     _currentInterfaceName = null;
+    // Also clear current VLAN context
+    _currentVlanId = null;
+    // Clear pending VLAN description
+    _pendingVlanDescription = null;
+  }
+
+  /**
+   * Process entry to s_vlan rule - track current VLAN context.
+   *
+   * <p>Sets the current VLAN ID when entering a VLAN configuration block (not for batch).
+   */
+  @Override
+  public void enterS_vlan(S_vlanContext ctx) {
+    // Only track current VLAN for single VLAN configuration (not batch)
+    if (ctx.vlan_id != null) {
+      try {
+        _currentVlanId = Integer.parseInt(ctx.vlan_id.getText());
+      } catch (NumberFormatException e) {
+        // Invalid VLAN ID will be handled in exitS_vlan
+        _currentVlanId = null;
+      }
+    } else {
+      // For "vlan batch", don't set current VLAN context
+      _currentVlanId = null;
+    }
   }
 
   /**
    * Process exit from s_vlan rule - extract VLAN configuration.
    *
-   * <p>Extracts VLAN ID from "vlan <id>" command and creates HuaweiVlan object. For "vlan batch"
-   * commands, creates multiple VLANs.
+   * <p>Extracts VLAN ID from "vlan {@code <id>}" command and creates HuaweiVlan object. For "vlan
+   * batch" commands, creates multiple VLANs.
    */
   @Override
   public void exitS_vlan(S_vlanContext ctx) {
     // Handle "vlan batch" command (create multiple VLANs)
     if (ctx.vlan_batch_range() != null) {
-      // Iterate through all uint8 contexts in vlan_batch_range
-      for (HuaweiParser.Uint8Context uint8Ctx : ctx.vlan_batch_range().uint8()) {
-        try {
-          int vlanId = Integer.parseInt(uint8Ctx.getText());
-          HuaweiVlan vlan = _configuration.getVlan(vlanId);
-          if (vlan == null) {
-            vlan = new HuaweiVlan(vlanId);
-            _configuration.addVlan(vlanId, vlan);
+      // Check if this is a range specification with "to" keyword
+      if (ctx.vlan_batch_range().TO() != null) {
+        // Handle "vlan batch X to Y" - create range from X to Y-1 (exclusive at end)
+        // "2 to 10" creates VLANs 2-9, not 2-10
+        List<HuaweiParser.Uint8Context> uint8Contexts = ctx.vlan_batch_range().uint8();
+        if (uint8Contexts.size() >= 2) {
+          try {
+            int startVlan = Integer.parseInt(uint8Contexts.get(0).getText());
+            int endVlan = Integer.parseInt(uint8Contexts.get(uint8Contexts.size() - 1).getText());
+            // Create VLANs from start to end-1 (exclusive at end)
+            for (int vlanId = startVlan; vlanId < endVlan; vlanId++) {
+              HuaweiVlan vlan = _configuration.getVlan(vlanId);
+              if (vlan == null) {
+                vlan = new HuaweiVlan(vlanId);
+                _configuration.addVlan(vlanId, vlan);
+              }
+            }
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid VLAN ID range at line %d",
+                    ctx.vlan_batch_range().getStart().getLine());
+            _w.redFlag(warning);
           }
-        } catch (NumberFormatException e) {
-          String warning =
-              String.format(
-                  "Invalid VLAN ID at line %d: %s",
-                  uint8Ctx.getStart().getLine(), uint8Ctx.getText());
-          _w.redFlag(warning);
+        }
+      } else {
+        // Handle "vlan batch X Y Z" - create specific VLANs
+        for (HuaweiParser.Uint8Context uint8Ctx : ctx.vlan_batch_range().uint8()) {
+          try {
+            int vlanId = Integer.parseInt(uint8Ctx.getText());
+            HuaweiVlan vlan = _configuration.getVlan(vlanId);
+            if (vlan == null) {
+              vlan = new HuaweiVlan(vlanId);
+              _configuration.addVlan(vlanId, vlan);
+            }
+          } catch (NumberFormatException e) {
+            String warning =
+                String.format(
+                    "Invalid VLAN ID at line %d: %s",
+                    uint8Ctx.getStart().getLine(), uint8Ctx.getText());
+            _w.redFlag(warning);
+          }
         }
       }
     }
@@ -302,6 +357,11 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         HuaweiVlan vlan = _configuration.getVlan(vlanId);
         if (vlan == null) {
           vlan = new HuaweiVlan(vlanId);
+          // Apply pending description if exists
+          if (_pendingVlanDescription != null) {
+            vlan.setDescription(_pendingVlanDescription);
+            _pendingVlanDescription = null;
+          }
           _configuration.addVlan(vlanId, vlan);
         }
       } catch (NumberFormatException e) {
@@ -334,14 +394,36 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitV_description(V_descriptionContext ctx) {
-    // Similar to v_name, this requires tracking the current VLAN context
-    // For now, this is a stub
+    if (_currentVlanId == null) {
+      return;
+    }
+
+    // Extract description text and store it temporarily
+    // It will be applied to the VLAN when exitS_vlan creates the VLAN object
+    if (ctx.description_line() != null && ctx.description_line().text != null) {
+      // Get the original text including whitespace between tokens
+      ParserRuleContext rule = ctx.description_line().text;
+      String text =
+          _text.substring(rule.getStart().getStartIndex(), rule.getStop().getStopIndex() + 1);
+      if (!text.isEmpty()) {
+        _pendingVlanDescription = text.trim();
+      }
+    }
+  }
+
+  /** Process entry to v_description rule - for debugging */
+  @Override
+  public void enterV_description(V_descriptionContext ctx) {
+    // Debug: check if we have a current VLAN ID
+    if (_currentVlanId == null) {
+      // No current VLAN - this might be the problem
+    }
   }
 
   /**
    * Process exit from if_dot1q_termination rule - extract subinterface VLAN assignment.
    *
-   * <p>Extracts VLAN ID from "dot1q termination vid <vid>" command on subinterfaces.
+   * <p>Extracts VLAN ID from "dot1q termination vid {@code <vid>}" command on subinterfaces.
    */
   @Override
   public void exitIf_dot1q_termination(If_dot1q_terminationContext ctx) {
@@ -355,11 +437,11 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     }
 
     try {
-      int vid = Integer.parseInt(ctx.vid.getText());
       // Store the VLAN ID for this subinterface
       // This can be used later to associate the subinterface with a VLAN
       // For now, we just note it - the actual VLAN-to-subinterface mapping
       // will be done during conversion to Batfish model
+      Integer.parseInt(ctx.vid.getText());
     } catch (NumberFormatException e) {
       String warning =
           String.format(
@@ -462,9 +544,13 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         }
       }
 
-      // Set VRF if present
-      if (route != null && body.vrf != null) {
-        route.setVrfName(body.vrf.getText());
+      // Set VRF if present (either prefix or suffix form)
+      if (route != null) {
+        if (body.vrf != null) {
+          route.setVrfName(body.vrf.getText());
+        } else if (body.vrf_suffix != null) {
+          route.setVrfName(body.vrf_suffix.getText());
+        }
       }
 
       // Add route to configuration
@@ -539,12 +625,11 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     }
 
     try {
-      Ip peerIp = Ip.parse(ctx.peer_ip.getText());
-      long peerAs = Long.parseLong(ctx.peer_as.getText());
-
       // Store peer info in a simple map for now (Phase 5)
       // Full BGP conversion will be implemented in future phases
       // For now, we just track that BGP is configured with peers
+      Ip.parse(ctx.peer_ip.getText());
+      Long.parseLong(ctx.peer_as.getText());
 
     } catch (Exception e) {
       String warning =
@@ -610,6 +695,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    *
    * <p>Extracts ACL rule information including action, protocol, source, destination, and ports.
    */
+  @Override
   public void exitAcl_rule(HuaweiParser.Acl_ruleContext ctx) {
     if (_currentAcl == null) {
       return;
@@ -677,7 +763,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       }
 
       // Extract source port
-      if (ctx.src_port != null) {
+      if (ctx.src_port != null || ctx.src_port_start != null) {
         String portOp = "";
         if (ctx.eq != null) {
           portOp = "eq ";
@@ -695,7 +781,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       }
 
       // Extract destination port
-      if (ctx.dest_port != null) {
+      if (ctx.dest_port != null || ctx.dest_port_start != null) {
         String portOp = "";
         if (ctx.eq2 != null) {
           portOp = "eq ";
@@ -738,8 +824,76 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     }
 
     try {
+      // Handle nat server (port forwarding) - check first since it's the first alternative
+      if (ctx.SERVER() != null) {
+        // Create NAT rule for NAT server
+        String ruleName = "server_" + System.currentTimeMillis();
+        HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.NAT_SERVER);
+
+        // Check if protocol specified
+        if (ctx.PROTOCOL() != null) {
+          if (ctx.TCP() != null) {
+            natRule.setProtocol("tcp");
+          } else if (ctx.UDP() != null) {
+            natRule.setProtocol("udp");
+          }
+
+          // Extract ports if protocol specified
+          if (ctx.global_port_proto != null) {
+            try {
+              natRule.setGlobalPort(Integer.parseInt(ctx.global_port_proto.getText()));
+            } catch (NumberFormatException e) {
+              // Invalid port number
+            }
+          }
+          if (ctx.inside_port_proto != null) {
+            try {
+              natRule.setInsideLocalPort(Integer.parseInt(ctx.inside_port_proto.getText()));
+            } catch (NumberFormatException e) {
+              // Invalid port number
+            }
+          }
+
+          // Extract IPs
+          if (ctx.ip_address() != null && !ctx.ip_address().isEmpty()) {
+            Ip globalIp = Ip.parse(ctx.ip_address(0).getText());
+            natRule.setGlobalIp(globalIp);
+          }
+          if (ctx.ip_address() != null && ctx.ip_address().size() > 1) {
+            Ip insideIp = Ip.parse(ctx.ip_address(1).getText());
+            natRule.setInsideLocalIp(insideIp);
+          }
+        } else {
+          // No protocol - check for simple IP mapping or single port
+          if (ctx.ip_address() != null && !ctx.ip_address().isEmpty()) {
+            Ip globalIp = Ip.parse(ctx.ip_address(0).getText());
+            natRule.setGlobalIp(globalIp);
+          }
+          if (ctx.ip_address() != null && ctx.ip_address().size() > 1) {
+            Ip insideIp = Ip.parse(ctx.ip_address(1).getText());
+            natRule.setInsideLocalIp(insideIp);
+          }
+
+          // Check for single port (format without protocol keyword)
+          if (ctx.global_port_simple != null) {
+            try {
+              natRule.setGlobalPort(Integer.parseInt(ctx.global_port_simple.getText()));
+            } catch (NumberFormatException e) {
+              // Invalid port number
+            }
+          }
+        }
+
+        // Extract VRF name if present
+        if (ctx.VPN_INSTANCE() != null && ctx.VARIABLE() != null) {
+          natRule.setVrfName(ctx.VARIABLE().getText());
+        }
+
+        _configuration.addNatRule(natRule);
+      }
+
       // Handle nat address-group
-      if (ctx.ADDRESS_GROUP() != null && ctx.uint16() != null) {
+      else if (ctx.ADDRESS_GROUP() != null) {
         // For now, just note that address groups exist
         // Full implementation would parse and store the address pool
       }
@@ -781,7 +935,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.STATIC);
 
         // Extract global IP (first IP address)
-        if (ctx.ip_address() != null && ctx.ip_address().size() > 0) {
+        if (ctx.ip_address() != null && !ctx.ip_address().isEmpty()) {
           Ip globalIp = Ip.parse(ctx.ip_address(0).getText());
           natRule.setGlobalIp(globalIp);
         }
@@ -790,74 +944,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         if (ctx.ip_address() != null && ctx.ip_address().size() > 1) {
           Ip insideIp = Ip.parse(ctx.ip_address(1).getText());
           natRule.setInsideLocalIp(insideIp);
-        }
-
-        // Extract VRF name if present
-        if (ctx.VPN_INSTANCE() != null && ctx.VARIABLE() != null) {
-          natRule.setVrfName(ctx.VARIABLE().getText());
-        }
-
-        _configuration.addNatRule(natRule);
-      }
-
-      // Handle nat server (port forwarding)
-      else if (ctx.SERVER() != null) {
-        // Create NAT rule for NAT server
-        String ruleName = "server_" + System.currentTimeMillis();
-        HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.NAT_SERVER);
-
-        // Check if protocol specified
-        if (ctx.PROTOCOL() != null) {
-          if (ctx.TCP() != null) {
-            natRule.setProtocol("tcp");
-          } else if (ctx.UDP() != null) {
-            natRule.setProtocol("udp");
-          }
-
-          // Extract ports if protocol specified
-          if (ctx.global_port_proto != null) {
-            try {
-              natRule.setGlobalPort(Integer.parseInt(ctx.global_port_proto.getText()));
-            } catch (NumberFormatException e) {
-              // Invalid port number
-            }
-          }
-          if (ctx.inside_port_proto != null) {
-            try {
-              natRule.setInsideLocalPort(Integer.parseInt(ctx.inside_port_proto.getText()));
-            } catch (NumberFormatException e) {
-              // Invalid port number
-            }
-          }
-
-          // Extract IPs
-          if (ctx.ip_address() != null && ctx.ip_address().size() > 0) {
-            Ip globalIp = Ip.parse(ctx.ip_address(0).getText());
-            natRule.setGlobalIp(globalIp);
-          }
-          if (ctx.ip_address() != null && ctx.ip_address().size() > 1) {
-            Ip insideIp = Ip.parse(ctx.ip_address(1).getText());
-            natRule.setInsideLocalIp(insideIp);
-          }
-        } else {
-          // No protocol - check for simple IP mapping or single port
-          if (ctx.ip_address() != null && ctx.ip_address().size() > 0) {
-            Ip globalIp = Ip.parse(ctx.ip_address(0).getText());
-            natRule.setGlobalIp(globalIp);
-          }
-          if (ctx.ip_address() != null && ctx.ip_address().size() > 1) {
-            Ip insideIp = Ip.parse(ctx.ip_address(1).getText());
-            natRule.setInsideLocalIp(insideIp);
-          }
-
-          // Check for single port (format without protocol keyword)
-          if (ctx.global_port_simple != null) {
-            try {
-              natRule.setGlobalPort(Integer.parseInt(ctx.global_port_simple.getText()));
-            } catch (NumberFormatException e) {
-              // Invalid port number
-            }
-          }
         }
 
         // Extract VRF name if present
@@ -884,7 +970,9 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void enterS_ospf(S_ospfContext ctx) {
-    if (ctx.process_id != null) {
+    // Only create OSPF process if it doesn't already exist
+    // This prevents resetting the areas map if enterS_ospf is called multiple times
+    if (_configuration.getOspfProcess() == null && ctx.process_id != null) {
       try {
         long processId = Long.parseLong(ctx.process_id.getText());
         HuaweiOspfProcess ospfProcess = new HuaweiOspfProcess(processId);
@@ -907,14 +995,31 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   @Override
   public void exitOspf_area(Ospf_areaContext ctx) {
     HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
-    if (ospfProcess == null || ctx.area_id == null) {
+    if (ospfProcess == null) {
+      // OSPF process not initialized yet - shouldn't happen if config is well-formed
+      String warning =
+          String.format(
+              "OSPF process not initialized when processing area at line %d",
+              ctx.getStart().getLine());
+      _w.redFlag(warning);
+      return;
+    }
+
+    if (ctx.area_id == null) {
+      // No area ID in parse tree - this is a grammar issue
+      String warning = String.format("OSPf area ID is null at line %d", ctx.getStart().getLine());
+      _w.redFlag(warning);
       return;
     }
 
     try {
       long areaId = Long.parseLong(ctx.area_id.getText());
       // Create or get the area
-      ospfProcess.getOrCreateArea(areaId);
+      HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getOrCreateArea(areaId);
+      // Verify area was added
+      if (area != null) {
+        // Successfully created/retrieved area
+      }
     } catch (NumberFormatException e) {
       String warning =
           String.format(
@@ -927,7 +1032,8 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   /**
    * Process exit from ospf_network rule - extract OSPF network configuration.
    *
-   * <p>Extracts network prefix and area ID from "network <prefix> area <area-id>" command.
+   * <p>Extracts network prefix and area ID from "network {@code <prefix>} area {@code <area-id>}"
+   * command.
    */
   @Override
   public void exitOspf_network(Ospf_networkContext ctx) {
@@ -998,7 +1104,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   /**
    * Process exit from vrf_route_distinguisher rule - extract RD value.
    *
-   * <p>Extracts route distinguisher from "route-distinguisher <rd>" command.
+   * <p>Extracts route distinguisher from "route-distinguisher {@code <rd>}" command.
    */
   @Override
   public void exitVrf_route_distinguisher(Vrf_route_distinguisherContext ctx) {

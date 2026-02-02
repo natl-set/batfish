@@ -17,22 +17,25 @@ public class HuaweiAclLine implements Serializable {
   private int _sequenceNumber;
 
   /** Action: permit or deny */
-  @Nonnull private String _action;
+  private @Nonnull String _action;
 
   /** Protocol (tcp, udp, ip, icmp, etc.) */
-  @Nullable private String _protocol;
+  private @Nullable String _protocol;
 
   /** Source IP address/prefix */
-  @Nullable private String _source;
+  private @Nullable String _source;
 
   /** Source port(s) */
-  @Nullable private String _sourcePort;
+  private @Nullable String _sourcePort;
 
   /** Destination IP address/prefix */
-  @Nullable private String _destination;
+  private @Nullable String _destination;
 
   /** Destination port(s) */
-  @Nullable private String _destinationPort;
+  private @Nullable String _destinationPort;
+
+  /** Whether this is an IPv6 ACL line */
+  private boolean _ipv6;
 
   public HuaweiAclLine(int sequenceNumber, @Nonnull String action) {
     _sequenceNumber = sequenceNumber;
@@ -62,8 +65,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The action
    */
-  @Nonnull
-  public String getAction() {
+  public @Nonnull String getAction() {
     return _action;
   }
 
@@ -81,8 +83,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The protocol (tcp, udp, icmp, ip, etc.)
    */
-  @Nullable
-  public String getProtocol() {
+  public @Nullable String getProtocol() {
     return _protocol;
   }
 
@@ -100,8 +101,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The source address
    */
-  @Nullable
-  public String getSource() {
+  public @Nullable String getSource() {
     return _source;
   }
 
@@ -119,8 +119,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The source port
    */
-  @Nullable
-  public String getSourcePort() {
+  public @Nullable String getSourcePort() {
     return _sourcePort;
   }
 
@@ -138,8 +137,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The destination address
    */
-  @Nullable
-  public String getDestination() {
+  public @Nullable String getDestination() {
     return _destination;
   }
 
@@ -157,8 +155,7 @@ public class HuaweiAclLine implements Serializable {
    *
    * @return The destination port
    */
-  @Nullable
-  public String getDestinationPort() {
+  public @Nullable String getDestinationPort() {
     return _destinationPort;
   }
 
@@ -169,5 +166,23 @@ public class HuaweiAclLine implements Serializable {
    */
   public void setDestinationPort(@Nullable String destinationPort) {
     _destinationPort = destinationPort;
+  }
+
+  /**
+   * Checks if this is an IPv6 ACL line.
+   *
+   * @return true if this is an IPv6 ACL line, false otherwise
+   */
+  public boolean isIpv6() {
+    return _ipv6;
+  }
+
+  /**
+   * Sets whether this is an IPv6 ACL line.
+   *
+   * @param ipv6 true if this is an IPv6 ACL line, false otherwise
+   */
+  public void setIpv6(boolean ipv6) {
+    _ipv6 = ipv6;
   }
 }
