@@ -18,6 +18,8 @@ ACL_NUMBER: 'acl-number';
 
 ACL_NAME: 'acl-name';
 
+ABR_SUMMARY: 'abr-summary';
+
 ACL_ADVANCED: 'advanced';
 
 ACL_BASIC: 'basic';
@@ -34,9 +36,13 @@ AREA: 'area';
 
 ARP: 'arp';
 
+APPLY: 'apply';
+
 AS_NUMBER: 'as-number';
 
 NUMBER: 'number';
+
+NOT_ADVERTISE: 'not-advertise';
 
 AS_PATH_LIMIT: 'as-path-limit';
 
@@ -62,6 +68,8 @@ BOOTROM: 'bootrom';
 
 BRIDGE_DOMAIN: 'bridge-domain';
 
+BROADCAST: 'broadcast';
+
 CANCEL: 'cancel';
 
 CAPABILITY: 'capability';
@@ -84,13 +92,15 @@ COMMIT: 'commit';
 
 COMMUNITY: 'community';
 
+COMMUNITY_FILTER: 'community-filter';
+
 CONFIG: 'config';
 
 CONNECT_INTERFACE: 'connect-interface';
 
-CONTROL: 'control';
-
 COST: 'cost';
+
+CONTROL: 'control';
 
 CRAWL: 'crawl';
 
@@ -113,6 +123,8 @@ DENY: 'deny';
 DESCRIPTION: 'description';
 
 DEST_ADDRESS: 'dest-address';
+
+DIRECT: 'direct';
 
 DESTINATION_PORT: 'destination-port';
 
@@ -226,6 +238,8 @@ ID: 'id';
 
 IF_INDEX: 'if-index';
 
+IF_MATCH: 'if-match';
+
 IGMP: 'igmp';
 
 IGMP_SNOOPING: 'igmp-snooping';
@@ -255,6 +269,8 @@ IP_POOL: 'ip-pool';
 IP_SOURCE: 'ip-source';
 
 IPV4: 'ipv4';
+
+ISIS: 'isis';
 
 ISOLATE: 'isolate';
 
@@ -286,6 +302,8 @@ LOAD_BALANCE: 'load-balance';
 
 LOCAL: 'local';
 
+LOCAL_PREFERENCE: 'local-preference';
+
 LOG: 'log';
 
 LOGGING: 'logging';
@@ -307,6 +325,8 @@ MATCH: 'match';
 MAX: 'max';
 
 MDI: 'mdi';
+
+MD5: 'md5';
 
 MGMT: 'mgmt';
 
@@ -336,7 +356,15 @@ NEXT_HOP: 'next-hop';
 
 NO: 'no';
 
+NODE: 'node';
+
 NON_STOP_ROUTING: 'non-stop-routing';
+
+NO_REDISTRIBUTE: 'no-redistribute';
+
+NO_SUMMARY: 'no-summary';
+
+NSSA: 'nssa';
 
 NTP: 'ntp';
 
@@ -392,6 +420,28 @@ PREFIX: 'prefix';
 
 PREFIX_PRIORITY: 'prefix-priority';
 
+NETWORK_TYPE: 'network-type';
+
+P2P: 'p2p';
+
+P2MP: 'p2mp';
+
+NBMA: 'nbma';
+
+RETRANSMIT_INTERVAL: 'retransmit-interval';
+
+DEFAULT_INFORMATION_ORIGINATE: 'default-information-originate';
+
+DEAD: 'dead';
+
+DEAD_INTERVAL: 'dead-interval';
+
+DEFAULT: 'default';
+
+HELLO: 'hello';
+
+HELLO_INTERVAL: 'hello-interval';
+
 PRE_SHARED_KEY: 'pre-shared-key';
 
 PRIMARY: 'primary';
@@ -401,6 +451,8 @@ PRIO: 'prio';
 PRIORITY: 'priority';
 
 PROFILE: 'profile';
+
+PASSIVE: 'passive';
 
 PROTECT: 'protect';
 
@@ -435,6 +487,10 @@ RECOVERY: 'recovery';
 REDIRECT: 'redirect';
 
 REFLECT: 'reflect';
+
+ROUTE_REFLECTOR_CLIENT: 'route-reflector-client';
+
+CLUSTER_ID: 'cluster-id';
 
 REGISTRATION: 'registration';
 
@@ -506,6 +562,8 @@ SHUTDOWN: 'shutdown';
 
 SID: 'sid';
 
+SIMPLE: 'simple';
+
 SNMP: 'snmp';
 
 SNMP_AGENT: 'snmp-agent';
@@ -525,6 +583,8 @@ STANDBY: 'standby';
 STATIC: 'static';
 
 STP: 'stp';
+
+STUB: 'stub';
 
 SUBMIT: 'submit';
 
@@ -590,6 +650,8 @@ UNICAST: 'unicast';
 
 UNITS: 'units';
 
+UNR: 'unr';
+
 UNREACHABLE: 'unreachable';
 
 UPDATE: 'update';
@@ -617,6 +679,8 @@ VPN: 'vpn';
 VPN_INSTANCE: 'vpn-instance';
 
 VPN_TARGET: 'vpn-target';
+
+VIRTUAL_LINK: 'virtual-link';
 
 VRRP: 'vrrp';
 
@@ -676,6 +740,8 @@ IPV6_PREFIX_PATTERN
 
 // Variables
 
+TAG: 'tag';
+
 VARIABLE: (~[ \t\r\n])+;
 
 // RAW_TEXT moved to fragments only - use in parser modes if needed
@@ -688,6 +754,8 @@ QUIT: 'quit';
 EXIT: 'exit';
 
 SUB: 'sub';
+
+FAMILY: 'family';
 
 SUB_INTERFACE: 'sub-interface';
 

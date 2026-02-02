@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 import org.batfish.datamodel.bgp.AddressFamily;
 import org.batfish.datamodel.bgp.EvpnAddressFamily;
 import org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily;
+import org.batfish.datamodel.bgp.Ipv6UnicastAddressFamily;
 import org.batfish.datamodel.dataplane.rib.RibGroup;
 
 /** Represents a configured BGP peering, at the control plane level */
@@ -42,6 +43,7 @@ public abstract class BgpPeerConfig implements Serializable {
   static final String PROP_LOCAL_IP = "localIp";
   static final String PROP_REMOTE_ASNS = "remoteAsns";
   static final String PROP_IPV4_UNICAST_ADDRESS_FAMILY = "ipv4UnicastAddressFamily";
+  static final String PROP_IPV6_UNICAST_ADDRESS_FAMILY = "ipv6UnicastAddressFamily";
   static final String PROP_EVPN_ADDRESS_FAMILY = "evpnAddressFamily";
 
   static final String PROP_REPLACE_NON_LOCAL_ASES_ON_EXPORT = "replaceNonLocalAsesOnExport";
@@ -90,6 +92,7 @@ public abstract class BgpPeerConfig implements Serializable {
 
   // Address families
   private @Nullable Ipv4UnicastAddressFamily _ipv4UnicastAddressFamily;
+  private @Nullable Ipv6UnicastAddressFamily _ipv6UnicastAddressFamily;
   private @Nullable EvpnAddressFamily _evpnAddressFamily;
 
   private final boolean _replaceNonLocalAsesOnExport;
@@ -110,6 +113,7 @@ public abstract class BgpPeerConfig implements Serializable {
       @Nullable Ip localIp,
       @Nullable LongSpace remoteAsns,
       @Nullable Ipv4UnicastAddressFamily ipv4UnicastAddressFamily,
+      @Nullable Ipv6UnicastAddressFamily ipv6UnicastAddressFamily,
       @Nullable EvpnAddressFamily evpnAddressFamily,
       boolean replaceNonLocalAsesOnExport) {
     _appliedRibGroup = appliedRibGroup;
@@ -127,6 +131,7 @@ public abstract class BgpPeerConfig implements Serializable {
     _localIp = localIp;
     _remoteAsns = firstNonNull(remoteAsns, ALL_AS_NUMBERS);
     _ipv4UnicastAddressFamily = ipv4UnicastAddressFamily;
+    _ipv6UnicastAddressFamily = ipv6UnicastAddressFamily;
     _evpnAddressFamily = evpnAddressFamily;
     _replaceNonLocalAsesOnExport = replaceNonLocalAsesOnExport;
   }
@@ -238,6 +243,15 @@ public abstract class BgpPeerConfig implements Serializable {
   }
 
   /**
+   * Return settings for the IPv6 unicast address family. Presence of this field indicates the peer
+   * should participate in the exchange of IPv6 routes
+   */
+  @JsonProperty(PROP_IPV6_UNICAST_ADDRESS_FAMILY)
+  public @Nullable Ipv6UnicastAddressFamily getIpv6UnicastAddressFamily() {
+    return _ipv6UnicastAddressFamily;
+  }
+
+  /**
    * Return settings for the EVPN address family. Presence of this field indicates the peer should
    * participate in the exchange of EVPN routes
    */
@@ -252,6 +266,9 @@ public abstract class BgpPeerConfig implements Serializable {
     HashSet<AddressFamily> collection = new HashSet<>();
     if (getIpv4UnicastAddressFamily() != null) {
       collection.add(getIpv4UnicastAddressFamily());
+    }
+    if (getIpv6UnicastAddressFamily() != null) {
+      collection.add(getIpv6UnicastAddressFamily());
     }
     if (getEvpnAddressFamily() != null) {
       collection.add(getEvpnAddressFamily());
@@ -268,6 +285,7 @@ public abstract class BgpPeerConfig implements Serializable {
   public @Nullable AddressFamily getAddressFamily(AddressFamily.Type type) {
     return switch (type) {
       case IPV4_UNICAST -> _ipv4UnicastAddressFamily;
+      case IPV6_UNICAST -> _ipv6UnicastAddressFamily;
       case EVPN -> _evpnAddressFamily;
     };
   }
@@ -305,6 +323,7 @@ public abstract class BgpPeerConfig implements Serializable {
         && Objects.equals(_localIp, that._localIp)
         && _remoteAsns.equals(that._remoteAsns)
         && Objects.equals(_ipv4UnicastAddressFamily, that._ipv4UnicastAddressFamily)
+        && Objects.equals(_ipv6UnicastAddressFamily, that._ipv6UnicastAddressFamily)
         && Objects.equals(_evpnAddressFamily, that._evpnAddressFamily)
         && _replaceNonLocalAsesOnExport == that._replaceNonLocalAsesOnExport;
   }
@@ -327,6 +346,7 @@ public abstract class BgpPeerConfig implements Serializable {
         _localIp,
         _remoteAsns,
         _ipv4UnicastAddressFamily,
+        _ipv6UnicastAddressFamily,
         _evpnAddressFamily,
         _replaceNonLocalAsesOnExport);
   }
@@ -349,6 +369,7 @@ public abstract class BgpPeerConfig implements Serializable {
         .add("_localIp", _localIp)
         .add("_remoteAsns", _remoteAsns)
         .add("_ipv4UnicastAddressFamily", _ipv4UnicastAddressFamily)
+        .add("_ipv6UnicastAddressFamily", _ipv6UnicastAddressFamily)
         .add("_evpnAddressFamily", _evpnAddressFamily)
         .add("_replaceNonLocalAsesOnExport", _replaceNonLocalAsesOnExport)
         .toString();
@@ -371,6 +392,7 @@ public abstract class BgpPeerConfig implements Serializable {
     protected @Nullable Ip _localIp;
     protected @Nonnull LongSpace _remoteAsns;
     protected @Nullable Ipv4UnicastAddressFamily _ipv4UnicastAddressFamily;
+    protected @Nullable Ipv6UnicastAddressFamily _ipv6UnicastAddressFamily;
     protected @Nullable EvpnAddressFamily _evpnAddressFamily;
 
     // Identifying fields
@@ -488,6 +510,12 @@ public abstract class BgpPeerConfig implements Serializable {
     public S setIpv4UnicastAddressFamily(
         @Nullable Ipv4UnicastAddressFamily ipv4UnicastAddressFamily) {
       _ipv4UnicastAddressFamily = ipv4UnicastAddressFamily;
+      return getThis();
+    }
+
+    public S setIpv6UnicastAddressFamily(
+        @Nullable Ipv6UnicastAddressFamily ipv6UnicastAddressFamily) {
+      _ipv6UnicastAddressFamily = ipv6UnicastAddressFamily;
       return getThis();
     }
 

@@ -10,6 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.batfish.datamodel.bgp.EvpnAddressFamily;
 import org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily;
+import org.batfish.datamodel.bgp.Ipv6UnicastAddressFamily;
 import org.batfish.datamodel.dataplane.rib.RibGroup;
 
 /**
@@ -42,6 +43,8 @@ public final class BgpPassivePeerConfig extends BgpPeerConfig {
       @JsonProperty(PROP_REMOTE_ASNS) @Nullable LongSpace remoteAsns,
       @JsonProperty(PROP_IPV4_UNICAST_ADDRESS_FAMILY) @Nullable
           Ipv4UnicastAddressFamily ipv4UnicastAddressFamily,
+      @JsonProperty(PROP_IPV6_UNICAST_ADDRESS_FAMILY) @Nullable
+          Ipv6UnicastAddressFamily ipv6UnicastAddressFamily,
       @JsonProperty(PROP_EVPN_ADDRESS_FAMILY) @Nullable EvpnAddressFamily evpnAddressFamily,
       @JsonProperty(PROP_REPLACE_NON_LOCAL_ASES_ON_EXPORT) boolean replaceNonLocalAsesOnExport) {
     return new BgpPassivePeerConfig(
@@ -61,6 +64,7 @@ public final class BgpPassivePeerConfig extends BgpPeerConfig {
         peerPrefix,
         firstNonNull(remoteAsns, LongSpace.EMPTY),
         ipv4UnicastAddressFamily,
+        ipv6UnicastAddressFamily,
         evpnAddressFamily,
         replaceNonLocalAsesOnExport);
   }
@@ -82,6 +86,7 @@ public final class BgpPassivePeerConfig extends BgpPeerConfig {
       @Nullable Prefix peerPrefix,
       @Nullable LongSpace remoteAsns,
       @Nullable Ipv4UnicastAddressFamily ipv4UnicastAddressFamily,
+      @Nullable Ipv6UnicastAddressFamily ipv6UnicastAddressFamily,
       @Nullable EvpnAddressFamily evpnAddressFamily,
       boolean replaceNonLocalAsesOnExport) {
     super(
@@ -100,6 +105,7 @@ public final class BgpPassivePeerConfig extends BgpPeerConfig {
         localIp,
         remoteAsns,
         ipv4UnicastAddressFamily,
+        ipv6UnicastAddressFamily,
         evpnAddressFamily,
         replaceNonLocalAsesOnExport);
     _peerPrefix = peerPrefix;
@@ -160,6 +166,7 @@ public final class BgpPassivePeerConfig extends BgpPeerConfig {
               _peerPrefix,
               _remoteAsns,
               _ipv4UnicastAddressFamily,
+              _ipv6UnicastAddressFamily,
               _evpnAddressFamily,
               _replaceNonLocalAsesOnExport);
       if (_bgpProcess != null) {

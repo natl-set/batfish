@@ -1,18 +1,21 @@
 package org.batfish.vendor.huawei.representation;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.batfish.datamodel.Ip;
-import org.batfish.datamodel.ospf.OspfArea;
+import org.batfish.datamodel.Prefix;
 
 /**
  * Represents an OSPF process on a Huawei VRP device.
  *
- * <p>This is a stub class for future OSPF implementation. It will store OSPF configuration
- * information including process ID, areas, interfaces, and other OSPF-specific settings.
+ * <p>This class stores OSPF configuration information including process ID, router ID, areas,
+ * networks, interfaces, redistribution policies, and other OSPF-specific settings.
  */
 public class HuaweiOspfProcess implements Serializable {
 
@@ -22,25 +25,47 @@ public class HuaweiOspfProcess implements Serializable {
   private long _processId;
 
   /** Router ID */
-  @Nullable private Ip _routerId;
+  private @Nullable Ip _routerId;
+
+  /** OSPF networks: list of network advertisements with associated area IDs */
+  private @Nonnull List<HuaweiOspfNetwork> _networks;
 
   /** OSPF areas: area ID to area configuration */
-  private Map<Long, OspfArea> _areas;
+  private @Nonnull Map<Long, HuaweiOspfArea> _areas;
 
   /** OSPF interfaces */
-  private Map<String, Object> _interfaces;
+  private @Nonnull Map<String, HuaweiOspfInterfaceSettings> _interfaces;
+
+  /** OSPF virtual links */
+  private @Nonnull List<HuaweiOspfVirtualLink> _virtualLinks;
 
   /** Default originate enabled */
   private boolean _defaultOriginate;
 
   /** Default originate route map */
-  @Nullable private String _defaultOriginateRouteMap;
+  private @Nullable String _defaultOriginateRouteMap;
+
+  /** Default cost for redistributed routes (set via "default cost" command) */
+  private @Nullable Long _defaultCost;
+
+  /** Default tag for redistributed routes (set via "default tag" command) */
+  private @Nullable Long _defaultTag;
+
+  /** Default type for external routes (set via "default type" command) */
+  private @Nullable Integer _defaultType;
+
+  /** Redistribution policies: protocol to redistribution policy */
+  @Nonnull
+  private Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy> _redistributionPolicies;
 
   public HuaweiOspfProcess(long processId) {
     _processId = processId;
+    _networks = new ArrayList<>();
     _areas = new TreeMap<>();
     _interfaces = new TreeMap<>();
+    _virtualLinks = new ArrayList<>();
     _defaultOriginate = false;
+    _redistributionPolicies = new HashMap<>();
   }
 
   /**
@@ -66,8 +91,7 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @return The router ID, or null if not set
    */
-  @Nullable
-  public Ip getRouterId() {
+  public @Nullable Ip getRouterId() {
     return _routerId;
   }
 
@@ -81,12 +105,38 @@ public class HuaweiOspfProcess implements Serializable {
   }
 
   /**
+   * Gets the OSPF networks.
+   *
+   * @return A list of network advertisements
+   */
+  public @Nonnull List<HuaweiOspfNetwork> getNetworks() {
+    return _networks;
+  }
+
+  /**
+   * Sets the OSPF networks.
+   *
+   * @param networks The list of network advertisements
+   */
+  public void setNetworks(@Nonnull List<HuaweiOspfNetwork> networks) {
+    _networks = networks;
+  }
+
+  /**
+   * Adds an OSPF network.
+   *
+   * @param network The network to add
+   */
+  public void addNetwork(HuaweiOspfNetwork network) {
+    _networks.add(network);
+  }
+
+  /**
    * Gets the OSPF areas.
    *
    * @return A map of area IDs to area configurations
    */
-  @Nonnull
-  public Map<Long, OspfArea> getAreas() {
+  public @Nonnull Map<Long, HuaweiOspfArea> getAreas() {
     return _areas;
   }
 
@@ -95,8 +145,18 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @param areas The map of area IDs to area configurations
    */
-  public void setAreas(@Nonnull Map<Long, OspfArea> areas) {
+  public void setAreas(@Nonnull Map<Long, HuaweiOspfArea> areas) {
     _areas = areas;
+  }
+
+  /**
+   * Gets or creates an OSPF area.
+   *
+   * @param areaId The area ID
+   * @return The area configuration
+   */
+  public @Nonnull HuaweiOspfArea getOrCreateArea(long areaId) {
+    return _areas.computeIfAbsent(areaId, HuaweiOspfArea::new);
   }
 
   /**
@@ -105,7 +165,7 @@ public class HuaweiOspfProcess implements Serializable {
    * @param areaId The area ID
    * @param area The area configuration
    */
-  public void addArea(Long areaId, OspfArea area) {
+  public void addArea(Long areaId, HuaweiOspfArea area) {
     _areas.put(areaId, area);
   }
 
@@ -114,8 +174,7 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @return A map of interface names to configurations
    */
-  @Nonnull
-  public Map<String, Object> getInterfaces() {
+  public @Nonnull Map<String, HuaweiOspfInterfaceSettings> getInterfaces() {
     return _interfaces;
   }
 
@@ -124,8 +183,45 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @param interfaces The map of interface names to configurations
    */
-  public void setInterfaces(@Nonnull Map<String, Object> interfaces) {
+  public void setInterfaces(@Nonnull Map<String, HuaweiOspfInterfaceSettings> interfaces) {
     _interfaces = interfaces;
+  }
+
+  /**
+   * Adds an OSPF interface setting.
+   *
+   * @param ifaceName The interface name
+   * @param settings The interface settings
+   */
+  public void addInterface(String ifaceName, HuaweiOspfInterfaceSettings settings) {
+    _interfaces.put(ifaceName, settings);
+  }
+
+  /**
+   * Gets the OSPF virtual links.
+   *
+   * @return A list of virtual links
+   */
+  public @Nonnull List<HuaweiOspfVirtualLink> getVirtualLinks() {
+    return _virtualLinks;
+  }
+
+  /**
+   * Sets the OSPF virtual links.
+   *
+   * @param virtualLinks The list of virtual links
+   */
+  public void setVirtualLinks(@Nonnull List<HuaweiOspfVirtualLink> virtualLinks) {
+    _virtualLinks = virtualLinks;
+  }
+
+  /**
+   * Adds an OSPF virtual link.
+   *
+   * @param virtualLink The virtual link to add
+   */
+  public void addVirtualLink(HuaweiOspfVirtualLink virtualLink) {
+    _virtualLinks.add(virtualLink);
   }
 
   /**
@@ -151,8 +247,7 @@ public class HuaweiOspfProcess implements Serializable {
    *
    * @return The route map name, or null if not set
    */
-  @Nullable
-  public String getDefaultOriginateRouteMap() {
+  public @Nullable String getDefaultOriginateRouteMap() {
     return _defaultOriginateRouteMap;
   }
 
@@ -163,5 +258,422 @@ public class HuaweiOspfProcess implements Serializable {
    */
   public void setDefaultOriginateRouteMap(@Nullable String defaultOriginateRouteMap) {
     _defaultOriginateRouteMap = defaultOriginateRouteMap;
+  }
+
+  /**
+   * Gets the default cost for redistributed routes.
+   *
+   * @return The default cost, or null if not set
+   */
+  public @Nullable Long getDefaultCost() {
+    return _defaultCost;
+  }
+
+  /**
+   * Sets the default cost for redistributed routes.
+   *
+   * @param defaultCost The default cost
+   */
+  public void setDefaultCost(@Nullable Long defaultCost) {
+    _defaultCost = defaultCost;
+  }
+
+  /**
+   * Gets the default tag for redistributed routes.
+   *
+   * @return The default tag, or null if not set
+   */
+  public @Nullable Long getDefaultTag() {
+    return _defaultTag;
+  }
+
+  /**
+   * Sets the default tag for redistributed routes.
+   *
+   * @param defaultTag The default tag
+   */
+  public void setDefaultTag(@Nullable Long defaultTag) {
+    _defaultTag = defaultTag;
+  }
+
+  /**
+   * Gets the default type for external routes.
+   *
+   * @return The default type (1 or 2), or null if not set
+   */
+  public @Nullable Integer getDefaultType() {
+    return _defaultType;
+  }
+
+  /**
+   * Sets the default type for external routes.
+   *
+   * @param defaultType The default type (1 or 2)
+   */
+  public void setDefaultType(@Nullable Integer defaultType) {
+    _defaultType = defaultType;
+  }
+
+  /**
+   * Gets the redistribution policies.
+   *
+   * @return A map of redistribution protocols to policies
+   */
+  @Nonnull
+  public Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy>
+      getRedistributionPolicies() {
+    return _redistributionPolicies;
+  }
+
+  /**
+   * Sets the redistribution policies.
+   *
+   * @param redistributionPolicies The map of redistribution policies
+   */
+  public void setRedistributionPolicies(
+      @Nonnull
+          Map<HuaweiRedistributionProtocol, HuaweiOspfRedistributionPolicy>
+              redistributionPolicies) {
+    _redistributionPolicies = redistributionPolicies;
+  }
+
+  /**
+   * Adds a redistribution policy.
+   *
+   * @param protocol The protocol to redistribute
+   * @param policy The redistribution policy
+   */
+  public void addRedistributionPolicy(
+      HuaweiRedistributionProtocol protocol, HuaweiOspfRedistributionPolicy policy) {
+    _redistributionPolicies.put(protocol, policy);
+  }
+
+  /** Enum representing protocols that can be redistributed into OSPF. */
+  public enum HuaweiRedistributionProtocol {
+    /** Directly connected routes */
+    DIRECT,
+    /** Static routes */
+    STATIC,
+    /** BGP routes */
+    BGP,
+    /** RIP routes */
+    RIP,
+    /** IS-IS routes */
+    ISIS,
+    /** Other OSPF processes */
+    OSPF,
+    /** User network routes (UNR) */
+    UNR
+  }
+
+  /** Represents an OSPF route redistribution policy. */
+  public static class HuaweiOspfRedistributionPolicy implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    /** Source protocol to redistribute */
+    private HuaweiRedistributionProtocol _sourceProtocol;
+
+    /** Optional route policy to filter redistributed routes */
+    private @Nullable String _routePolicy;
+
+    /** Optional metric/cost for redistributed routes */
+    private @Nullable Long _cost;
+
+    /** Optional tag for redistributed routes */
+    private @Nullable Long _tag;
+
+    /** Optional type (1 or 2) for external routes */
+    private @Nullable Integer _type;
+
+    public HuaweiOspfRedistributionPolicy(HuaweiRedistributionProtocol sourceProtocol) {
+      _sourceProtocol = sourceProtocol;
+    }
+
+    public HuaweiRedistributionProtocol getSourceProtocol() {
+      return _sourceProtocol;
+    }
+
+    public void setSourceProtocol(HuaweiRedistributionProtocol sourceProtocol) {
+      _sourceProtocol = sourceProtocol;
+    }
+
+    @Nullable
+    public String getRoutePolicy() {
+      return _routePolicy;
+    }
+
+    public void setRoutePolicy(@Nullable String routePolicy) {
+      _routePolicy = routePolicy;
+    }
+
+    @Nullable
+    public Long getCost() {
+      return _cost;
+    }
+
+    public void setCost(@Nullable Long cost) {
+      _cost = cost;
+    }
+
+    @Nullable
+    public Long getTag() {
+      return _tag;
+    }
+
+    public void setTag(@Nullable Long tag) {
+      _tag = tag;
+    }
+
+    @Nullable
+    public Integer getType() {
+      return _type;
+    }
+
+    public void setType(@Nullable Integer type) {
+      _type = type;
+    }
+  }
+
+  /** Represents an OSPF network advertisement with associated area. */
+  public static class HuaweiOspfNetwork implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Prefix _network;
+    private long _areaId;
+
+    public HuaweiOspfNetwork(Prefix network, long areaId) {
+      _network = network;
+      _areaId = areaId;
+    }
+
+    public Prefix getNetwork() {
+      return _network;
+    }
+
+    public void setNetwork(Prefix network) {
+      _network = network;
+    }
+
+    public long getAreaId() {
+      return _areaId;
+    }
+
+    public void setAreaId(long areaId) {
+      _areaId = areaId;
+    }
+  }
+
+  /** Enum representing OSPF area types. */
+  public enum OspfAreaType {
+    NORMAL,
+    STUB,
+    NSSA
+  }
+
+  /** Represents an OSPF area configuration. */
+  public static class HuaweiOspfArea implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private long _areaId;
+    private String _areaIdStr;
+    private OspfAreaType _areaType;
+    private boolean _noSummary;
+    private boolean _noRedistribute;
+    private boolean _defaultOriginate;
+    private String _authKey;
+    private String _authType; // MD5, SIMPLE
+
+    public HuaweiOspfArea(long areaId) {
+      _areaId = areaId;
+      _areaType = OspfAreaType.NORMAL;
+    }
+
+    public long getAreaId() {
+      return _areaId;
+    }
+
+    public void setAreaId(long areaId) {
+      _areaId = areaId;
+    }
+
+    public String getAreaIdStr() {
+      return _areaIdStr;
+    }
+
+    public void setAreaIdStr(String areaIdStr) {
+      _areaIdStr = areaIdStr;
+    }
+
+    public OspfAreaType getAreaType() {
+      return _areaType;
+    }
+
+    public void setAreaType(OspfAreaType areaType) {
+      _areaType = areaType;
+    }
+
+    public boolean isNoSummary() {
+      return _noSummary;
+    }
+
+    public void setNoSummary(boolean noSummary) {
+      _noSummary = noSummary;
+    }
+
+    public boolean isNoRedistribute() {
+      return _noRedistribute;
+    }
+
+    public void setNoRedistribute(boolean noRedistribute) {
+      _noRedistribute = noRedistribute;
+    }
+
+    public boolean isDefaultOriginate() {
+      return _defaultOriginate;
+    }
+
+    public void setDefaultOriginate(boolean defaultOriginate) {
+      _defaultOriginate = defaultOriginate;
+    }
+
+    public String getAuthKey() {
+      return _authKey;
+    }
+
+    public void setAuthKey(String authKey) {
+      _authKey = authKey;
+    }
+
+    public String getAuthType() {
+      return _authType;
+    }
+
+    public void setAuthType(String authType) {
+      _authType = authType;
+    }
+  }
+
+  /** Represents an OSPF virtual link. */
+  public static class HuaweiOspfVirtualLink implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Ip _routerId;
+    private Integer _helloInterval;
+    private Integer _deadInterval;
+
+    public HuaweiOspfVirtualLink(Ip routerId) {
+      _routerId = routerId;
+    }
+
+    public Ip getRouterId() {
+      return _routerId;
+    }
+
+    public void setRouterId(Ip routerId) {
+      _routerId = routerId;
+    }
+
+    public Integer getHelloInterval() {
+      return _helloInterval;
+    }
+
+    public void setHelloInterval(Integer helloInterval) {
+      _helloInterval = helloInterval;
+    }
+
+    public Integer getDeadInterval() {
+      return _deadInterval;
+    }
+
+    public void setDeadInterval(Integer deadInterval) {
+      _deadInterval = deadInterval;
+    }
+  }
+
+  /** Represents OSPF interface settings. */
+  public static class HuaweiOspfInterfaceSettings implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Long _areaId;
+    private Integer _cost;
+    private Integer _helloInterval;
+    private Integer _deadInterval;
+    private Integer _retransmitInterval;
+    private String _networkType; // BROADCAST, P2P, P2MP, NBMA
+    private String _authType; // MD5, SIMPLE
+    private String _authKey;
+    private Boolean _passive; // true for passive enabled
+
+    public Long getAreaId() {
+      return _areaId;
+    }
+
+    public void setAreaId(Long areaId) {
+      _areaId = areaId;
+    }
+
+    public Integer getCost() {
+      return _cost;
+    }
+
+    public void setCost(Integer cost) {
+      _cost = cost;
+    }
+
+    public Integer getHelloInterval() {
+      return _helloInterval;
+    }
+
+    public void setHelloInterval(Integer helloInterval) {
+      _helloInterval = helloInterval;
+    }
+
+    public Integer getDeadInterval() {
+      return _deadInterval;
+    }
+
+    public void setDeadInterval(Integer deadInterval) {
+      _deadInterval = deadInterval;
+    }
+
+    public Integer getRetransmitInterval() {
+      return _retransmitInterval;
+    }
+
+    public void setRetransmitInterval(Integer retransmitInterval) {
+      _retransmitInterval = retransmitInterval;
+    }
+
+    public String getNetworkType() {
+      return _networkType;
+    }
+
+    public void setNetworkType(String networkType) {
+      _networkType = networkType;
+    }
+
+    public String getAuthType() {
+      return _authType;
+    }
+
+    public void setAuthType(String authType) {
+      _authType = authType;
+    }
+
+    public String getAuthKey() {
+      return _authKey;
+    }
+
+    public void setAuthKey(String authKey) {
+      _authKey = authKey;
+    }
+
+    public Boolean getPassive() {
+      return _passive;
+    }
+
+    public void setPassive(Boolean passive) {
+      _passive = passive;
+    }
   }
 }

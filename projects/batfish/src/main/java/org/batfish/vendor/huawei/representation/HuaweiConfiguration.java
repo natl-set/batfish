@@ -54,6 +54,9 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
   /** Map of ACL names/numbers to ACL configurations */
   private SortedMap<String, HuaweiAcl> _acls;
 
+  /** Map of route-policy names to route-policy configurations */
+  private SortedMap<String, HuaweiRoutePolicy> _routePolicies;
+
   public HuaweiConfiguration() {
     _interfaces = ImmutableSortedMap.of();
     _vlans = ImmutableSortedMap.of();
@@ -62,6 +65,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
     _natAddressGroups = ImmutableSortedMap.of();
     _vrfs = ImmutableSortedMap.of();
     _acls = ImmutableSortedMap.of();
+    _routePolicies = ImmutableSortedMap.of();
   }
 
   /**
@@ -347,6 +351,49 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
         ImmutableSortedMap.<String, HuaweiAcl>naturalOrder().putAll(_acls);
     builder.put(name, acl);
     _acls = builder.build();
+  }
+
+  /**
+   * Gets the map of route-policies.
+   *
+   * @return A sorted map of route-policy names to route-policy configurations
+   */
+  @Nonnull
+  public SortedMap<String, HuaweiRoutePolicy> getRoutePolicies() {
+    return _routePolicies;
+  }
+
+  /**
+   * Sets the route-policies map.
+   *
+   * @param routePolicies The map of route-policy names to route-policy configurations
+   */
+  public void setRoutePolicies(@Nonnull SortedMap<String, HuaweiRoutePolicy> routePolicies) {
+    _routePolicies = routePolicies;
+  }
+
+  /**
+   * Gets a specific route-policy by name.
+   *
+   * @param name The route-policy name
+   * @return The route-policy, or null if not found
+   */
+  @Nullable
+  public HuaweiRoutePolicy getRoutePolicy(String name) {
+    return _routePolicies.get(name);
+  }
+
+  /**
+   * Adds or updates a route-policy.
+   *
+   * @param name The route-policy name
+   * @param routePolicy The route-policy configuration
+   */
+  public void addRoutePolicy(String name, HuaweiRoutePolicy routePolicy) {
+    ImmutableSortedMap.Builder<String, HuaweiRoutePolicy> builder =
+        ImmutableSortedMap.<String, HuaweiRoutePolicy>naturalOrder().putAll(_routePolicies);
+    builder.put(name, routePolicy);
+    _routePolicies = builder.build();
   }
 
   /**

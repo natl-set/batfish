@@ -216,6 +216,7 @@ public class HuaweiOspfProcessTest {
     HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
     assertThat(area.getAreaId(), equalTo(0L));
     assertThat(area.getAreaIdStr(), nullValue());
+    assertThat(area.getAreaType(), equalTo(HuaweiOspfProcess.OspfAreaType.NORMAL));
   }
 
   @Test
@@ -230,6 +231,71 @@ public class HuaweiOspfProcessTest {
 
     area.setAreaIdStr(null);
     assertThat(area.getAreaIdStr(), nullValue());
+  }
+
+  @Test
+  public void testHuaweiOspfArea_AreaType() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    // Default is NORMAL
+    assertThat(area.getAreaType(), equalTo(HuaweiOspfProcess.OspfAreaType.NORMAL));
+
+    // Set to STUB
+    area.setAreaType(HuaweiOspfProcess.OspfAreaType.STUB);
+    assertThat(area.getAreaType(), equalTo(HuaweiOspfProcess.OspfAreaType.STUB));
+
+    // Set to NSSA
+    area.setAreaType(HuaweiOspfProcess.OspfAreaType.NSSA);
+    assertThat(area.getAreaType(), equalTo(HuaweiOspfProcess.OspfAreaType.NSSA));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_NoSummary() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    assertThat(area.isNoSummary(), equalTo(false));
+
+    area.setNoSummary(true);
+    assertThat(area.isNoSummary(), equalTo(true));
+
+    area.setNoSummary(false);
+    assertThat(area.isNoSummary(), equalTo(false));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_NoRedistribute() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    assertThat(area.isNoRedistribute(), equalTo(false));
+
+    area.setNoRedistribute(true);
+    assertThat(area.isNoRedistribute(), equalTo(true));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_DefaultOriginate() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    assertThat(area.isDefaultOriginate(), equalTo(false));
+
+    area.setDefaultOriginate(true);
+    assertThat(area.isDefaultOriginate(), equalTo(true));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_Authentication() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    assertThat(area.getAuthType(), nullValue());
+    assertThat(area.getAuthKey(), nullValue());
+
+    area.setAuthType("MD5");
+    area.setAuthKey("secret123");
+    assertThat(area.getAuthType(), equalTo("MD5"));
+    assertThat(area.getAuthKey(), equalTo("secret123"));
+
+    area.setAuthType("SIMPLE");
+    assertThat(area.getAuthType(), equalTo("SIMPLE"));
   }
 
   @Test
@@ -389,5 +455,288 @@ public class HuaweiOspfProcessTest {
     assertThat(area2, equalTo(area1));
     assertThat(area2.getAreaIdStr(), equalTo("0.0.0.0"));
     assertThat(process.getAreas().size(), equalTo(1));
+  }
+
+  @Test
+  public void testHuaweiOspfVirtualLink_Constructor() {
+    HuaweiOspfProcess.HuaweiOspfVirtualLink vlink =
+        new HuaweiOspfProcess.HuaweiOspfVirtualLink(Ip.parse("1.1.1.1"));
+    assertThat(vlink.getRouterId(), equalTo(Ip.parse("1.1.1.1")));
+    assertThat(vlink.getHelloInterval(), nullValue());
+    assertThat(vlink.getDeadInterval(), nullValue());
+  }
+
+  @Test
+  public void testHuaweiOspfVirtualLink_Setters() {
+    HuaweiOspfProcess.HuaweiOspfVirtualLink vlink =
+        new HuaweiOspfProcess.HuaweiOspfVirtualLink(Ip.parse("1.1.1.1"));
+
+    vlink.setHelloInterval(10);
+    assertThat(vlink.getHelloInterval(), equalTo(10));
+
+    vlink.setDeadInterval(40);
+    assertThat(vlink.getDeadInterval(), equalTo(40));
+
+    vlink.setRouterId(Ip.parse("2.2.2.2"));
+    assertThat(vlink.getRouterId(), equalTo(Ip.parse("2.2.2.2")));
+  }
+
+  @Test
+  public void testVirtualLinks() {
+    HuaweiOspfProcess process = new HuaweiOspfProcess(1L);
+    assertThat(process.getVirtualLinks().size(), equalTo(0));
+
+    HuaweiOspfProcess.HuaweiOspfVirtualLink vlink1 =
+        new HuaweiOspfProcess.HuaweiOspfVirtualLink(Ip.parse("1.1.1.1"));
+    vlink1.setHelloInterval(10);
+    vlink1.setDeadInterval(40);
+    process.addVirtualLink(vlink1);
+
+    assertThat(process.getVirtualLinks().size(), equalTo(1));
+    assertThat(process.getVirtualLinks().get(0).getRouterId(), equalTo(Ip.parse("1.1.1.1")));
+    assertThat(process.getVirtualLinks().get(0).getHelloInterval(), equalTo(10));
+    assertThat(process.getVirtualLinks().get(0).getDeadInterval(), equalTo(40));
+
+    HuaweiOspfProcess.HuaweiOspfVirtualLink vlink2 =
+        new HuaweiOspfProcess.HuaweiOspfVirtualLink(Ip.parse("2.2.2.2"));
+    process.addVirtualLink(vlink2);
+
+    assertThat(process.getVirtualLinks().size(), equalTo(2));
+  }
+
+  @Test
+  public void testHuaweiOspfInterfaceSettings_NetworkType() {
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+
+    assertThat(settings.getNetworkType(), nullValue());
+
+    settings.setNetworkType("BROADCAST");
+    assertThat(settings.getNetworkType(), equalTo("BROADCAST"));
+
+    settings.setNetworkType("P2P");
+    assertThat(settings.getNetworkType(), equalTo("P2P"));
+
+    settings.setNetworkType("NBMA");
+    assertThat(settings.getNetworkType(), equalTo("NBMA"));
+  }
+
+  @Test
+  public void testHuaweiOspfInterfaceSettings_Authentication() {
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+
+    assertThat(settings.getAuthType(), nullValue());
+    assertThat(settings.getAuthKey(), nullValue());
+
+    settings.setAuthType("MD5");
+    settings.setAuthKey("secret123");
+    assertThat(settings.getAuthType(), equalTo("MD5"));
+    assertThat(settings.getAuthKey(), equalTo("secret123"));
+
+    settings.setAuthType("SIMPLE");
+    assertThat(settings.getAuthType(), equalTo("SIMPLE"));
+  }
+
+  @Test
+  public void testHuaweiOspfInterfaceSettings_Passive() {
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+
+    assertThat(settings.getPassive(), nullValue());
+
+    settings.setPassive(true);
+    assertThat(settings.getPassive(), equalTo(true));
+
+    settings.setPassive(false);
+    assertThat(settings.getPassive(), equalTo(false));
+  }
+
+  @Test
+  public void testHuaweiOspfAreaRange_Constructor() {
+    Prefix prefix = Prefix.parse("10.0.0.0/8");
+    HuaweiOspfProcess.HuaweiOspfAreaRange range =
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix, true, 100L);
+
+    assertThat(range.getPrefix(), equalTo(prefix));
+    assertThat(range.isAdvertise(), equalTo(true));
+    assertThat(range.getCost(), equalTo(100L));
+  }
+
+  @Test
+  public void testHuaweiOspfAreaRange_Setters() {
+    Prefix prefix = Prefix.parse("192.168.0.0/16");
+    HuaweiOspfProcess.HuaweiOspfAreaRange range =
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix, false, null);
+
+    assertThat(range.getPrefix(), equalTo(prefix));
+    assertThat(range.isAdvertise(), equalTo(false));
+    assertThat(range.getCost(), nullValue());
+
+    Prefix newPrefix = Prefix.parse("10.0.0.0/8");
+    range.setPrefix(newPrefix);
+    assertThat(range.getPrefix(), equalTo(newPrefix));
+
+    range.setAdvertise(true);
+    assertThat(range.isAdvertise(), equalTo(true));
+
+    range.setCost(200L);
+    assertThat(range.getCost(), equalTo(200L));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_GetAreaRanges() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    assertThat(area.getAreaRanges().size(), equalTo(0));
+
+    Prefix prefix1 = Prefix.parse("10.0.0.0/8");
+    HuaweiOspfProcess.HuaweiOspfAreaRange range1 =
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix1, true, 100L);
+    area.addAreaRange(prefix1, range1);
+
+    assertThat(area.getAreaRanges().size(), equalTo(1));
+    assertThat(area.getAreaRanges().get(prefix1), equalTo(range1));
+
+    Prefix prefix2 = Prefix.parse("192.168.0.0/16");
+    HuaweiOspfProcess.HuaweiOspfAreaRange range2 =
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix2, false, null);
+    area.addAreaRange(prefix2, range2);
+
+    assertThat(area.getAreaRanges().size(), equalTo(2));
+    assertThat(area.getAreaRanges().get(prefix2), equalTo(range2));
+  }
+
+  @Test
+  public void testHuaweiOspfArea_SetAreaRanges() {
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(1L);
+
+    Map<Prefix, HuaweiOspfProcess.HuaweiOspfAreaRange> ranges = new TreeMap<>();
+    ranges.put(
+        Prefix.parse("10.0.0.0/8"),
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(Prefix.parse("10.0.0.0/8"), true, 100L));
+    ranges.put(
+        Prefix.parse("192.168.0.0/16"),
+        new HuaweiOspfProcess.HuaweiOspfAreaRange(Prefix.parse("192.168.0.0/16"), false, null));
+
+    area.setAreaRanges(ranges);
+    assertThat(area.getAreaRanges(), equalTo(ranges));
+    assertThat(area.getAreaRanges().size(), equalTo(2));
+  }
+
+  @Test
+  public void testRedistributionPolicy_Constructor() {
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy =
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC);
+
+    assertThat(
+        policy.getSourceProtocol(), equalTo(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC));
+    assertThat(policy.getRoutePolicy(), nullValue());
+    assertThat(policy.getCost(), nullValue());
+    assertThat(policy.getTag(), nullValue());
+  }
+
+  @Test
+  public void testRedistributionPolicy_Setters() {
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy =
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.BGP);
+
+    policy.setRoutePolicy("POLICY1");
+    assertThat(policy.getRoutePolicy(), equalTo("POLICY1"));
+
+    policy.setCost(100L);
+    assertThat(policy.getCost(), equalTo(100L));
+
+    policy.setTag(200L);
+    assertThat(policy.getTag(), equalTo(200L));
+  }
+
+  @Test
+  public void testAddRedistributionPolicy() {
+    HuaweiOspfProcess process = new HuaweiOspfProcess(1L);
+    assertThat(process.getRedistributionPolicies().size(), equalTo(0));
+
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy1 =
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC);
+    process.addRedistributionPolicy(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC, policy1);
+
+    assertThat(process.getRedistributionPolicies().size(), equalTo(1));
+    assertThat(
+        process
+            .getRedistributionPolicies()
+            .get(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC),
+        equalTo(policy1));
+
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy2 =
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.DIRECT);
+    process.addRedistributionPolicy(HuaweiOspfProcess.HuaweiRedistributionProtocol.DIRECT, policy2);
+
+    assertThat(process.getRedistributionPolicies().size(), equalTo(2));
+  }
+
+  @Test
+  public void testRedistributionPolicy_AllProtocols() {
+    HuaweiOspfProcess process = new HuaweiOspfProcess(1L);
+
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.DIRECT,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.DIRECT));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.BGP,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.BGP));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.RIP,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.RIP));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.ISIS,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.ISIS));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.OSPF,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.OSPF));
+    process.addRedistributionPolicy(
+        HuaweiOspfProcess.HuaweiRedistributionProtocol.UNR,
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.UNR));
+
+    assertThat(process.getRedistributionPolicies().size(), equalTo(7));
+  }
+
+  @Test
+  public void testRedistributionPolicy_WithCostAndTagAndPolicy() {
+    HuaweiOspfProcess process = new HuaweiOspfProcess(1L);
+
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy policy =
+        new HuaweiOspfProcess.HuaweiOspfRedistributionPolicy(
+            HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC);
+    policy.setCost(100L);
+    policy.setTag(42L);
+    policy.setRoutePolicy("FILTER_POLICY");
+
+    process.addRedistributionPolicy(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC, policy);
+
+    HuaweiOspfProcess.HuaweiOspfRedistributionPolicy retrieved =
+        process
+            .getRedistributionPolicies()
+            .get(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC);
+
+    assertThat(
+        retrieved.getSourceProtocol(),
+        equalTo(HuaweiOspfProcess.HuaweiRedistributionProtocol.STATIC));
+    assertThat(retrieved.getCost(), equalTo(100L));
+    assertThat(retrieved.getTag(), equalTo(42L));
+    assertThat(retrieved.getRoutePolicy(), equalTo("FILTER_POLICY"));
   }
 }
