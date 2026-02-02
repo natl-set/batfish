@@ -159,6 +159,14 @@ null_token
    | RANGE
    | ANY
    | COMMAND
+   | ROUTE_POLICY
+   | AS_PATH_LIMIT
+   | RIP
+   | STATIC
+   | IMPORT_ROUTE
+   | EXPORT
+   | UNDO
+   | NO
 ;
 
 // Exit from current configuration mode
