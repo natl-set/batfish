@@ -114,12 +114,14 @@ u_word
   | ADDRESS
   | ALL
   | ANY
+  | DEFAULT
   | DESCRIPTION
   | DESTINATION
   | DISABLED
   | ENABLED
   | FALSE
   | HOST
+  | INFINITY
   | KEY
   | MODE
   | PATH

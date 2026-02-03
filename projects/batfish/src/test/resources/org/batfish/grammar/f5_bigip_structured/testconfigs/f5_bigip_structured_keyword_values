@@ -144,3 +144,14 @@ ltm pool /Common/test_pool_mixed {
     description "pool with disabled status"
 }
 
+# Test DEFAULT keyword as value
+ltm pool /Common/test_pool_default {
+    description default
+}
+
+# Test INFINITY keyword as value
+ltm pool /Common/test_pool_infinity {
+    description infinity
+}
+
+
