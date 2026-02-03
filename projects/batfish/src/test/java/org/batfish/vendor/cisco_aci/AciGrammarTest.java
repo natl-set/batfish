@@ -427,14 +427,14 @@ public class AciGrammarTest {
     assertThat(config.getTenants(), hasKey("test_tenant"));
   }
 
-  /** Test parsing empty configuration should produce default hostname. */
+  /** Test parsing empty configuration should produce filename-derived hostname. */
   @Test
   public void testParseJson_emptyConfig() throws IOException {
     String json = "{\"polUni\": {\"attributes\": {\"dn\": \"uni\"}, \"children\": []}}";
     AciConfiguration config = AciConfiguration.fromJson("test.json", json, new Warnings());
 
     assertThat(config, notNullValue());
-    assertThat(config.getHostname(), equalTo("aci-fabric")); // default hostname
+    assertThat(config.getHostname(), equalTo("aci-test")); // hostname derived from filename
   }
 
   /** Test parsing configuration with missing tenant name should not fail. */

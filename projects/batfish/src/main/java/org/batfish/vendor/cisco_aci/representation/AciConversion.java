@@ -43,7 +43,6 @@ import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.StaticRoute;
 import org.batfish.datamodel.SubRange;
 import org.batfish.datamodel.SwitchportMode;
-import org.batfish.datamodel.TraceElement;
 import org.batfish.datamodel.Vrf;
 import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.AclLineMatchExprs;
@@ -59,7 +58,6 @@ import org.batfish.datamodel.routing_policy.statement.SetNextHop;
 import org.batfish.datamodel.routing_policy.statement.SetOrigin;
 import org.batfish.datamodel.routing_policy.statement.Statement;
 import org.batfish.datamodel.routing_policy.statement.Statements;
-import org.batfish.vendor.VendorStructureId;
 
 /**
  * Conversion helpers for converting VS model {@link AciConfiguration} to the VI model.
@@ -564,9 +562,7 @@ public final class AciConversion {
             new ExprAclLine(
                 LineAction.DENY,
                 AclLineMatchExprs.TRUE,
-                "Default deny for contract " + contractName,
-                TraceElement.of("Contract default deny"),
-                new VendorStructureId(c.getHostname(), "Contract", contractName)));
+                "Default deny for contract " + contractName));
       }
 
       // Build and add the ACL to the configuration
@@ -688,12 +684,7 @@ public final class AciConversion {
     String filterName = filter.getName() != null ? filter.getName() : "unnamed";
     ExprAclLine line =
         new ExprAclLine(
-            action,
-            matchExpr,
-            String.format("Contract %s filter %s", contractName, filterName),
-            TraceElement.of(
-                String.format("Matched contract %s filter %s", contractName, filterName)),
-            new VendorStructureId(c.getHostname(), "Contract", contractName));
+            action, matchExpr, String.format("Contract %s filter %s", contractName, filterName));
 
     lines.add(line);
     return lines.build();

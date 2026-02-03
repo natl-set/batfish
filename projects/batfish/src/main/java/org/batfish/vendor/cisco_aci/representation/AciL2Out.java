@@ -8,26 +8,27 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Data model class representing an ACI vzBrCP (Contract) object.
+ * Data model class representing an ACI l2extOut (L2 External) object.
  *
- * <p>Contracts define the communication policies between endpoint groups. They contain subjects
- * (vzSubj) which in turn contain filter references that specify the allowed traffic.
+ * <p>L2 external connectivity defines connections to external networks through Layer 2, using
+ * bridge domains rather than routed interfaces. This is often used for "L2 L3Out" scenarios where
+ * traffic is bridged rather than routed.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AciContract implements Serializable {
+public class AciL2Out implements Serializable {
 
   @JsonProperty("attributes")
-  private @Nullable AciContractAttributes _attributes;
+  private @Nullable AciL2OutAttributes _attributes;
 
   @JsonProperty("children")
   private @Nullable List<Object> _children;
 
-  public @Nullable AciContractAttributes getAttributes() {
+  public @Nullable AciL2OutAttributes getAttributes() {
     return _attributes;
   }
 
-  public void setAttributes(@Nullable AciContractAttributes attributes) {
+  public void setAttributes(@Nullable AciL2OutAttributes attributes) {
     _attributes = attributes;
   }
 
@@ -39,10 +40,10 @@ public class AciContract implements Serializable {
     _children = children;
   }
 
-  /** Attributes of an ACI Contract (vzBrCP). */
+  /** Attributes of an ACI L2Out (l2extOut). */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class AciContractAttributes implements Serializable {
+  public static class AciL2OutAttributes implements Serializable {
 
     @JsonProperty("annotation")
     private @Nullable String _annotation;
@@ -52,9 +53,6 @@ public class AciContract implements Serializable {
 
     @JsonProperty("dn")
     private @Nullable String _distinguishedName;
-
-    @JsonProperty("intent")
-    private @Nullable String _intent;
 
     @JsonProperty("name")
     private @Nullable String _name;
@@ -67,12 +65,6 @@ public class AciContract implements Serializable {
 
     @JsonProperty("ownerTag")
     private @Nullable String _ownerTag;
-
-    @JsonProperty("prio")
-    private @Nullable String _priority;
-
-    @JsonProperty("scope")
-    private @Nullable String _scope;
 
     @JsonProperty("targetDscp")
     private @Nullable String _targetDscp;
@@ -102,14 +94,6 @@ public class AciContract implements Serializable {
 
     public void setDistinguishedName(@Nullable String distinguishedName) {
       _distinguishedName = distinguishedName;
-    }
-
-    public @Nullable String getIntent() {
-      return _intent;
-    }
-
-    public void setIntent(@Nullable String intent) {
-      _intent = intent;
     }
 
     public @Nullable String getName() {
@@ -142,22 +126,6 @@ public class AciContract implements Serializable {
 
     public void setOwnerTag(@Nullable String ownerTag) {
       _ownerTag = ownerTag;
-    }
-
-    public @Nullable String getPriority() {
-      return _priority;
-    }
-
-    public void setPriority(@Nullable String priority) {
-      _priority = priority;
-    }
-
-    public @Nullable String getScope() {
-      return _scope;
-    }
-
-    public void setScope(@Nullable String scope) {
-      _scope = scope;
     }
 
     public @Nullable String getTargetDscp() {
