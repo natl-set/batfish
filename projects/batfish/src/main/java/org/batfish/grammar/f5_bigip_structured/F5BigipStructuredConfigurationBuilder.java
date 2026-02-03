@@ -827,7 +827,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
     _currentDevice.setBaseMac(toMacAddress(ctx.mac));
   }
 
-  private static @Nonnull MacAddress toMacAddress(Mac_addressContext ctx) {
+  @VisibleForTesting
+  static @Nonnull MacAddress toMacAddress(Mac_addressContext ctx) {
     return MacAddress.parse(ctx.getText());
   }
 
@@ -877,7 +878,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
     _currentUnicastAddress.setEffectiveIp(toUnicastAddressIp(ctx.ip));
   }
 
-  private static @Nonnull UnicastAddressIp toUnicastAddressIp(Unicast_address_ipContext ctx) {
+  @VisibleForTesting
+  static @Nonnull UnicastAddressIp toUnicastAddressIp(Unicast_address_ipContext ctx) {
     if (ctx.MANAGEMENT_IP() != null) {
       return ManagementIp.instance();
     } else {
