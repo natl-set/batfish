@@ -887,7 +887,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         peerBuilder.setRemoteAsns(LongSpace.of(peerAs));
       }
 
-      // Extract optional peer parameters (e.g., connect-interface, password)
+      // Extract optional peer parameters (e.g., connect-interface, password, group)
       if (ctx.bgp_peer_param() != null) {
         for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peer_paramContext paramCtx :
             ctx.bgp_peer_param()) {
@@ -895,6 +895,10 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
             // Connect-interface parameter - logged for future use
             // The BgpActivePeerConfig doesn't have a direct way to store this,
             // it would need to be resolved to an IP address or stored separately
+          } else if (paramCtx.group_name != null) {
+            // Peer group assignment
+            String groupName = paramCtx.group_name.getText();
+            peerBuilder.setGroup(groupName);
           }
           // Password and other parameters are ignored for now
         }

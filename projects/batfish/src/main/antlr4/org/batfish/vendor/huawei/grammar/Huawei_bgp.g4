@@ -55,6 +55,9 @@ bgp_peer_param
    // peer X.X.X.X password <password>
    PASSWORD password = variable
    |
+   // peer X.X.X.X group GROUP_NAME
+   GROUP group_name = variable
+   |
    // Other parameters (ignore for now)
    null_rest_of_line
 ;
