@@ -10,7 +10,11 @@ options {
 // VPN-instance stanza (Huawei's term for VRF)
 s_vrf
 :
-   IP VPN_INSTANCE vrf_name = variable NEWLINE vrf_substanza* (RETURN | QUIT | EXIT)?
+   IP VPN_INSTANCE vrf_name = variable
+   (
+      vrf_substanza
+   )*
+   (RETURN | QUIT | EXIT)?
 ;
 
 // VRF sub-stanza
@@ -26,23 +30,21 @@ vrf_substanza
 // Route distinguisher configuration
 vrf_route_distinguisher
 :
-   ROUTE_DISTINGUISHER rd = route_distinguisher_value NEWLINE
+   ROUTE_DISTINGUISHER rd = route_distinguisher_value
 ;
 
 // Route distinguisher value (format: ASN:number or IP:number)
 route_distinguisher_value
 :
-   // Format: ASN:NN (e.g., 100:1, 65000:100)
-   (uint16 | uint32) COLON (uint16 | uint32)
-   |
-   // Format: IP:NN (e.g., 1.2.3.4:100)
-   ip_address COLON uint16
+   // Use variable to match the RD value (e.g., 100:1, 65000:100, 1.2.3.4:100)
+   // Validation happens in the extraction code
+   variable
 ;
 
 // VPN target (route target) configuration
 vrf_vpn_target
 :
-   VPN_TARGET rt_value = route_target_value (rt_type = vpn_target_type) NEWLINE
+   VPN_TARGET rt_value = route_target_value (rt_type = vpn_target_type)
 ;
 
 // VPN target type (import, export, or both)
@@ -56,11 +58,9 @@ vpn_target_type
 // Route target value (format: ASN:number or IP:number)
 route_target_value
 :
-   // Format: ASN:NN (e.g., 100:1, 65000:100)
-   (uint16 | uint32) COLON (uint16 | uint32)
-   |
-   // Format: IP:NN (e.g., 1.2.3.4:100)
-   ip_address COLON uint16
+   // Use variable to match the RT value (e.g., 100:1, 65000:100, 1.2.3.4:100)
+   // Validation happens in the extraction code
+   variable
 ;
 
 // VRF description
@@ -75,7 +75,11 @@ vrf_address_family
    (
      IPV4_FAMILY
      | IPV6_FAMILY
-   ) NEWLINE vrf_af_substanza* (RETURN | QUIT | EXIT)?
+   )
+   (
+      vrf_af_substanza
+   )*
+   (RETURN | QUIT | EXIT)?
 ;
 
 // Address family sub-stanza
@@ -90,13 +94,13 @@ vrf_af_substanza
 // Address family route distinguisher
 vrf_af_route_distinguisher
 :
-   ROUTE_DISTINGUISHER rd = route_distinguisher_value NEWLINE
+   ROUTE_DISTINGUISHER rd = route_distinguisher_value
 ;
 
 // Address family VPN target
 vrf_af_vpn_target
 :
-   VPN_TARGET rt_value = route_target_value (rt_type = vpn_target_type) NEWLINE
+   VPN_TARGET rt_value = route_target_value (rt_type = vpn_target_type)
 ;
 
 // Address family description

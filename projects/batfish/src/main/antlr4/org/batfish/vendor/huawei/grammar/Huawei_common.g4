@@ -109,6 +109,7 @@ null_rest_of_line
 // This allows SOME keywords to appear within string values
 // EXCLUDED: Tokens that start new top-level stanzas (IP, ACL, BGP, OSPF, NAT, VLAN, SYSNAME, RETURN)
 // Note: INTERFACE is allowed for descriptions like "Test interface"
+// Note: ROUTE_DISTINGUISHER and VPN_TARGET are excluded so they can be matched in VRF stanzas
 null_token
 :
    VARIABLE
@@ -135,8 +136,6 @@ null_token
    | PEER
    | GROUP
    | NETWORK
-   | ROUTE_DISTINGUISHER
-   | VPN_TARGET
    | SHUTDOWN
    | ADDRESS
    | MASK
@@ -162,7 +161,10 @@ null_token
    | ROUTE_POLICY
    | AS_PATH_LIMIT
    | RIP
+   | RIPNG
    | STATIC
+   | DIRECT
+   | OSPF
    | IMPORT_ROUTE
    | EXPORT
    | UNDO
