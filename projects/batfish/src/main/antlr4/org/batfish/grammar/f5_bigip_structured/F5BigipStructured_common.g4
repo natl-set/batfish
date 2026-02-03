@@ -114,23 +114,31 @@ u_word
   | ADDRESS
   | ALL
   | ANY
+  | APM
+  | ASM
   | DEFAULT
   | DESCRIPTION
   | DESTINATION
   | DISABLED
+  | DNS
   | ENABLED
   | FALSE
   | HOST
   | INFINITY
   | KEY
+  | LTM
   | MODE
+  | MODULE
+  | NTP
   | PATH
   | PORT
   | PROTOCOL
   | SELF
+  | SNMP
   | SOURCE
   | STATE
   | STATUS
+  | SYS
   | TRUE
   | TYPE
   | VALUE

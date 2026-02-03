@@ -154,4 +154,32 @@ ltm pool /Common/test_pool_infinity {
     description infinity
 }
 
+# Test module name keywords as values (used in analytics)
+analytics gui-widget /Common/test_widget_asm {
+    cent-report-destination-type self
+    gui-pagecode test_page
+    metrics { count }
+    module asm
+    username test_user
+    widget-type 1
+}
+
+analytics gui-widget /Common/test_widget_dns {
+    cent-report-destination-type self
+    gui-pagecode test_page
+    metrics { count }
+    module dns
+    username test_user
+    widget-type 1
+}
+
+analytics gui-widget /Common/test_widget_ltm {
+    cent-report-destination-type self
+    gui-pagecode test_page
+    metrics { count }
+    module ltm
+    username test_user
+    widget-type 1
+}
+
 
