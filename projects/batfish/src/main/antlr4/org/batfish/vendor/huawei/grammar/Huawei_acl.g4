@@ -8,15 +8,27 @@ options {
 
 // ACL configuration
 
-// ACL stanza - matches "acl <number> [basic|advanced]" or "acl name> [basic|advanced]" or "acl number <number> [basic|advanced]"
+// Unified ACL stanza - matches both IPv4 and IPv6 ACLs
+// IPv6 ACLs use "acl ipv6 <name|number>" syntax
+// IPv4 ACLs use "acl [number] <number|name> [basic|advanced]" syntax
 s_acl
 :
-   ACL
+   ACL ACL_IPV6 acl_ipv6
+   |
+   ACL acl_ipv4
+;
+
+// IPv4 ACL stanza
+acl_ipv4
+:
    (
+      // Handle "acl number <num> [basic|advanced]" syntax
+      NUMBER acl_num_number = uint16 (acl_type = ACL_BASIC | acl_type = ACL_ADVANCED)?
+      |
+      // Handle "acl <num> [basic|advanced]" syntax
       acl_num = uint16 (acl_type = ACL_BASIC | acl_type = ACL_ADVANCED)?
       |
-      NUMBER acl_num = uint16 (acl_type = ACL_BASIC | acl_type = ACL_ADVANCED)?
-      |
+      // Handle "acl <name> [basic|advanced]" syntax
       acl_name = variable (acl_type = ACL_BASIC | acl_type = ACL_ADVANCED)?
    )
    (
@@ -24,10 +36,9 @@ s_acl
    )*
 ;
 
-// IPv6 ACL stanza - matches "acl ipv6 <name/number> [basic|advanced]"
-s_acl_ipv6
+// IPv6 ACL stanza
+acl_ipv6
 :
-   ACL ACL_IPV6
    (
       acl_name_ipv6 = variable
       |

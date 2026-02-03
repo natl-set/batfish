@@ -52,7 +52,6 @@ import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_import_typeContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_networkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_router_idContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_virtual_linkContext;
-import org.batfish.vendor.huawei.grammar.HuaweiParser.S_aclContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_bgpContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_interfaceContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_natContext;
@@ -1010,52 +1009,61 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   }
 
   /**
-   * Process entry to s_acl rule - create ACL object.
+   * Process entry to acl_ipv4 rule - create IPv4 ACL object.
    *
    * <p>Creates HuaweiAcl object with name/number and type.
    */
   @Override
-  public void enterS_acl(S_aclContext ctx) {
+  public void enterAcl_ipv4(HuaweiParser.Acl_ipv4Context ctx) {
     String aclName = null;
     AclType aclType = AclType.ADVANCED; // Default to advanced
 
-    // Extract ACL name/number
-    if (ctx.acl_name != null) {
-      aclName = ctx.acl_name.getText();
+    // Extract ACL name/number from the alternatives
+    // acl_ipv4 has: NUMBER acl_num_number | acl_num | acl_name
+    if (ctx.acl_num_number != null) {
+      // "acl number <num>" syntax
+      aclName = ctx.acl_num_number.getText();
     } else if (ctx.acl_num != null) {
+      // "acl <num>" syntax
       aclName = ctx.acl_num.getText();
+    } else if (ctx.acl_name != null) {
+      // "acl <name>" syntax
+      aclName = ctx.acl_name.getText();
     }
 
-    // Determine ACL type based on keyword or number range
-    if (ctx.acl_type != null) {
-      aclType = ctx.acl_type.getText().equals("basic") ? AclType.BASIC : AclType.ADVANCED;
-    } else if (ctx.acl_num != null) {
-      // Determine type from ACL number range
+    // Determine type from ACL number range if not explicitly set
+    if (ctx.acl_type == null && aclName != null) {
       try {
-        int aclNum = Integer.parseInt(ctx.acl_num.getText());
+        int aclNum = Integer.parseInt(aclName);
         if (aclNum >= 2000 && aclNum < 3000) {
           aclType = AclType.BASIC;
         } else if (aclNum >= 3000 && aclNum < 4000) {
           aclType = AclType.ADVANCED;
         }
       } catch (NumberFormatException e) {
-        // Invalid ACL number - will be handled as warning
+        // Not a number - will be handled as warning
       }
+    }
+
+    // Determine ACL type based on keyword
+    if (ctx.acl_type != null) {
+      aclType = ctx.acl_type.getText().equals("basic") ? AclType.BASIC : AclType.ADVANCED;
     }
 
     if (aclName != null) {
       _currentAcl = new HuaweiAcl(aclName, aclType);
+      _currentAcl.setIpv6(false);
       _configuration.addAcl(aclName, _currentAcl);
     }
   }
 
   /**
-   * Process exit from s_acl rule - clear current ACL context.
+   * Process exit from acl_ipv4 rule - clear current ACL context.
    *
-   * <p>Called when exiting an ACL configuration block.
+   * <p>Called when exiting an IPv4 ACL configuration block.
    */
   @Override
-  public void exitS_acl(S_aclContext ctx) {
+  public void exitAcl_ipv4(HuaweiParser.Acl_ipv4Context ctx) {
     _currentAcl = null;
   }
 
@@ -1177,12 +1185,12 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   }
 
   /**
-   * Process entry to s_acl_ipv6 rule - create IPv6 ACL object.
+   * Process entry to acl_ipv6 rule - create IPv6 ACL object.
    *
    * <p>Creates HuaweiAcl object with name/number for IPv6 ACL.
    */
   @Override
-  public void enterS_acl_ipv6(HuaweiParser.S_acl_ipv6Context ctx) {
+  public void enterAcl_ipv6(HuaweiParser.Acl_ipv6Context ctx) {
     String aclName = null;
 
     // Extract ACL name/number
@@ -1200,12 +1208,12 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   }
 
   /**
-   * Process exit from s_acl_ipv6 rule - clear current ACL context.
+   * Process exit from acl_ipv6 rule - clear current ACL context.
    *
    * <p>Called when exiting an IPv6 ACL configuration block.
    */
   @Override
-  public void exitS_acl_ipv6(HuaweiParser.S_acl_ipv6Context ctx) {
+  public void exitAcl_ipv6(HuaweiParser.Acl_ipv6Context ctx) {
     _currentAcl = null;
   }
 
@@ -1974,12 +1982,18 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitVrf_route_distinguisher(Vrf_route_distinguisherContext ctx) {
-    if (_currentVrf == null || ctx.rd == null) {
+    if (_currentVrf == null) {
       return;
     }
 
-    String rd = ctx.rd.getText();
-    _currentVrf.setRouteDistinguisher(rd);
+    // The 'rd' label points to route_distinguisher_value context
+    if (ctx.rd != null) {
+      String rd = ctx.rd.getText();
+      _currentVrf.setRouteDistinguisher(rd);
+    } else if (ctx.route_distinguisher_value() != null) {
+      String rd = ctx.route_distinguisher_value().getText();
+      _currentVrf.setRouteDistinguisher(rd);
+    }
   }
 
   /**
@@ -1989,11 +2003,20 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitVrf_vpn_target(Vrf_vpn_targetContext ctx) {
-    if (_currentVrf == null || ctx.rt_value == null) {
+    if (_currentVrf == null) {
       return;
     }
 
-    String rt = ctx.rt_value.getText();
+    String rt = null;
+    if (ctx.rt_value != null) {
+      rt = ctx.rt_value.getText();
+    } else if (ctx.route_target_value() != null) {
+      rt = ctx.route_target_value().getText();
+    }
+
+    if (rt == null) {
+      return;
+    }
 
     // Determine if this is import, export, or both
     boolean isImport = ctx.rt_type != null && ctx.rt_type.IMPORT() != null;
@@ -2035,12 +2058,18 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitVrf_af_route_distinguisher(Vrf_af_route_distinguisherContext ctx) {
-    if (_currentVrf == null || ctx.rd == null) {
+    if (_currentVrf == null) {
       return;
     }
 
-    String rd = ctx.rd.getText();
-    _currentVrf.setRouteDistinguisher(rd);
+    // The 'rd' label points to route_distinguisher_value context
+    if (ctx.rd != null) {
+      String rd = ctx.rd.getText();
+      _currentVrf.setRouteDistinguisher(rd);
+    } else if (ctx.route_distinguisher_value() != null) {
+      String rd = ctx.route_distinguisher_value().getText();
+      _currentVrf.setRouteDistinguisher(rd);
+    }
   }
 
   /**
@@ -2051,11 +2080,20 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitVrf_af_vpn_target(Vrf_af_vpn_targetContext ctx) {
-    if (_currentVrf == null || ctx.rt_value == null) {
+    if (_currentVrf == null) {
       return;
     }
 
-    String rt = ctx.rt_value.getText();
+    String rt = null;
+    if (ctx.rt_value != null) {
+      rt = ctx.rt_value.getText();
+    } else if (ctx.route_target_value() != null) {
+      rt = ctx.route_target_value().getText();
+    }
+
+    if (rt == null) {
+      return;
+    }
 
     // Determine if this is import, export, or both
     boolean isImport = ctx.rt_type != null && ctx.rt_type.IMPORT() != null;
