@@ -34,6 +34,9 @@ public class HuaweiAclLine implements Serializable {
   /** Destination port(s) */
   private @Nullable String _destinationPort;
 
+  /** Whether this is an IPv6 ACL line */
+  private boolean _ipv6;
+
   public HuaweiAclLine(int sequenceNumber, @Nonnull String action) {
     _sequenceNumber = sequenceNumber;
     _action = action;
@@ -163,5 +166,23 @@ public class HuaweiAclLine implements Serializable {
    */
   public void setDestinationPort(@Nullable String destinationPort) {
     _destinationPort = destinationPort;
+  }
+
+  /**
+   * Checks if this is an IPv6 ACL line.
+   *
+   * @return true if this is an IPv6 ACL line, false otherwise
+   */
+  public boolean isIpv6() {
+    return _ipv6;
+  }
+
+  /**
+   * Sets whether this is an IPv6 ACL line.
+   *
+   * @param ipv6 true if this is an IPv6 ACL line, false otherwise
+   */
+  public void setIpv6(boolean ipv6) {
+    _ipv6 = ipv6;
   }
 }

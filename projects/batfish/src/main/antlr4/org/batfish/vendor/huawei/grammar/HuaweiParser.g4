@@ -11,6 +11,7 @@ Huawei_static,
 Huawei_acl,
 Huawei_nat,
 Huawei_vrf,
+Huawei_route_policy,
 Huawei_ignored;
 
 options {
@@ -38,6 +39,7 @@ s_stanza
    | s_acl
    | s_nat
    | s_vrf
+   | s_route_policy
    | s_return
    | s_interface
    | s_ignored

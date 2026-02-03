@@ -26,6 +26,10 @@ ACL_BASIC: 'basic';
 
 ACL_IPV6: 'ipv6';
 
+IPV4_FAMILY: 'ipv4-family';
+
+IPV6_FAMILY: 'ipv6-family';
+
 ADDRESS: 'address';
 
 ADDRESS_GROUP: 'address-group';

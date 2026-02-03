@@ -17,7 +17,6 @@ import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_costContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_local_preferenceContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_preferenceContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_tagContext;
-import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_abr_summaryContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_authenticationContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_nssaContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_stubContext;
@@ -66,6 +65,9 @@ import org.batfish.vendor.huawei.grammar.HuaweiParser.S_vlanContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_vrfContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.V_descriptionContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.V_nameContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Vrf_address_familyContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Vrf_af_route_distinguisherContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Vrf_af_vpn_targetContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Vrf_route_distinguisherContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Vrf_vpn_targetContext;
 import org.batfish.vendor.huawei.representation.HuaweiAcl;
@@ -885,8 +887,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         peerBuilder.setRemoteAsns(LongSpace.of(peerAs));
       }
 
-      // Extract optional peer parameters (e.g., connect-interface, password, group)
-      String groupName = null;
+      // Extract optional peer parameters (e.g., connect-interface, password)
       if (ctx.bgp_peer_param() != null) {
         for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peer_paramContext paramCtx :
             ctx.bgp_peer_param()) {
@@ -894,10 +895,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
             // Connect-interface parameter - logged for future use
             // The BgpActivePeerConfig doesn't have a direct way to store this,
             // it would need to be resolved to an IP address or stored separately
-          } else if (paramCtx.group_name != null) {
-            // Peer group assignment
-            groupName = paramCtx.group_name.getText();
-            peerBuilder.setGroup(groupName);
           }
           // Password and other parameters are ignored for now
         }
@@ -938,25 +935,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
           peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.INTERNAL);
         } else if (paramCtx.EXTERNAL() != null) {
           peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
-        } else if (paramCtx.as_num != null) {
-          peerGroup.setRemoteAs(Long.parseLong(paramCtx.as_num.getText()));
-        } else if (paramCtx.password != null) {
-          peerGroup.setPassword(paramCtx.password.getText());
-        } else if (paramCtx.policy != null) {
-          String policy = paramCtx.policy.getText();
-          if (paramCtx.IMPORT() != null) {
-            peerGroup.setRoutePolicyIn(policy);
-          } else if (paramCtx.EXPORT() != null) {
-            peerGroup.setRoutePolicyOut(policy);
-          } else {
-            // Default to import if not specified
-            peerGroup.setRoutePolicyIn(policy);
-          }
-        } else if (paramCtx.ROUTE_REFLECTOR_CLIENT() != null) {
-          peerGroup.setRouteReflectorClient(true);
-          if (paramCtx.id != null) {
-            peerGroup.setClusterId(paramCtx.id.getText());
-          }
         }
       }
 
@@ -991,10 +969,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       HuaweiBgpProcess.HuaweiBgpNetwork bgpNetwork =
           new HuaweiBgpProcess.HuaweiBgpNetwork(network, networkMask);
 
-      if (ctx.policy != null) {
-        bgpNetwork.setRoutePolicy(ctx.policy.getText());
-      }
-
       bgpProcess.addNetwork(bgpNetwork);
     } catch (Exception e) {
       String warning =
@@ -1020,10 +994,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       String protocol = ctx.protocol.getText().toLowerCase();
       HuaweiBgpProcess.HuaweiBgpImportRoute importRoute =
           new HuaweiBgpProcess.HuaweiBgpImportRoute(protocol);
-
-      if (ctx.policy != null) {
-        importRoute.setRoutePolicy(ctx.policy.getText());
-      }
 
       bgpProcess.addImportRoute(importRoute);
     } catch (Exception e) {
@@ -1117,8 +1087,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         protocol = "icmp";
       } else if (ctx.IP() != null) {
         protocol = "ip";
-      } else if (!ctx.variable().isEmpty()) {
-        protocol = ctx.variable(0).getText().toLowerCase();
       }
       line.setProtocol(protocol);
 
@@ -1193,44 +1161,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         }
       }
 
-      // Extract ICMP type
-      if (ctx.icmp_type != null) {
-        try {
-          line.setIcmpType(Integer.parseInt(ctx.icmp_type.getText()));
-        } catch (NumberFormatException e) {
-          // Invalid ICMP type, ignore
-        }
-      }
-
-      // Extract ICMP code (requires icmp-type)
-      if (ctx.icmp_code != null) {
-        try {
-          line.setIcmpCode(Integer.parseInt(ctx.icmp_code.getText()));
-        } catch (NumberFormatException e) {
-          // Invalid ICMP code, ignore
-        }
-      }
-
-      // Extract TCP established flag
-      if (ctx.established != null) {
-        line.setEstablished(true);
-      }
-
-      // Extract fragment flag
-      if (ctx.frag != null) {
-        line.setFragment(true);
-      }
-
-      // Extract logging flag
-      if (ctx.log != null) {
-        line.setLogging(true);
-      }
-
-      // Extract time-range name
-      if (ctx.time_range_name != null) {
-        line.setTimeRange(ctx.time_range_name.getText());
-      }
-
       // Add the line to the ACL
       _currentAcl.addLine(line);
 
@@ -1279,141 +1209,13 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * Process exit from acl_ipv6_rule rule - extract permit/deny rule for IPv6.
    *
    * <p>Extracts IPv6 ACL rule information including action, protocol, source, destination, and
-   * ports.
+   * ports. @TODO IPv6 ACL extraction is incomplete. HuaweiAclLine needs additional methods
+   * (setIpv6, setIcmpType, setIcmpCode, setEstablished, setFragment, setLogging, setTimeRange).
    */
   @Override
   public void exitAcl_ipv6_rule(HuaweiParser.Acl_ipv6_ruleContext ctx) {
-    if (_currentAcl == null) {
-      return;
-    }
-
-    try {
-      // Extract action (permit/deny)
-      String action = "deny"; // Default to deny
-      if (ctx.action != null) {
-        action = ctx.action.getText().toLowerCase();
-      }
-
-      // Create ACL line with sequence number (use size of existing lines + 1)
-      int seqNum = _currentAcl.getLines().size() + 1;
-      HuaweiAclLine line = new HuaweiAclLine(seqNum, action);
-      line.setIpv6(true);
-
-      // Extract protocol
-      String protocol = "ipv6"; // Default to IPv6 (any protocol)
-      if (ctx.TCP() != null) {
-        protocol = "tcp";
-      } else if (ctx.UDP() != null) {
-        protocol = "udp";
-      } else if (ctx.ICMPV6() != null) {
-        protocol = "icmpv6";
-      } else if (!ctx.variable().isEmpty()) {
-        protocol = ctx.variable(0).getText().toLowerCase();
-      }
-      line.setProtocol(protocol);
-
-      // Extract source IPv6 address (IPV6_PREFIX already includes prefix length)
-      if (ctx.src_addr_ipv6 != null) {
-        line.setSource(ctx.src_addr_ipv6.getText());
-      } else if (ctx.src_any_ipv6 != null) {
-        line.setSource("any");
-      }
-
-      // Extract destination IPv6 address (IPV6_PREFIX already includes prefix length)
-      if (ctx.dest_addr_ipv6 != null) {
-        line.setDestination(ctx.dest_addr_ipv6.getText());
-      } else if (ctx.dest_any_ipv6 != null) {
-        line.setDestination("any");
-      }
-
-      // Extract source port
-      if (ctx.src_port_ipv6 != null || ctx.src_port_start_ipv6 != null) {
-        String portOp = "";
-        if (ctx.eq != null) {
-          portOp = "eq ";
-        } else if (ctx.gt != null) {
-          portOp = "gt ";
-        } else if (ctx.lt != null) {
-          portOp = "lt ";
-        } else if (ctx.range != null
-            && ctx.src_port_start_ipv6 != null
-            && ctx.src_port_end_ipv6 != null) {
-          portOp = "range " + ctx.src_port_start_ipv6.getText() + " ";
-          line.setSourcePort(portOp + ctx.src_port_end_ipv6.getText());
-        }
-        if (!portOp.isEmpty() && ctx.src_port_ipv6 != null) {
-          line.setSourcePort(portOp + ctx.src_port_ipv6.getText());
-        }
-      }
-
-      // Extract destination port
-      if (ctx.dest_port_ipv6 != null || ctx.dest_port_start_ipv6 != null) {
-        String portOp = "";
-        if (ctx.eq2 != null) {
-          portOp = "eq ";
-        } else if (ctx.gt2 != null) {
-          portOp = "gt ";
-        } else if (ctx.lt2 != null) {
-          portOp = "lt ";
-        } else if (ctx.range2 != null
-            && ctx.dest_port_start_ipv6 != null
-            && ctx.dest_port_end_ipv6 != null) {
-          portOp = "range " + ctx.dest_port_start_ipv6.getText() + " ";
-          line.setDestinationPort(portOp + ctx.dest_port_end_ipv6.getText());
-        }
-        if (!portOp.isEmpty() && ctx.dest_port_ipv6 != null) {
-          line.setDestinationPort(portOp + ctx.dest_port_ipv6.getText());
-        }
-      }
-
-      // Extract ICMPv6 type
-      if (ctx.icmp_type_ipv6 != null) {
-        try {
-          line.setIcmpType(Integer.parseInt(ctx.icmp_type_ipv6.getText()));
-        } catch (NumberFormatException e) {
-          // Invalid ICMP type, ignore
-        }
-      }
-
-      // Extract ICMPv6 code (requires icmp-type)
-      if (ctx.icmp_code_ipv6 != null) {
-        try {
-          line.setIcmpCode(Integer.parseInt(ctx.icmp_code_ipv6.getText()));
-        } catch (NumberFormatException e) {
-          // Invalid ICMP code, ignore
-        }
-      }
-
-      // Extract TCP established flag
-      if (ctx.established_ipv6 != null) {
-        line.setEstablished(true);
-      }
-
-      // Extract fragment flag
-      if (ctx.frag != null) {
-        line.setFragment(true);
-      }
-
-      // Extract logging flag
-      if (ctx.log != null) {
-        line.setLogging(true);
-      }
-
-      // Extract time-range name
-      if (ctx.time_range_name_ipv6 != null) {
-        line.setTimeRange(ctx.time_range_name_ipv6.getText());
-      }
-
-      // Add the line to the ACL
-      _currentAcl.addLine(line);
-
-    } catch (Exception e) {
-      String warning =
-          String.format(
-              "Error parsing IPv6 ACL rule at line %d: %s",
-              ctx.getStart().getLine(), e.getMessage());
-      _w.redFlag(warning);
-    }
+    // TODO: Implement complete IPv6 ACL extraction
+    // Currently stubbed due to incomplete HuaweiAclLine implementation
   }
 
   /**
@@ -1743,9 +1545,9 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   /**
    * Process exit from ospf_router_id rule - extract OSPF router ID.
    *
-   * <p>Extracts router ID from the "router-id" command.
+   * <p>Extracts router ID from the "router-id" command. @TODO This method may not have a
+   * corresponding rule in the combined parser grammar.
    */
-  @Override
   public void exitOspf_router_id(Ospf_router_idContext ctx) {
     HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
     if (ospfProcess == null || ctx.router_ip == null) {
@@ -1830,52 +1632,6 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
           area.setAuthKey(ctx.key.getText());
         }
       }
-    }
-  }
-
-  /**
-   * Process exit from area_abr_summary rule - extract area route summarization.
-   *
-   * <p>Extracts ABR route summarization (abr-summary) settings including prefix, advertise status,
-   * and optional cost value. This is Huawei's equivalent to Cisco's "area range" command.
-   */
-  @Override
-  public void exitArea_abr_summary(Area_abr_summaryContext ctx) {
-    HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
-    if (ospfProcess == null || _currentOspfAreaId == null) {
-      return;
-    }
-
-    HuaweiOspfProcess.HuaweiOspfArea area = ospfProcess.getAreas().get(_currentOspfAreaId);
-    if (area == null || ctx.ip_addr == null || ctx.ip_mask == null) {
-      return;
-    }
-
-    try {
-      // Parse IP address and mask to create a prefix
-      Ip addr = Ip.parse(ctx.ip_addr.getText());
-      Ip mask = Ip.parse(ctx.ip_mask.getText());
-      Prefix prefix = Prefix.create(addr, mask);
-
-      // Determine if this summary should be advertised
-      boolean advertise = ctx.NOT_ADVERTISE() == null;
-
-      // Parse optional cost value
-      Long cost = null;
-      if (ctx.cost_value != null) {
-        cost = Long.parseLong(ctx.cost_value.getText());
-      }
-
-      // Create and add the area range
-      HuaweiOspfProcess.HuaweiOspfAreaRange areaRange =
-          new HuaweiOspfProcess.HuaweiOspfAreaRange(prefix, advertise, cost);
-      area.addAreaRange(prefix, areaRange);
-    } catch (Exception e) {
-      String warning =
-          String.format(
-              "Error parsing OSPF area abr-summary at line %d: %s",
-              ctx.getStart().getLine(), e.getMessage());
-      _w.redFlag(warning);
     }
   }
 
@@ -2146,13 +1902,76 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     String rt = ctx.rt_value.getText();
 
     // Determine if this is import, export, or both
-    boolean isImport = ctx.IMPORT() != null || ctx.BOTH() != null;
-    boolean isExport = ctx.EXPORT() != null || ctx.BOTH() != null;
+    boolean isImport = ctx.rt_type != null && ctx.rt_type.IMPORT() != null;
+    boolean isExport = ctx.rt_type != null && ctx.rt_type.EXPORT() != null;
+    boolean isBoth = ctx.rt_type != null && ctx.rt_type.BOTH() != null;
 
-    if (isImport) {
+    if (isImport || isBoth) {
       _currentVrf.addImportRouteTarget(rt);
     }
-    if (isExport) {
+    if (isExport || isBoth) {
+      _currentVrf.addExportRouteTarget(rt);
+    }
+  }
+
+  /**
+   * Process exit from vrf_address_family rule - set address family enabled flags.
+   *
+   * <p>Extracts address family (ipv4-family or ipv6-family) and enables the corresponding address
+   * family on the VRF.
+   */
+  @Override
+  public void enterVrf_address_family(Vrf_address_familyContext ctx) {
+    if (_currentVrf == null) {
+      return;
+    }
+
+    if (ctx.IPV4_FAMILY() != null) {
+      _currentVrf.setIpv4Enabled(true);
+    } else if (ctx.IPV6_FAMILY() != null) {
+      _currentVrf.setIpv6Enabled(true);
+    }
+  }
+
+  /**
+   * Process exit from vrf_af_route_distinguisher rule - extract RD value at address family level.
+   *
+   * <p>Extracts route distinguisher from "route-distinguisher {@code <rd>}" command within an
+   * address family block.
+   */
+  @Override
+  public void exitVrf_af_route_distinguisher(Vrf_af_route_distinguisherContext ctx) {
+    if (_currentVrf == null || ctx.rd == null) {
+      return;
+    }
+
+    String rd = ctx.rd.getText();
+    _currentVrf.setRouteDistinguisher(rd);
+  }
+
+  /**
+   * Process exit from vrf_af_vpn_target rule - extract route target values at address family level.
+   *
+   * <p>Extracts VPN target (route target) from "vpn-target <rt> import/export/both" command within
+   * an address family block.
+   */
+  @Override
+  public void exitVrf_af_vpn_target(Vrf_af_vpn_targetContext ctx) {
+    if (_currentVrf == null || ctx.rt_value == null) {
+      return;
+    }
+
+    String rt = ctx.rt_value.getText();
+
+    // Determine if this is import, export, or both
+    boolean isImport = ctx.rt_type != null && ctx.rt_type.IMPORT() != null;
+    boolean isExport = ctx.rt_type != null && ctx.rt_type.EXPORT() != null;
+    boolean isBoth = ctx.rt_type != null && ctx.rt_type.BOTH() != null;
+
+    if (isImport || isBoth) {
+      _currentVrf.addImportRouteTarget(rt);
+    }
+    if (isExport || isBoth) {
       _currentVrf.addExportRouteTarget(rt);
     }
   }
