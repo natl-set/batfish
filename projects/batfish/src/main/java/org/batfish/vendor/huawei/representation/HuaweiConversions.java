@@ -38,6 +38,8 @@ import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.datamodel.bgp.RouteDistinguisher;
 import org.batfish.datamodel.ospf.OspfArea;
+import org.batfish.datamodel.ospf.OspfInterfaceSettings;
+import org.batfish.datamodel.ospf.OspfNetworkType;
 import org.batfish.datamodel.ospf.OspfProcess;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily.HuaweiVrfData;
@@ -549,14 +551,74 @@ public class HuaweiConversions {
     }
 
     // Convert OSPF interface settings
-    // TODO: Full OSPF interface settings conversion
-    // The following are extracted but not yet converted:
-    // - OSPF area assignment (needs per-interface OSPF process association)
-    // - OSPF cost (needs per-interface OSPF process association)
-    // - OSPF passive interface (needs per-interface OSPF process association)
-    // - OSPF timers (not yet supported in Batfish model)
-    // - OSPF network type (not yet supported in Batfish model)
-    // - OSPF authentication (not yet supported in Batfish model)
+    for (Map.Entry<String, HuaweiOspfProcess.HuaweiOspfInterfaceSettings> entry :
+        huaweiOspf.getInterfaces().entrySet()) {
+      String ifaceName = entry.getKey();
+      HuaweiOspfProcess.HuaweiOspfInterfaceSettings huaweiSettings = entry.getValue();
+
+      Interface iface = c.getAllInterfaces().get(ifaceName);
+      if (iface != null) {
+        OspfInterfaceSettings.Builder ospfSettingsBuilder = OspfInterfaceSettings.builder();
+
+        // Set required fields with defaults
+        ospfSettingsBuilder.setEnabled(true);
+        ospfSettingsBuilder.setPassive(
+            huaweiSettings.getPassive() != null && huaweiSettings.getPassive());
+
+        // Set hello interval (default is 10 seconds)
+        ospfSettingsBuilder.setHelloInterval(
+            huaweiSettings.getHelloInterval() != null ? huaweiSettings.getHelloInterval() : 10);
+
+        // Set dead interval (default is 40 seconds, which should be 4x hello interval)
+        ospfSettingsBuilder.setDeadInterval(
+            huaweiSettings.getDeadInterval() != null ? huaweiSettings.getDeadInterval() : 40);
+
+        // Set area ID
+        Long areaId = huaweiSettings.getAreaId();
+        if (areaId != null) {
+          ospfSettingsBuilder.setAreaName(areaId);
+        }
+
+        // Set cost (default is 1 for non-loopback, 0 for loopback)
+        Integer cost = huaweiSettings.getCost();
+        if (cost != null) {
+          ospfSettingsBuilder.setCost(cost);
+        } else if (iface.getName().contains("Loopback")) {
+          ospfSettingsBuilder.setCost(0);
+        } else {
+          ospfSettingsBuilder.setCost(1);
+        }
+
+        // Note: Retransmit interval is extracted but not set (not supported in Batfish model)
+
+        // Set network type (if supported)
+        String networkType = huaweiSettings.getNetworkType();
+        if (networkType != null) {
+          switch (networkType.toUpperCase()) {
+            case "P2P":
+            case "POINT-TO-POINT":
+              ospfSettingsBuilder.setNetworkType(OspfNetworkType.POINT_TO_POINT);
+              break;
+            case "BROADCAST":
+              ospfSettingsBuilder.setNetworkType(OspfNetworkType.BROADCAST);
+              break;
+            case "NBMA":
+              ospfSettingsBuilder.setNetworkType(OspfNetworkType.NON_BROADCAST_MULTI_ACCESS);
+              break;
+            case "P2MP":
+            case "POINT-TO-MULTIPOINT":
+              ospfSettingsBuilder.setNetworkType(OspfNetworkType.POINT_TO_MULTIPOINT);
+              break;
+            default:
+              // Unknown network type - leave unset
+              break;
+          }
+        }
+
+        // Set the OSPF settings on the interface
+        iface.setOspfSettings(ospfSettingsBuilder.build());
+      }
+    }
 
     // Set OSPF default-information-originate if configured
     // In Huawei, default-information-originate causes the router to advertise a default route
