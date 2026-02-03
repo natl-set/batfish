@@ -28,6 +28,8 @@ The following ACI objects are currently supported:
 | `fvBD` | Bridge Domain | VLAN interfaces with subnets |
 | `fvAEPg` | Endpoint Group | Logical groupings for policy application |
 | `vzBrCP` | Contract | `IpAccessList` objects |
+| `vzFilter` | Filter | Reusable filter definitions with entries |
+| `vzEntry` | Filter Entry | Layer 2-4 match criteria (protocol, ports, ICMP) |
 | `fabricNodePEp` | Fabric Node | Individual `Configuration` objects |
 
 ### Object Details
@@ -92,6 +94,43 @@ filter.setDestinationPorts(ImmutableList.of("80", "443"));
 subject.setFilters(ImmutableList.of(filter));
 contract.setSubjects(ImmutableList.of(subject));
 ```
+
+#### Filters (`vzFilter`) and Filter Entries (`vzEntry`)
+Filters are reusable objects that define Layer 2-4 traffic classification rules. They contain one or more filter entries that specify match criteria:
+
+```java
+// Filter with entries
+AciConfiguration.Filter filter = new AciConfiguration.Filter("tcp_web_filter");
+filter.setTenant("web-tier");
+filter.setDescription("Web traffic filter");
+
+AciConfiguration.Filter.Entry entry1 = new AciConfiguration.Filter.Entry();
+entry1.setName("http");
+entry1.setEtherType("ip");
+entry1.setProtocol("tcp");
+entry1.setDestinationPort("80");
+
+AciConfiguration.Filter.Entry entry2 = new AciConfiguration.Filter.Entry();
+entry2.setName("https");
+entry2.setEtherType("ip");
+entry2.setProtocol("tcp");
+entry2.setDestinationPort("443");
+
+filter.setEntries(ImmutableList.of(entry1, entry2));
+```
+
+**Filter Entry Attributes:**
+- `etherT`: Ethernet type (ip, arp, mpl, etc.)
+- `prot`: IP protocol (tcp, udp, icmp, etc.)
+- `dPort` / `sPort`: Destination / Source port
+- `dFromPort` / `dToPort`: Destination port range
+- `sFromPort` / `sToPort`: Source port range
+- `icmpv4T` / `icmpv4C`: ICMPv4 type / code
+- `icmpv6T` / `icmpv6C`: ICMPv6 type / code
+- `arpOpc`: ARP opcode
+- `srcAddr` / `dstAddr`: Source / Destination IP address
+- `applyToFrag`: Apply to fragmented packets
+- `stateful`: Stateful inspection flag
 
 ## ACI JSON/XML Parsing
 
@@ -257,9 +296,11 @@ Contracts define communication policies between EPGs and are converted to ACLs:
 ### Conversion Logic
 
 1. Each contract becomes an `IpAccessList` with name `~CONTRACT~<contract-name>`
-2. Each subject filter becomes an ACL line
-3. Protocol and port specifications translate to ACL match conditions
-4. Implicit deny is added at the end
+2. Contract subjects reference filters by name
+3. Filter references are resolved to full filter objects with entries
+4. Each filter entry becomes an ACL line with specific match conditions
+5. Protocol and port specifications translate to ACL match conditions
+6. Implicit deny is added at the end
 
 ```java
 private static void convertContracts(AciConfiguration aciConfig, Configuration c, Warnings warnings) {
@@ -267,15 +308,20 @@ private static void convertContracts(AciConfiguration aciConfig, Configuration c
         String contractName = contract.getName();
         String aclName = getContractAclName(contractName);
 
-        IpAccessList.Builder aclBuilder = IpAccessList.builder()
-            .setOwner(c)
-            .setName(aclName);
-
         ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
 
         for (AciConfiguration.Contract.Subject subject : contract.getSubjects()) {
-            for (AciConfiguration.Contract.Filter filter : subject.getFilters()) {
-                lines.addAll(toAclLines(filter, contractName, c));
+            for (AciConfiguration.Contract.Filter filterRef : subject.getFilters()) {
+                // Resolve filter reference to full filter with entries
+                String fqFilterName = tenantName + ":" + filterRef.getName();
+                AciConfiguration.Filter fullFilter = aciConfig.getFilters().get(fqFilterName);
+
+                if (fullFilter != null && fullFilter.getEntries() != null) {
+                    // Convert each entry in the filter
+                    for (AciConfiguration.Filter.Entry entry : fullFilter.getEntries()) {
+                        lines.addAll(toAclEntryLines(entry, contractName, filterRef.getName(), c));
+                    }
+                }
             }
         }
 
@@ -283,37 +329,52 @@ private static void convertContracts(AciConfiguration aciConfig, Configuration c
         lines.add(new ExprAclLine(LineAction.DENY, AclLineMatchExprs.TRUE,
             "Default deny for contract " + contractName, ...));
 
-        aclBuilder.setLines(lines.build());
+        IpAccessList acl = IpAccessList.builder()
+            .setOwner(c)
+            .setName(aclName)
+            .setLines(lines.build())
+            .build();
     }
 }
 ```
 
-### Filter to ACL Line Mapping
+### Filter Entry to ACL Line Mapping
 
-| Contract Filter | ACL Match Expression |
-|-----------------|---------------------|
-| `ipProtocol: "tcp"` | `AclLineMatchExprs.matchIpProtocol(IpProtocol.TCP)` |
-| `destinationPorts: ["80", "443"]` | `AclLineMatchExprs.matchDstPort(IntegerSpace.builder().including(80, 443).build())` |
+| Filter Entry Attribute | ACL Match Expression |
+|------------------------|---------------------|
+| `prot: "tcp"` | `AclLineMatchExprs.matchIpProtocol(IpProtocol.TCP)` |
+| `dPort: "80"` | `AclLineMatchExprs.matchDstPort(IntegerSpace.builder().including(80).build())` |
+| `dFromPort: "8000", dToPort: "9000"` | `AclLineMatchExprs.matchDstPort(IntegerSpace.builder().including(8000, 9000).build())` |
+| `icmpv4T: "echo"` | `AclLineMatchExprs.matchHeaderSpace(IpSpace.Builder().icmpTypes(8).build())` |
+| `etherT: "arp"` | Warning (ARP has limited effect in IP ACLs) |
 
 ```java
-private static List<ExprAclLine> toAclLines(
-    AciConfiguration.Contract.Filter filter,
+private static List<ExprAclLine> toAclEntryLines(
+    AciConfiguration.Filter.Entry entry,
     String contractName,
+    String filterName,
     Configuration c) {
 
     ImmutableList.Builder<AclLineMatchExpr> matchExprs = ImmutableList.builder();
 
-    if (filter.getIpProtocol() != null) {
+    // Protocol matching
+    if (entry.getProtocol() != null) {
         matchExprs.add(AclLineMatchExprs.matchIpProtocol(
-            toIpProtocol(filter.getIpProtocol())));
+            toIpProtocol(entry.getProtocol())));
     }
 
-    if (filter.getDestinationPorts() != null) {
-        IntegerSpace.Builder portSpace = IntegerSpace.builder();
-        for (String portStr : filter.getDestinationPorts()) {
-            portSpace.including(Integer.parseInt(portStr));
-        }
-        matchExprs.add(AclLineMatchExprs.matchDstPort(portSpace.build()));
+    // Destination port matching (with port ranges)
+    if (entry.getDestinationPort() != null) {
+        matchExprs.add(AclLineMatchExprs.matchDstPort(
+            toPortSpace(entry.getDestinationPort())));
+    } else if (entry.getDestinationFromPort() != null) {
+        matchExprs.add(AclLineMatchExprs.matchDstPort(
+            toPortSpaceRange(entry.getDestinationFromPort(), entry.getDestinationToPort())));
+    }
+
+    // ICMP type/code matching
+    if (entry.getIcmpv4Type() != null) {
+        matchExprs.add(toIcmpTypeCode(entry.getIcmpv4Type(), entry.getIcmpv4Code()));
     }
 
     AclLineMatchExpr matchExpr = matchExprs.build().isEmpty()
@@ -323,66 +384,75 @@ private static List<ExprAclLine> toAclLines(
     return ImmutableList.of(new ExprAclLine(
         LineAction.PERMIT,
         matchExpr,
-        String.format("Contract %s filter %s", contractName, filter.getName()),
+        String.format("Contract %s filter %s entry %s", contractName, filterName, entry.getName()),
         ...));
 }
 ```
 
-### Example Contract Conversion
+### Example Filter Conversion
 
-**ACI Contract:**
+**ACI Filter with Entries:**
 ```json
 {
-  "vzBrCP": {
-    "attributes": {"name": "web_allow"},
-    "children": [{
-      "vzSubj": {
-        "attributes": {"name": "http_traffic"},
-        "children": [{
-          "vzRsSubjFiltAtt": {
-            "attributes": {
-              "tnVzFilterName": "tcp_80_443",
-              "action": "permit"
-            }
+  "vzFilter": {
+    "attributes": {"name": "tcp_web_filter", "descr": "Web Traffic Filter"},
+    "children": [
+      {
+        "vzEntry": {
+          "attributes": {
+            "name": "http",
+            "etherT": "ip",
+            "prot": "tcp",
+            "dPort": "80"
           }
-        }]
+        }
+      },
+      {
+        "vzEntry": {
+          "attributes": {
+            "name": "https",
+            "etherT": "ip",
+            "prot": "tcp",
+            "dPort": "443"
+          }
+        }
       }
-    }]
+    ]
   }
 }
 ```
 
-**Resulting ACL:**
+**Resulting ACL Lines:**
 ```
-IP Access List ~CONTRACT~web_allow
-  permit tcp any any dst 80
-  permit tcp any any dst 443
-  deny ip any any  ; implicit deny
+IP Access List ~CONTRACT~web_contract
+  permit tcp any any dst 80  ; Contract web_contract filter tcp_web_filter entry http
+  permit tcp any any dst 443 ; Contract web_contract filter tcp_web_filter entry https
+  deny ip any any            ; Default deny
 ```
 
 ## Known Limitations
 
 The following features are partially implemented or not yet supported:
 
-1. **L3Out Conversion**: The `convertL3Outs()` method is a stub. External connectivity (BGP, OSPF, static routes) defined in L3Out configurations is not yet converted.
+1. **L3Out Conversion**: The `convertL3Outs()` method has basic implementation. Full external connectivity (BGP peers, OSPF, static routes) conversion is in progress.
 
 2. **EPG to Interface Binding**: The `convertPathAttachments()` method has basic implementation but may not handle all EPG-to-interface binding scenarios.
 
-3. **Filter Entries**: Full filter entry parsing (with source/destination IP ranges, ether types) is not complete.
+3. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
 
-4. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
+4. **QoS and Service Graphs**: QoS policies and service graph redirection are not modeled.
 
-5. **QoS and Service Graphs**: QoS policies and service graph redirection are not modeled.
+5. **Endpoint Learning**: Dynamic endpoint learning and IP address migration are not represented.
 
-6. **Endpoint Learning**: Dynamic endpoint learning and IP address migration are not represented.
+6. **Multicast**: Multicast policies and configurations are not converted.
 
-7. **Multicast**: Multicast policies and configurations are not converted.
+7. **BGP Route Maps**: L3Out BGP policies use simplified conversion; complex route-maps may not be fully represented.
 
-8. **BGP Route Maps**: L3Out BGP policies use simplified conversion; complex route-maps may not be fully represented.
+8. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces.
 
-9. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces.
+9. **FEX and Virtual Port Channels**: Fabric Extender and vPC configurations need additional handling.
 
-10. **FEX and Virtual Port Channels**: Fabric Extender and vPC configurations need additional handling.
+10. **Filter Actions**: Contract subject `action` attribute (deny filters) is not fully supported.
 
 ## TODO Items
 
@@ -390,11 +460,10 @@ Based on the code, here are the key areas for future development:
 
 ### High Priority
 - [ ] Complete L3Out conversion (BGP peers, OSPF, static routes)
-- [ ] Implement full filter entry parsing with IP ranges
 - [ ] Improve EPG path attachment handling
+- [ ] Add support for contract subject `action` attribute (deny filters)
 
 ### Medium Priority
-- [ ] Add support for contract subject `action` attribute (deny filters)
 - [ ] Model QoS policies from contracts
 - [ ] Handle service graph configurations
 - [ ] Add support for multicast configurations
@@ -403,7 +472,7 @@ Based on the code, here are the key areas for future development:
 - [ ] Implement endpoint discovery from active endpoints
 - [ ] Add support for FEX (Fabric Extender) configurations
 - [ ] Model vPC (Virtual Port Channel) relationships
-- [ ] Add support for vzFilter (reusable filter) objects
+- [ ] Add support for vzSubjGraph (service graphs)
 
 ## Adding Support for Additional ACI Objects
 
@@ -557,12 +626,15 @@ org/batfish/vendor/cisco_aci/
 ├── representation/
 │   ├── AciConfiguration.java       # Main vendor-specific configuration class
 │   ├── AciConversion.java          # Conversion to vendor-independent model
+│   ├── AciEntry.java               # Filter entry (vzEntry) object
+│   ├── AciFilter.java              # Filter (vzFilter) object
 │   ├── AciPolUni.java              # Root polUni object
 │   ├── AciTenant.java              # Tenant object
 │   ├── AciVrf.java                 # VRF context object
 │   ├── AciBridgeDomain.java        # Bridge domain object
 │   ├── AciEndpointGroup.java       # EPG object
 │   ├── AciContract.java            # Contract object
+│   ├── AciContractSubject.java     # Contract subject object
 │   ├── AciFabricNode.java          # Fabric node object
 │   ├── AciInterface.java           # Interface object
 │   ├── AciChild.java               # Generic child object
