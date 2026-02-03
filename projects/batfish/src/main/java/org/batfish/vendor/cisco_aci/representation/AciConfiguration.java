@@ -288,6 +288,8 @@ public final class AciConfiguration extends VendorConfiguration {
 
   /** Parses fabric nodes from the fabricInst hierarchy. */
   private void parseFabricNodes(AciPolUniInternal polUni, Warnings warnings) {
+    // First pass: collect all fabricNodeIdentP objects to map node IDs to names
+    Map<String, String> nodeIdToName = new TreeMap<>();
     for (AciPolUniInternal.PolUniChild child : polUni.getChildren()) {
       if (child.getFabricInst() != null) {
         AciFabricInst fabricInst = child.getFabricInst();
@@ -302,8 +304,13 @@ public final class AciConfiguration extends VendorConfiguration {
                     if (explicitEp.getChildren() != null) {
                       for (AciFabricExplicitGEp.FabricExplicitGEpChild expChild :
                           explicitEp.getChildren()) {
+                        // Parse fabricNodeIdentP to get node names
+                        if (expChild.getFabricNodeIdentP() != null) {
+                          parseFabricNodeIdentP(expChild.getFabricNodeIdentP(), nodeIdToName);
+                        }
+                        // Parse fabricNodePEp
                         if (expChild.getFabricNodePEp() != null) {
-                          parseFabricNode(expChild.getFabricNodePEp(), warnings);
+                          parseFabricNode(expChild.getFabricNodePEp(), nodeIdToName, warnings);
                         }
                       }
                     }
@@ -317,24 +324,48 @@ public final class AciConfiguration extends VendorConfiguration {
     }
   }
 
+  /** Parses a fabricNodeIdentP to extract node name mapping. */
+  private void parseFabricNodeIdentP(
+      AciFabricNodeIdentP nodeIdentP, Map<String, String> nodeIdToName) {
+    if (nodeIdentP.getAttributes() == null) {
+      return;
+    }
+    AciFabricNodeIdentP.AciFabricNodeIdentPAttributes attrs = nodeIdentP.getAttributes();
+    String nodeId = attrs.getId();
+    String name = attrs.getName();
+
+    if (nodeId != null && name != null && !name.isEmpty()) {
+      nodeIdToName.put(nodeId, name);
+    }
+  }
+
   /** Parses a single fabric node from fabricNodePEp. */
-  private void parseFabricNode(AciFabricNodePEp nodePep, Warnings warnings) {
+  private void parseFabricNode(
+      AciFabricNodePEp nodePep, Map<String, String> nodeIdToName, Warnings warnings) {
     if (nodePep.getAttributes() == null) {
       return;
     }
 
     AciFabricNodePEp.AciFabricNodePEpAttributes attrs = nodePep.getAttributes();
     String nodeId = attrs.getId();
-    String name = attrs.getName();
     String podId = attrs.getPodId();
     String role = attrs.getRole();
 
-    // Use nodeId as key, fallback to name
-    String key = nodeId != null ? nodeId : (name != null ? name : "unknown");
+    // Use nodeId as key
+    if (nodeId == null) {
+      warnings.redFlagf("Fabric node missing ID, skipping");
+      return;
+    }
+
+    // Get the name from fabricNodeIdentP if available, otherwise from fabricNodePEp
+    String name = nodeIdToName.get(nodeId);
+    if (name == null || name.isEmpty()) {
+      name = attrs.getName();
+    }
 
     FabricNode fabricNode = new FabricNode();
     fabricNode.setNodeId(nodeId);
-    // Generate default name if name is null or empty
+    // Use the human-readable name if available, otherwise generate a fallback
     if (name != null && !name.isEmpty()) {
       fabricNode.setName(name);
     } else {
@@ -342,6 +373,26 @@ public final class AciConfiguration extends VendorConfiguration {
     }
     fabricNode.setPodId(podId);
     fabricNode.setRole(role);
+
+    // Parse children for interface information
+    if (nodePep.getChildren() != null) {
+      for (AciFabricNodePEp.FabricNodePEpChild nodeChild : nodePep.getChildren()) {
+        if (nodeChild.getFabricInterface() != null) {
+          AciInterface ifaceObj = nodeChild.getFabricInterface();
+          if (ifaceObj.getAttributes() != null) {
+            AciInterface.AciInterfaceAttributes ifaceAttrs = ifaceObj.getAttributes();
+            String ifaceName = ifaceAttrs.getName();
+            if (ifaceName != null && !ifaceName.isEmpty()) {
+              FabricNode.Interface iface = new FabricNode.Interface();
+              iface.setName(ifaceName);
+              iface.setEnabled(true); // ACI interfaces are enabled by default
+              // Store additional interface attributes if needed
+              fabricNode.getInterfaces().put(ifaceName, iface);
+            }
+          }
+        }
+      }
+    }
 
     _fabricNodes.put(key, fabricNode);
   }
@@ -513,6 +564,18 @@ public final class AciConfiguration extends VendorConfiguration {
               String ip = (String) subnetAttrs.get("ip");
               if (ip != null && !ip.isEmpty()) {
                 bd.getSubnets().add(ip);
+              }
+            }
+          } else if (childMap.containsKey("fvRsPathAtt")) {
+            // Parse encapsulation from path attachment
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pathAttMap = (Map<String, Object>) childMap.get("fvRsPathAtt");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pathAttAttrs = (Map<String, Object>) pathAttMap.get("attributes");
+            if (pathAttAttrs != null) {
+              String encap = (String) pathAttAttrs.get("encap");
+              if (encap != null && !encap.isEmpty() && !encap.equals("unknown")) {
+                bd.setEncapsulation(encap);
               }
             }
           }
@@ -1483,6 +1546,7 @@ public final class AciConfiguration extends VendorConfiguration {
     private String _tenant;
     private List<String> _subnets;
     private String _description;
+    private String _encapsulation; // VLAN encapsulation (e.g., "vlan-100")
 
     public BridgeDomain(String name) {
       _name = name;
@@ -1523,6 +1587,14 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setDescription(String description) {
       _description = description;
+    }
+
+    public @Nullable String getEncapsulation() {
+      return _encapsulation;
+    }
+
+    public void setEncapsulation(String encapsulation) {
+      _encapsulation = encapsulation;
     }
   }
 
@@ -2550,6 +2622,7 @@ public final class AciConfiguration extends VendorConfiguration {
     /** Child elements of fabricExplicitGEp. */
     public static class FabricExplicitGEpChild implements Serializable {
       private @Nullable AciFabricNodePEp _fabricNodePEp;
+      private @Nullable AciFabricNodeIdentP _fabricNodeIdentP;
 
       @JsonProperty("fabricNodePEp")
       public @Nullable AciFabricNodePEp getFabricNodePEp() {
@@ -2560,12 +2633,150 @@ public final class AciConfiguration extends VendorConfiguration {
       public void setFabricNodePEp(@Nullable AciFabricNodePEp fabricNodePEp) {
         _fabricNodePEp = fabricNodePEp;
       }
+
+      @JsonProperty("fabricNodeIdentP")
+      public @Nullable AciFabricNodeIdentP getFabricNodeIdentP() {
+        return _fabricNodeIdentP;
+      }
+
+      @JsonProperty("fabricNodeIdentP")
+      public void setFabricNodeIdentP(@Nullable AciFabricNodeIdentP fabricNodeIdentP) {
+        _fabricNodeIdentP = fabricNodeIdentP;
+      }
+    }
+  }
+
+  /** Represents the fabricNodeIdentP element containing fabric node identification. */
+  public static class AciFabricNodeIdentP implements Serializable {
+    private AciFabricNodeIdentPAttributes _attributes;
+
+    public @Nullable AciFabricNodeIdentPAttributes getAttributes() {
+      return _attributes;
+    }
+
+    public void setAttributes(@Nullable AciFabricNodeIdentPAttributes attributes) {
+      _attributes = attributes;
+    }
+
+    /** Attributes of fabric node identification. */
+    public static class AciFabricNodeIdentPAttributes implements Serializable {
+      private @Nullable String _annotation;
+      private @Nullable String _description;
+      private @Nullable String _distinguishedName;
+      private @Nullable String _id;
+      private @Nullable String _name;
+      private @Nullable String _nodeId;
+      private @Nullable String _podId;
+      private @Nullable String _role;
+      private @Nullable String _serial;
+      private @Nullable String _userDomain;
+
+      @JsonProperty("annotation")
+      public @Nullable String getAnnotation() {
+        return _annotation;
+      }
+
+      @JsonProperty("annotation")
+      public void setAnnotation(@Nullable String annotation) {
+        _annotation = annotation;
+      }
+
+      @JsonProperty("descr")
+      public @Nullable String getDescription() {
+        return _description;
+      }
+
+      @JsonProperty("descr")
+      public void setDescription(@Nullable String description) {
+        _description = description;
+      }
+
+      @JsonProperty("dn")
+      public @Nullable String getDistinguishedName() {
+        return _distinguishedName;
+      }
+
+      @JsonProperty("dn")
+      public void setDistinguishedName(@Nullable String distinguishedName) {
+        _distinguishedName = distinguishedName;
+      }
+
+      @JsonProperty("id")
+      public @Nullable String getId() {
+        return _id;
+      }
+
+      @JsonProperty("id")
+      public void setId(@Nullable String id) {
+        _id = id;
+      }
+
+      @JsonProperty("name")
+      public @Nullable String getName() {
+        return _name;
+      }
+
+      @JsonProperty("name")
+      public void setName(@Nullable String name) {
+        _name = name;
+      }
+
+      @JsonProperty("nodeId")
+      public @Nullable String getNodeId() {
+        return _nodeId;
+      }
+
+      @JsonProperty("nodeId")
+      public void setNodeId(@Nullable String nodeId) {
+        _nodeId = nodeId;
+      }
+
+      @JsonProperty("podId")
+      public @Nullable String getPodId() {
+        return _podId;
+      }
+
+      @JsonProperty("podId")
+      public void setPodId(@Nullable String podId) {
+        _podId = podId;
+      }
+
+      @JsonProperty("role")
+      public @Nullable String getRole() {
+        return _role;
+      }
+
+      @JsonProperty("role")
+      public void setRole(@Nullable String role) {
+        _role = role;
+      }
+
+      @JsonProperty("serial")
+      public @Nullable String getSerial() {
+        return _serial;
+      }
+
+      @JsonProperty("serial")
+      public void setSerial(@Nullable String serial) {
+        _serial = serial;
+      }
+
+      @JsonProperty("userdom")
+      public @Nullable String getUserDomain() {
+        return _userDomain;
+      }
+
+      @JsonProperty("userdom")
+      public void setUserDomain(@Nullable String userDomain) {
+        _userDomain = userDomain;
+      }
     }
   }
 
   /** Represents a fabric node endpoint (fabricNodePEp). */
   public static class AciFabricNodePEp implements Serializable {
     private AciFabricNodePEpAttributes _attributes;
+    private List<FabricNodePEpChild> _children;
 
     public @Nullable AciFabricNodePEpAttributes getAttributes() {
       return _attributes;
@@ -2573,6 +2784,124 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setAttributes(@Nullable AciFabricNodePEpAttributes attributes) {
       _attributes = attributes;
+    }
+
+    public @Nullable List<FabricNodePEpChild> getChildren() {
+      return _children;
+    }
+
+    @JsonProperty("children")
+    public void setChildren(@Nullable List<FabricNodePEpChild> children) {
+      _children = children;
+    }
+
+    /** Child elements of a fabric node. */
+    public static class FabricNodePEpChild implements Serializable {
+      private AciInterface _fabricInterface;
+
+      @JsonProperty("fabricInterface")
+      public @Nullable AciInterface getFabricInterface() {
+        return _fabricInterface;
+      }
+
+      @JsonProperty("fabricInterface")
+      public void setFabricInterface(@Nullable AciInterface fabricInterface) {
+        _fabricInterface = fabricInterface;
+      }
+    }
+
+    /** Interface configuration in ACI. */
+    public static class AciInterface implements Serializable {
+      private AciInterfaceAttributes _attributes;
+
+      public @Nullable AciInterfaceAttributes getAttributes() {
+        return _attributes;
+      }
+
+      @JsonProperty("attributes")
+      public void setAttributes(@Nullable AciInterfaceAttributes attributes) {
+        _attributes = attributes;
+      }
+
+      public static class AciInterfaceAttributes implements Serializable {
+        private @Nullable String _annotation;
+        private @Nullable String _description;
+        private @Nullable String _distinguishedName;
+        private @Nullable String _id;
+        private @Nullable String _name;
+        private @Nullable String _nameAlias;
+        private @Nullable String _userDomain;
+
+        @JsonProperty("annotation")
+        public @Nullable String getAnnotation() {
+          return _annotation;
+        }
+
+        @JsonProperty("annotation")
+        public void setAnnotation(@Nullable String annotation) {
+          _annotation = annotation;
+        }
+
+        @JsonProperty("descr")
+        public @Nullable String getDescription() {
+          return _description;
+        }
+
+        @JsonProperty("descr")
+        public void setDescription(@Nullable String description) {
+          _description = description;
+        }
+
+        @JsonProperty("dn")
+        public @Nullable String getDistinguishedName() {
+          return _distinguishedName;
+        }
+
+        @JsonProperty("dn")
+        public void setDistinguishedName(@Nullable String distinguishedName) {
+          _distinguishedName = distinguishedName;
+        }
+
+        @JsonProperty("id")
+        public @Nullable String getId() {
+          return _id;
+        }
+
+        @JsonProperty("id")
+        public void setId(@Nullable String id) {
+          _id = id;
+        }
+
+        @JsonProperty("name")
+        public @Nullable String getName() {
+          return _name;
+        }
+
+        @JsonProperty("name")
+        public void setName(@Nullable String name) {
+          _name = name;
+        }
+
+        @JsonProperty("nameAlias")
+        public @Nullable String getNameAlias() {
+          return _nameAlias;
+        }
+
+        @JsonProperty("nameAlias")
+        public void setNameAlias(@Nullable String nameAlias) {
+          _nameAlias = nameAlias;
+        }
+
+        @JsonProperty("userdom")
+        public @Nullable String getUserDomain() {
+          return _userDomain;
+        }
+
+        @JsonProperty("userdom")
+        public void setUserDomain(@Nullable String userDomain) {
+          _userDomain = userDomain;
+        }
+      }
     }
 
     /** Attributes of a fabric node. */

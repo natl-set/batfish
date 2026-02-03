@@ -146,15 +146,22 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    // Always use nodeId as hostname (key) to ensure uniqueness
-    String hostname = node.getNodeId();
-    if (hostname == null) {
-      hostname = "aci-node-" + node.getName();
-    }
+    // Prefer human-readable name as hostname, fallback to nodeId for uniqueness
+    String nodeName = node.getName();
+    String nodeId = node.getNodeId();
+    String hostname;
+    String humanName;
 
-    // Use human-readable name for display (prefer original name, fallback to nodeId)
-    String humanName =
-        (node.getName() != null && !node.getName().isEmpty()) ? node.getName() : node.getNodeId();
+    if (nodeName != null && !nodeName.isEmpty()) {
+      // Use human-readable name as primary hostname
+      hostname = nodeName;
+      // Include nodeId in humanName for reference/deduplication
+      humanName = nodeId != null ? nodeName + " (" + nodeId + ")" : nodeName;
+    } else {
+      // Fallback to nodeId if name is not available
+      hostname = nodeId;
+      humanName = nodeId != null ? nodeId : "aci-node-unknown";
+    }
 
     Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
     c.setHumanName(humanName);
@@ -455,8 +462,25 @@ public final class AciConversion {
       // Get the subnets for this BD
       List<ConcreteInterfaceAddress> subnets = bdSubnets.get(bdName);
 
-      // Create a VLAN interface for this BD
-      int vlanId = Math.abs(bdName.hashCode() % 4094) + 1;
+      // Determine VLAN ID from encapsulation or fallback to hash-based generation
+      int vlanId;
+      String encap = bd.getEncapsulation();
+      if (encap != null && encap.startsWith("vlan-")) {
+        try {
+          // Extract VLAN ID from encapsulation string (e.g., "vlan-100" -> 100)
+          vlanId = Integer.parseInt(encap.substring(5));
+        } catch (NumberFormatException e) {
+          // Fallback to hash-based generation if parsing fails
+          vlanId = Math.abs(bdName.hashCode() % 4094) + 1;
+          warnings.redFlagf(
+              "Invalid encapsulation '%s' for bridge domain %s, using generated VLAN ID %d",
+              encap, bdName, vlanId);
+        }
+      } else {
+        // No encapsulation found, generate VLAN ID from hash
+        vlanId = Math.abs(bdName.hashCode() % 4094) + 1;
+      }
+
       String vlanInterfaceName = "Vlan" + vlanId;
 
       if (!interfaces.containsKey(vlanInterfaceName)) {
