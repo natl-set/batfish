@@ -16,6 +16,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.batfish.datamodel.AclLine;
 import org.batfish.datamodel.BgpActivePeerConfig;
+import org.batfish.datamodel.BgpPeerConfig;
 import org.batfish.datamodel.BgpProcess;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
@@ -28,6 +29,7 @@ import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.LineAction;
+import org.batfish.datamodel.LongSpace;
 import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.StaticRoute;
 import org.batfish.datamodel.SubRange;
@@ -420,19 +422,55 @@ public class HuaweiConversions {
               }
             });
 
-    // TODO: Convert peer groups
-    // Peer group extraction is implemented but conversion is not yet complete
-    // Peer groups can be used to apply settings to multiple peers
-    // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
-    if (!huaweiBgp.getPeerGroups().isEmpty()) {
-      // Peer groups exist but are not yet converted to BgpProcess
+    // Apply peer group settings to member peers
+    // Peers are already assigned to groups during extraction (peer X.X.X.X group GROUP_NAME)
+    // Now apply group properties to those peers
+    for (Map.Entry<Ip, BgpPeerConfig> entry : huaweiBgp.getNeighbors().entrySet()) {
+      if (entry.getValue() instanceof BgpActivePeerConfig) {
+        BgpActivePeerConfig peer = (BgpActivePeerConfig) entry.getValue();
+        String groupName = peer.getGroup();
+        if (groupName != null) {
+          HuaweiBgpProcess.HuaweiBgpPeerGroup group = huaweiBgp.getPeerGroups().get(groupName);
+          if (group != null) {
+            // Apply peer group settings to the peer
+            // Only apply if not already set on the peer (peer-specific config overrides group
+            // config)
+
+            // Apply remote AS from group if peer doesn't have one
+            if (peer.getRemoteAsns() == null || peer.getRemoteAsns().isEmpty()) {
+              if (group.getRemoteAs() != null) {
+                BgpActivePeerConfig.Builder newPeerBuilder =
+                    BgpActivePeerConfig.builder()
+                        .setPeerAddress(peer.getPeerAddress())
+                        .setRemoteAsns(LongSpace.of(group.getRemoteAs()))
+                        .setGroup(peer.getGroup());
+                peer = newPeerBuilder.build();
+                bgpProcess.getActiveNeighbors().put(entry.getKey(), peer);
+              }
+            }
+
+            // Note: Route policies from peer groups are not yet applied
+            // Route policy conversion would need to be implemented first
+            // The following group settings are tracked but not applied:
+            // - routePolicyIn, routePolicyOut (need route policy conversion)
+            // - password (needs authentication settings)
+            // - localAs (supported but not applied from group)
+            // - routeReflectorClient, clusterId (route reflector settings)
+          }
+        }
+      }
     }
 
-    // TODO: Convert network announcements
-    // Network announcement extraction is implemented but conversion is not yet complete
-    // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
-    if (!huaweiBgp.getNetworks().isEmpty()) {
-      // Network announcements exist but are not yet converted to BgpProcess
+    // Convert network announcements
+    // Network announcements are configured with the "network" command in BGP view
+    // They are added to the origination space of the BGP process
+    for (HuaweiBgpProcess.HuaweiBgpNetwork network : huaweiBgp.getNetworks()) {
+      Prefix prefix = network.getNetwork();
+      if (prefix != null) {
+        bgpProcess.addToOriginationSpace(prefix);
+      }
+      // Note: Route policy for network is tracked but not yet applied
+      // This would require converting route policies to Batfish format first
     }
 
     // TODO: Convert address families
@@ -505,16 +543,17 @@ public class HuaweiConversions {
       OspfArea area = toOspfArea(huaweiArea, c);
       areasBuilder.put(huaweiArea.getAreaId(), area);
     }
-    ospfBuilder.setAreas(areasBuilder.build());
+    Map<Long, OspfArea> areas = areasBuilder.build();
 
     // Convert OSPF virtual links
-    // TODO: Convert virtual links to OspfProcess
-    // Virtual links require area ID and remote router ID
-    // Need to determine which area the virtual link belongs to
+    // Virtual links are extracted but Batfish OspfProcess doesn't have a direct virtual link model
+    // Virtual links would need to be converted to area-specific configuration
     if (!huaweiOspf.getVirtualLinks().isEmpty()) {
       for (HuaweiOspfProcess.HuaweiOspfVirtualLink vlink : huaweiOspf.getVirtualLinks()) {
-        // Virtual link extraction is implemented but conversion is not yet complete
-        // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
+        // Virtual link data: areaId, remoteRouterId, transitAreaId
+        // To fully implement:
+        // 1. Determine which area the virtual link modifies (transit area)
+        // 2. Batfish may need OspfVirtualLink model or area-level configuration
       }
     }
 
@@ -528,13 +567,33 @@ public class HuaweiConversions {
     // - OSPF network type (not yet supported in Batfish model)
     // - OSPF authentication (not yet supported in Batfish model)
 
-    // Set OSPF default originate if configured
-    // TODO: Convert default-information originate to OspfProcess
-    // Default originate extraction is implemented but conversion is not yet complete
-    // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
-    if (huaweiOspf.getDefaultOriginateRouteMap() != null) {
-      // Default originate with route-map is not yet supported
+    // Set OSPF default-information-originate if configured
+    // In Huawei, default-information-originate causes the router to advertise a default route
+    // In Batfish, this is modeled as injectDefaultRoute on OspfArea
+    if (huaweiOspf.getDefaultOriginate()) {
+      // Apply to all areas - default-information-originate is process-level in Huawei
+      ImmutableMap.Builder<Long, OspfArea> updatedAreasBuilder = ImmutableMap.builder();
+      for (Map.Entry<Long, OspfArea> entry : areas.entrySet()) {
+        OspfArea area = entry.getValue();
+        OspfArea.Builder areaBuilder = area.toBuilder().setInjectDefaultRoute(true);
+        // Set metric if configured (default is 1 if not specified)
+        int metric = 1;
+        if (huaweiOspf.getDefaultCost() != null) {
+          metric = huaweiOspf.getDefaultCost().intValue();
+        }
+        areaBuilder.setMetricOfDefaultRoute(metric);
+        updatedAreasBuilder.put(entry.getKey(), areaBuilder.build());
+      }
+      areas = updatedAreasBuilder.build();
     }
+    if (huaweiOspf.getDefaultOriginateRouteMap() != null) {
+      // Default originate with route-map
+      // Route map filtering for default originate is not yet supported
+      // Would require route-policy conversion to Batfish format first
+    }
+
+    // Set areas on the OSPF process
+    ospfBuilder.setAreas(areas);
 
     // Build and set OSPF process
     OspfProcess ospfProcess = ospfBuilder.build();
