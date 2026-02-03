@@ -70,6 +70,7 @@ public final class AciConfiguration extends VendorConfiguration {
   private static final String PROP_VRFS = "vrfs";
   private static final String PROP_EPGS = "epgs";
   private static final String PROP_CONTRACTS = "contracts";
+  private static final String PROP_FILTERS = "filters";
   private static final String PROP_FABRIC_NODES = "fabricNodes";
   private static final String PROP_L3_OUTS = "l3Outs";
   private static final String PROP_L2_OUTS = "l2Outs";
@@ -225,6 +226,9 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of contract names to contract configurations */
   private Map<String, Contract> _contracts;
 
+  /** Map of filter names to filter configurations */
+  private Map<String, Filter> _filters;
+
   /** Map of fabric node IDs to fabric node configurations */
   private Map<String, FabricNode> _fabricNodes;
 
@@ -243,6 +247,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _vrfs = new TreeMap<>();
     _epgs = new TreeMap<>();
     _contracts = new TreeMap<>();
+    _filters = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
     _l3Outs = new TreeMap<>();
     _l2Outs = new TreeMap<>();
@@ -382,6 +387,12 @@ public final class AciConfiguration extends VendorConfiguration {
           @SuppressWarnings("unchecked")
           Map<String, Object> apMap = (Map<String, Object>) childMap.get("fvAp");
           parseApplicationProfileFromMap(apMap, tenantName, warnings);
+        }
+        // Check for vzFilter (Filter - contains filter entries)
+        else if (childMap.containsKey("vzFilter")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> filterMap = (Map<String, Object>) childMap.get("vzFilter");
+          parseFilterFromMap(filterMap, tenantName, warnings);
         }
         // Check for vzBrCP (Contract)
         else if (childMap.containsKey("vzBrCP")) {
@@ -807,6 +818,104 @@ public final class AciConfiguration extends VendorConfiguration {
     contract.getSubjects().add(subject);
   }
 
+  /** Parses a Filter (vzFilter) from a raw map structure. */
+  private void parseFilterFromMap(
+      Map<String, Object> filterMap, String tenantName, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) filterMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    String filterName = (String) attrs.get("name");
+    if (filterName == null || filterName.isEmpty()) {
+      return;
+    }
+
+    // Create Filter with fully qualified name
+    String fqFilterName = tenantName + ":" + filterName;
+    Filter filter = getOrCreateFilter(fqFilterName);
+    filter.setTenant(tenantName);
+    filter.setDescription((String) attrs.get("descr"));
+
+    // Parse children for filter entries
+    if (filterMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) filterMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+          if (childMap.containsKey("vzEntry")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> entryMap = (Map<String, Object>) childMap.get("vzEntry");
+            parseEntryFromMap(entryMap, filter, warnings);
+          }
+        }
+      }
+    }
+
+    // Also add Filter to tenant's filter map
+    Tenant tenant = getOrCreateTenant(tenantName);
+    tenant.getFilters().put(fqFilterName, filter);
+  }
+
+  /** Parses a filter entry (vzEntry) from a raw map structure. */
+  private void parseEntryFromMap(Map<String, Object> entryMap, Filter filter, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) entryMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    String entryName = (String) attrs.get("name");
+    Filter.Entry entry = new Filter.Entry();
+    entry.setName(entryName);
+
+    // Parse Ethernet type
+    entry.setEtherType((String) attrs.get("etherT"));
+
+    // Parse IP protocol
+    entry.setProtocol((String) attrs.get("prot"));
+
+    // Parse ports
+    entry.setDestinationPort((String) attrs.get("dPort"));
+    entry.setSourcePort((String) attrs.get("sPort"));
+    entry.setDestinationFromPort((String) attrs.get("dFromPort"));
+    entry.setDestinationToPort((String) attrs.get("dToPort"));
+    entry.setSourceFromPort((String) attrs.get("sFromPort"));
+    entry.setSourceToPort((String) attrs.get("sToPort"));
+
+    // Parse ICMP types
+    entry.setIcmpv4Type((String) attrs.get("icmpv4T"));
+    entry.setIcmpv4Code((String) attrs.get("icmpv4C"));
+    entry.setIcmpv6Type((String) attrs.get("icmpv6T"));
+    entry.setIcmpv6Code((String) attrs.get("icmpv6C"));
+
+    // Parse ARP
+    entry.setArpOpcode((String) attrs.get("arpOpc"));
+
+    // Parse fragment and stateful flags
+    String applyToFrag = (String) attrs.get("applyToFrag");
+    if (applyToFrag != null) {
+      entry.setApplyToFragments("yes".equalsIgnoreCase(applyToFrag));
+    }
+
+    String stateful = (String) attrs.get("stateful");
+    if (stateful != null) {
+      entry.setStateful("yes".equalsIgnoreCase(stateful));
+    }
+
+    // Parse TCP rules
+    entry.setTcpRules((String) attrs.get("tcpRules"));
+
+    // Parse source/destination addresses
+    entry.setSourceAddress((String) attrs.get("srcAddr"));
+    entry.setDestinationAddress((String) attrs.get("dstAddr"));
+
+    filter.getEntries().add(entry);
+  }
+
   @Override
   public String getHostname() {
     return _hostname;
@@ -892,6 +1001,20 @@ public final class AciConfiguration extends VendorConfiguration {
   @JsonProperty(PROP_CONTRACTS)
   public void setContracts(Map<String, Contract> contracts) {
     _contracts = new TreeMap<>(contracts);
+  }
+
+  /**
+   * Returns the map of filter configurations.
+   *
+   * @return An immutable map of filter names to filter configurations
+   */
+  public @Nonnull Map<String, Filter> getFilters() {
+    return _filters;
+  }
+
+  @JsonProperty(PROP_FILTERS)
+  public void setFilters(Map<String, Filter> filters) {
+    _filters = new TreeMap<>(filters);
   }
 
   /**
@@ -988,6 +1111,16 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Gets or creates a filter with the given name.
+   *
+   * @param name The filter name
+   * @return The existing or newly created filter
+   */
+  public @Nonnull Filter getOrCreateFilter(String name) {
+    return _filters.computeIfAbsent(name, Filter::new);
+  }
+
+  /**
    * Gets or creates an L3Out with the given name.
    *
    * @param name The L3Out name
@@ -1039,6 +1172,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _vrfs = ImmutableMap.copyOf(_vrfs);
     _epgs = ImmutableMap.copyOf(_epgs);
     _contracts = ImmutableMap.copyOf(_contracts);
+    _filters = ImmutableMap.copyOf(_filters);
     _fabricNodes = ImmutableMap.copyOf(_fabricNodes);
     _l3Outs = ImmutableMap.copyOf(_l3Outs);
   }
@@ -1055,6 +1189,7 @@ public final class AciConfiguration extends VendorConfiguration {
     private Map<String, AciVrfModel> _vrfs;
     private Map<String, Epg> _epgs;
     private Map<String, Contract> _contracts;
+    private Map<String, Filter> _filters;
 
     public Tenant(String name) {
       _name = name;
@@ -1062,6 +1197,7 @@ public final class AciConfiguration extends VendorConfiguration {
       _vrfs = new TreeMap<>();
       _epgs = new TreeMap<>();
       _contracts = new TreeMap<>();
+      _filters = new TreeMap<>();
     }
 
     public String getName() {
@@ -1098,6 +1234,14 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setContracts(Map<String, Contract> contracts) {
       _contracts = new TreeMap<>(contracts);
+    }
+
+    public Map<String, Filter> getFilters() {
+      return _filters;
+    }
+
+    public void setFilters(Map<String, Filter> filters) {
+      _filters = new TreeMap<>(filters);
     }
   }
 
@@ -1406,6 +1550,231 @@ public final class AciConfiguration extends VendorConfiguration {
 
       public void setStateful(Boolean stateful) {
         _stateful = stateful;
+      }
+    }
+  }
+
+  /**
+   * ACI Filter configuration (vzFilter).
+   *
+   * <p>Filters define Layer 2 to Layer 4 traffic classification rules. A filter contains one or
+   * more entries that specify match criteria such as Ethernet type, IP protocol, TCP/UDP ports, and
+   * ICMP types. Filters are referenced by contract subjects to define allowed traffic patterns
+   * between endpoint groups.
+   */
+  public static class Filter implements Serializable {
+    private final String _name;
+    private String _tenant;
+    private String _description;
+    private List<Entry> _entries;
+
+    public Filter(String name) {
+      _name = name;
+      _entries = new ArrayList<>();
+    }
+
+    public String getName() {
+      return _name;
+    }
+
+    public @Nullable String getTenant() {
+      return _tenant;
+    }
+
+    public void setTenant(String tenant) {
+      _tenant = tenant;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+
+    public List<Entry> getEntries() {
+      return _entries;
+    }
+
+    public void setEntries(List<Entry> entries) {
+      _entries = new ArrayList<>(entries);
+    }
+
+    /** A filter entry defines specific traffic matching criteria (protocols, ports, etc.). */
+    public static class Entry implements Serializable {
+      private String _name;
+      private String _etherType;
+      private String _protocol;
+      private String _destinationPort;
+      private String _sourcePort;
+      private String _destinationFromPort;
+      private String _destinationToPort;
+      private String _sourceFromPort;
+      private String _sourceToPort;
+      private String _icmpv4Type;
+      private String _icmpv4Code;
+      private String _icmpv6Type;
+      private String _icmpv6Code;
+      private String _arpOpcode;
+      private Boolean _applyToFragments;
+      private Boolean _stateful;
+      private String _tcpRules;
+      private String _sourceAddress;
+      private String _destinationAddress;
+
+      public Entry() {}
+
+      public @Nullable String getName() {
+        return _name;
+      }
+
+      public void setName(String name) {
+        _name = name;
+      }
+
+      public @Nullable String getEtherType() {
+        return _etherType;
+      }
+
+      public void setEtherType(String etherType) {
+        _etherType = etherType;
+      }
+
+      public @Nullable String getProtocol() {
+        return _protocol;
+      }
+
+      public void setProtocol(String protocol) {
+        _protocol = protocol;
+      }
+
+      public @Nullable String getDestinationPort() {
+        return _destinationPort;
+      }
+
+      public void setDestinationPort(String destinationPort) {
+        _destinationPort = destinationPort;
+      }
+
+      public @Nullable String getSourcePort() {
+        return _sourcePort;
+      }
+
+      public void setSourcePort(String sourcePort) {
+        _sourcePort = sourcePort;
+      }
+
+      public @Nullable String getDestinationFromPort() {
+        return _destinationFromPort;
+      }
+
+      public void setDestinationFromPort(String destinationFromPort) {
+        _destinationFromPort = destinationFromPort;
+      }
+
+      public @Nullable String getDestinationToPort() {
+        return _destinationToPort;
+      }
+
+      public void setDestinationToPort(String destinationToPort) {
+        _destinationToPort = destinationToPort;
+      }
+
+      public @Nullable String getSourceFromPort() {
+        return _sourceFromPort;
+      }
+
+      public void setSourceFromPort(String sourceFromPort) {
+        _sourceFromPort = sourceFromPort;
+      }
+
+      public @Nullable String getSourceToPort() {
+        return _sourceToPort;
+      }
+
+      public void setSourceToPort(String sourceToPort) {
+        _sourceToPort = sourceToPort;
+      }
+
+      public @Nullable String getIcmpv4Type() {
+        return _icmpv4Type;
+      }
+
+      public void setIcmpv4Type(String icmpv4Type) {
+        _icmpv4Type = icmpv4Type;
+      }
+
+      public @Nullable String getIcmpv4Code() {
+        return _icmpv4Code;
+      }
+
+      public void setIcmpv4Code(String icmpv4Code) {
+        _icmpv4Code = icmpv4Code;
+      }
+
+      public @Nullable String getIcmpv6Type() {
+        return _icmpv6Type;
+      }
+
+      public void setIcmpv6Type(String icmpv6Type) {
+        _icmpv6Type = icmpv6Type;
+      }
+
+      public @Nullable String getIcmpv6Code() {
+        return _icmpv6Code;
+      }
+
+      public void setIcmpv6Code(String icmpv6Code) {
+        _icmpv6Code = icmpv6Code;
+      }
+
+      public @Nullable String getArpOpcode() {
+        return _arpOpcode;
+      }
+
+      public void setArpOpcode(String arpOpcode) {
+        _arpOpcode = arpOpcode;
+      }
+
+      public @Nullable Boolean getApplyToFragments() {
+        return _applyToFragments;
+      }
+
+      public void setApplyToFragments(Boolean applyToFragments) {
+        _applyToFragments = applyToFragments;
+      }
+
+      public @Nullable Boolean getStateful() {
+        return _stateful;
+      }
+
+      public void setStateful(Boolean stateful) {
+        _stateful = stateful;
+      }
+
+      public @Nullable String getTcpRules() {
+        return _tcpRules;
+      }
+
+      public void setTcpRules(String tcpRules) {
+        _tcpRules = tcpRules;
+      }
+
+      public @Nullable String getSourceAddress() {
+        return _sourceAddress;
+      }
+
+      public void setSourceAddress(String sourceAddress) {
+        _sourceAddress = sourceAddress;
+      }
+
+      public @Nullable String getDestinationAddress() {
+        return _destinationAddress;
+      }
+
+      public void setDestinationAddress(String destinationAddress) {
+        _destinationAddress = destinationAddress;
       }
     }
   }
