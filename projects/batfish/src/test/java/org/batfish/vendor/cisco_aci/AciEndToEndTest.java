@@ -396,9 +396,10 @@ public class AciEndToEndTest {
     }
 
     // Verify all fabric nodes have corresponding configurations
+    // Keys are now nodeIds to ensure uniqueness
     for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
-      String nodeName = node.getName() != null ? node.getName() : node.getNodeId();
-      assertThat("Configuration should exist for node " + nodeName, configs, hasKey(nodeName));
+      String nodeId = node.getNodeId();
+      assertThat("Configuration should exist for node " + nodeId, configs, hasKey(nodeId));
     }
   }
 

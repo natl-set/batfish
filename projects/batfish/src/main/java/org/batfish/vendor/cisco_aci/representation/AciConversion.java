@@ -126,8 +126,8 @@ public final class AciConversion {
     // Process each fabric node as a separate configuration
     for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
       Configuration c = convertNode(node, aciConfig, warnings);
-      // Use node name as key, fallback to nodeId
-      String key = node.getName() != null ? node.getName() : node.getNodeId();
+      // Always use nodeId as key to ensure uniqueness
+      String key = node.getNodeId();
       if (key != null) {
         configs.put(key, c);
       }
@@ -146,13 +146,18 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    String hostname = node.getName() != null ? node.getName() : node.getNodeId();
+    // Always use nodeId as hostname (key) to ensure uniqueness
+    String hostname = node.getNodeId();
     if (hostname == null) {
-      hostname = "aci-node-" + node.getNodeId();
+      hostname = "aci-node-" + node.getName();
     }
 
+    // Use human-readable name for display (prefer original name, fallback to nodeId)
+    String humanName =
+        (node.getName() != null && !node.getName().isEmpty()) ? node.getName() : node.getNodeId();
+
     Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
-    c.setHumanName(node.getNodeId());
+    c.setHumanName(humanName);
     c.setDeviceModel(DeviceModel.CISCO_UNSPECIFIED);
     c.setDefaultCrossZoneAction(LineAction.PERMIT);
     c.setDefaultInboundAction(LineAction.PERMIT);

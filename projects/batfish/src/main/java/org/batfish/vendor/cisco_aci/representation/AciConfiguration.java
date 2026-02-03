@@ -334,7 +334,12 @@ public final class AciConfiguration extends VendorConfiguration {
 
     FabricNode fabricNode = new FabricNode();
     fabricNode.setNodeId(nodeId);
-    fabricNode.setName(name != null ? name : "aci-node-" + nodeId);
+    // Generate default name if name is null or empty
+    if (name != null && !name.isEmpty()) {
+      fabricNode.setName(name);
+    } else {
+      fabricNode.setName("aci-node-" + nodeId);
+    }
     fabricNode.setPodId(podId);
     fabricNode.setRole(role);
 
