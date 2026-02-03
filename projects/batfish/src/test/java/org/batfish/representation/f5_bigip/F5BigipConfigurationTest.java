@@ -16,6 +16,7 @@ import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.IpProtocol;
+import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.RouteFilterList;
 import org.batfish.referencelibrary.AddressGroup;
@@ -1608,5 +1609,230 @@ public class F5BigipConfigurationTest {
     Device device = new Device("device1");
     device.setSelfDevice(true);
     assertThat(device.getSelfDevice(), equalTo(true));
+  }
+
+  // ==================== appliesToVlan Tests ====================
+
+  @Test
+  public void testAppliesToVlan_Snat_vlansNotEnabled() {
+    Snat snat = new Snat("snat1");
+    snat.setVlansEnabled(false);
+    assertThat(F5BigipConfiguration.appliesToVlan(snat, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Snat_vlansEmpty() {
+    Snat snat = new Snat("snat1");
+    snat.setVlansEnabled(true);
+    assertThat(F5BigipConfiguration.appliesToVlan(snat, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Snat_vlansContains() {
+    Snat snat = new Snat("snat1");
+    snat.setVlansEnabled(true);
+    snat.getVlans().add("vlan10");
+    snat.getVlans().add("vlan20");
+    assertThat(F5BigipConfiguration.appliesToVlan(snat, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Snat_vlansDoesNotContain() {
+    Snat snat = new Snat("snat1");
+    snat.setVlansEnabled(true);
+    snat.getVlans().add("vlan20");
+    assertThat(F5BigipConfiguration.appliesToVlan(snat, "vlan10"), equalTo(false));
+  }
+
+  @Test
+  public void testAppliesToVlan_Virtual_vlansNotEnabled() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setVlansEnabled(false);
+    assertThat(F5BigipConfiguration.appliesToVlan(virtual, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Virtual_vlansEmpty() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setVlansEnabled(true);
+    assertThat(F5BigipConfiguration.appliesToVlan(virtual, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Virtual_vlansContains() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setVlansEnabled(true);
+    virtual.getVlans().add("vlan10");
+    virtual.getVlans().add("vlan20");
+    assertThat(F5BigipConfiguration.appliesToVlan(virtual, "vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testAppliesToVlan_Virtual_vlansDoesNotContain() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setVlansEnabled(true);
+    virtual.getVlans().add("vlan20");
+    assertThat(F5BigipConfiguration.appliesToVlan(virtual, "vlan10"), equalTo(false));
+  }
+
+  // ==================== VirtualAddress Tests ====================
+
+  @Test
+  public void testVirtualAddressConstruction() {
+    VirtualAddress va = new VirtualAddress("va1");
+    assertThat(va.getName(), equalTo("va1"));
+  }
+
+  @Test
+  public void testVirtualAddress_withAddress() {
+    VirtualAddress va = new VirtualAddress("va1");
+    va.setAddress(Ip.parse("10.0.0.1"));
+    assertThat(va.getAddress(), equalTo(Ip.parse("10.0.0.1")));
+  }
+
+  @Test
+  public void testVirtualAddress_withMask() {
+    VirtualAddress va = new VirtualAddress("va1");
+    va.setMask(Ip.parse("255.255.255.254"));
+    assertThat(va.getMask(), equalTo(Ip.parse("255.255.255.254")));
+  }
+
+  @Test
+  public void testVirtualAddress_withIcmpEchoDisabled() {
+    VirtualAddress va = new VirtualAddress("va1");
+    va.setIcmpEchoDisabled(true);
+    assertThat(va.getIcmpEchoDisabled(), equalTo(true));
+  }
+
+  @Test
+  public void testVirtualAddress_withAddress6() {
+    VirtualAddress va = new VirtualAddress("va1");
+    va.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
+    assertThat(va.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+  }
+
+  @Test
+  public void testVirtualAddress_withMask6() {
+    VirtualAddress va = new VirtualAddress("va1");
+    va.setMask6(org.batfish.datamodel.Ip6.parse("ffff:ffff::"));
+    assertThat(va.getMask6(), equalTo(org.batfish.datamodel.Ip6.parse("ffff:ffff::")));
+  }
+
+  // ==================== Snat Tests ====================
+
+  @Test
+  public void testSnatConstruction() {
+    Snat snat = new Snat("snat1");
+    assertThat(snat.getName(), equalTo("snat1"));
+  }
+
+  @Test
+  public void testSnat_withSnatpool() {
+    Snat snat = new Snat("snat1");
+    snat.setSnatpool("pool1");
+    assertThat(snat.getSnatpool(), equalTo("pool1"));
+  }
+
+  @Test
+  public void testSnat_withVlansEnabled() {
+    Snat snat = new Snat("snat1");
+    snat.setVlansEnabled(true);
+    assertThat(snat.getVlansEnabled(), equalTo(true));
+  }
+
+  @Test
+  public void testSnat_withVlans() {
+    Snat snat = new Snat("snat1");
+    snat.getVlans().add("vlan10");
+    snat.getVlans().add("vlan20");
+    assertThat(snat.getVlans().size(), equalTo(2));
+  }
+
+  // ==================== Node Tests ====================
+
+  @Test
+  public void testNodeConstruction() {
+    Node node = new Node("node1");
+    assertThat(node.getName(), equalTo("node1"));
+  }
+
+  @Test
+  public void testNode_withAddress() {
+    Node node = new Node("node1");
+    node.setAddress(Ip.parse("10.0.0.1"));
+    assertThat(node.getAddress(), equalTo(Ip.parse("10.0.0.1")));
+  }
+
+  @Test
+  public void testNode_withAddress6() {
+    Node node = new Node("node1");
+    node.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
+    assertThat(node.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+  }
+
+  // ==================== Pool Tests ====================
+
+  @Test
+  public void testPoolConstruction() {
+    Pool pool = new Pool("pool1");
+    assertThat(pool.getName(), equalTo("pool1"));
+  }
+
+  @Test
+  public void testPool_withDescription() {
+    Pool pool = new Pool("pool1");
+    pool.setDescription("Test pool");
+    assertThat(pool.getDescription(), equalTo("Test pool"));
+  }
+
+  @Test
+  public void testPool_getMonitors() {
+    Pool pool = new Pool("pool1");
+    // getMonitors returns an empty list by default
+    assertThat(pool.getMonitors(), equalTo(ImmutableList.of()));
+  }
+
+  @Test
+  public void testPool_withMembers() {
+    Pool pool = new Pool("pool1");
+    PoolMember member1 = new PoolMember("member1", "node1", 80);
+    PoolMember member2 = new PoolMember("member2", "node2", 443);
+    pool.getMembers().put(member1.getName(), member1);
+    pool.getMembers().put(member2.getName(), member2);
+    assertThat(pool.getMembers().size(), equalTo(2));
+  }
+
+  // ==================== AccessList Tests ====================
+
+  @Test
+  public void testAccessListConstruction() {
+    AccessList acl = new AccessList("acl1");
+    assertThat(acl.getName(), equalTo("acl1"));
+  }
+
+  @Test
+  public void testAccessList_withLines() {
+    AccessList acl = new AccessList("acl1");
+    AccessListLine line1 =
+        new AccessListLine(LineAction.PERMIT, Prefix.parse("10.0.0.0/24"), "line1");
+    acl.getLines().add(line1);
+    assertThat(acl.getLines().size(), equalTo(1));
+  }
+
+  // ==================== PrefixList Tests ====================
+
+  @Test
+  public void testPrefixListConstruction() {
+    PrefixList plist = new PrefixList("plist1");
+    assertThat(plist.getName(), equalTo("plist1"));
+  }
+
+  @Test
+  public void testPrefixList_withEntries() {
+    PrefixList plist = new PrefixList("plist1");
+    PrefixListEntry entry = new PrefixListEntry(1L);
+    entry.setPrefix(Prefix.parse("10.0.0.0/24"));
+    plist.getEntries().put(1L, entry);
+    assertThat(plist.getEntries().size(), equalTo(1));
   }
 }

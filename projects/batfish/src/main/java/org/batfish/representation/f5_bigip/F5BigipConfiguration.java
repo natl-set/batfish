@@ -156,13 +156,15 @@ public class F5BigipConfiguration extends VendorConfiguration {
   private static final int DEFAULT_IBGP_ADMIN = 200;
   private static final int DEFAULT_LOCAL_ADMIN = 200;
 
-  private static boolean appliesToVlan(Snat snat, String vlanName) {
+  @VisibleForTesting
+  static boolean appliesToVlan(Snat snat, String vlanName) {
     return !snat.getVlansEnabled()
         || snat.getVlans().isEmpty()
         || snat.getVlans().contains(vlanName);
   }
 
-  private static boolean appliesToVlan(Virtual virtual, String vlanName) {
+  @VisibleForTesting
+  static boolean appliesToVlan(Virtual virtual, String vlanName) {
     return !virtual.getVlansEnabled()
         || virtual.getVlans().isEmpty()
         || virtual.getVlans().contains(vlanName);
