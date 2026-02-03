@@ -764,12 +764,234 @@ public final class AciConfiguration extends VendorConfiguration {
               }
             }
           }
+
+          // External EPG (l3extInstP) - contains subnets and static routes
+          else if (childMap.containsKey("l3extInstP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> epgMap = (Map<String, Object>) childMap.get("l3extInstP");
+            parseExternalEpgFromMap(epgMap, l3out, warnings);
+          }
+
+          // BGP external policy (bgpExtP)
+          else if (childMap.containsKey("bgpExtP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> bgpExtPMap = (Map<String, Object>) childMap.get("bgpExtP");
+            parseBgpExtPFromMap(bgpExtPMap, l3out, warnings);
+          }
+
+          // OSPF external policy (ospfExtP)
+          else if (childMap.containsKey("ospfExtP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ospfExtPMap = (Map<String, Object>) childMap.get("ospfExtP");
+            parseOspfExtPFromMap(ospfExtPMap, l3out, warnings);
+          }
         }
       }
     }
 
     _l3Outs.put(fqL3OutName, l3out);
   }
+
+  /** Parses an external EPG (l3extInstP) from a raw map structure. */
+  private void parseExternalEpgFromMap(Map<String, Object> epgMap, L3Out l3out, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) epgMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    String epgName = (String) attrs.get("name");
+    if (epgName == null || epgName.isEmpty()) {
+      epgName = "extepg-" + l3out.getName();
+    }
+    ExternalEpg epg = new ExternalEpg(epgName);
+    epg.setDescription((String) attrs.get("descr"));
+
+    // Parse children for subnets and static routes
+    if (epgMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) epgMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+
+          // External subnet (l3extSubnet)
+          if (childMap.containsKey("l3extSubnet")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subnetMap = (Map<String, Object>) childMap.get("l3extSubnet");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subnetAttrs = (Map<String, Object>) subnetMap.get("attributes");
+            if (subnetAttrs != null) {
+              String subnet = (String) subnetAttrs.get("ip");
+              if (subnet != null) {
+                epg.getSubnets().add(subnet);
+              }
+            }
+          }
+
+          // Static route (ipRouteP)
+          else if (childMap.containsKey("ipRouteP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> routeMap = (Map<String, Object>) childMap.get("ipRouteP");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> routeAttrs = (Map<String, Object>) routeMap.get("attributes");
+            if (routeAttrs != null) {
+              StaticRoute route = new StaticRoute();
+              route.setPrefix((String) routeAttrs.get("ip"));
+              route.setNextHop((String) routeAttrs.get("nextHop"));
+              route.setAdministrativeDistance((String) routeAttrs.get("pref"));
+              route.setNextHopInterface((String) routeAttrs.get("ifName"));
+              l3out.getStaticRoutes().add(route);
+            }
+          }
+        }
+      }
+    }
+
+    l3out.getExternalEpgs().add(epg);
+  }
+
+  /** Parses a BGP external policy (bgpExtP) from a raw map structure. */
+  private void parseBgpExtPFromMap(Map<String, Object> bgpExtPMap, L3Out l3out, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) bgpExtPMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    // Create or update BGP process config
+    BgpProcess bgpProcess = l3out.getBgpProcess();
+    if (bgpProcess == null) {
+      bgpProcess = new BgpProcess();
+      l3out.setBgpProcess(bgpProcess);
+    }
+
+    // Parse BGP process attributes
+    String routerId = (String) attrs.get("routerId");
+    if (routerId != null) {
+      bgpProcess.setRouterId(routerId);
+    }
+
+    String asStr = (String) attrs.get("asn");
+    if (asStr != null) {
+      try {
+        bgpProcess.setAs(Long.parseLong(asStr));
+      } catch (NumberFormatException e) {
+        // Ignore invalid AS
+      }
+    }
+
+    // Parse children for BGP peers
+    if (bgpExtPMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) bgpExtPMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+
+          // BGP peer (bgpPeerP)
+          if (childMap.containsKey("bgpPeerP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> peerMap = (Map<String, Object>) childMap.get("bgpPeerP");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> peerAttrs = (Map<String, Object>) peerMap.get("attributes");
+            if (peerAttrs != null) {
+              BgpPeer peer = new BgpPeer();
+              peer.setPeerAddress((String) peerAttrs.get("addr"));
+              peer.setRemoteAs((String) peerAttrs.get("asn"));
+              peer.setDescription((String) peerAttrs.get("descr"));
+
+              // Peer-specific attributes
+              peer.setLocalAs((String) peerAttrs.get("localAsn"));
+              peer.setPassword((String) peerAttrs.get("pwd"));
+
+              l3out.getBgpPeers().add(peer);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /** Parses an OSPF external policy (ospfExtP) from a raw map structure. */
+  private void parseOspfExtPFromMap(
+      Map<String, Object> ospfExtPMap, L3Out l3out, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) ospfExtPMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    OspfConfig ospfConfig = new OspfConfig();
+    ospfConfig.setName((String) attrs.get("name"));
+    ospfConfig.setDescription((String) attrs.get("descr"));
+
+    // Parse OSPF process attributes
+    String areaId = (String) attrs.get("area");
+    if (areaId != null) {
+      ospfConfig.setAreaId(areaId);
+    }
+
+    // Parse children for OSPF interface configs
+    if (ospfExtPMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) ospfExtPMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+
+          // OSPF interface policy (ospfIfP)
+          if (childMap.containsKey("ospfIfP")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ifPMap = (Map<String, Object>) childMap.get("ospfIfP");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ifPAttrs = (Map<String, Object>) ifPMap.get("attributes");
+            if (ifPAttrs != null) {
+              OspfInterface ospfInterface = new OspfInterface();
+              ospfInterface.setName((String) ifPAttrs.get("name"));
+              ospfInterface.setDescription((String) ifPAttrs.get("descr"));
+
+              String ospfCost = (String) ifPAttrs.get("cost");
+              if (ospfCost != null) {
+                try {
+                  ospfInterface.setCost(Integer.parseInt(ospfCost));
+                } catch (NumberFormatException e) {
+                  // Use default
+                }
+              }
+
+              String helloInterval = (String) ifPAttrs.get("helloIntvl");
+              if (helloInterval != null) {
+                try {
+                  ospfInterface.setHelloInterval(Integer.parseInt(helloInterval));
+                } catch (NumberFormatException e) {
+                  // Use default
+                }
+              }
+
+              String deadInterval = (String) ifPAttrs.get("deadIntvl");
+              if (deadInterval != null) {
+                try {
+                  ospfInterface.setDeadInterval(Integer.parseInt(deadInterval));
+                } catch (NumberFormatException e) {
+                  // Use default
+                }
+              }
+
+              ospfConfig.getOspfInterfaces().add(ospfInterface);
+            }
+          }
+        }
+      }
+    }
+
+    l3out.setOspfConfig(ospfConfig);
+  }
+
+  /** Parses a contract subject from a raw map structure. */
 
   /** Parses a contract subject from a raw map structure. */
   private void parseContractSubjectFromMap(
@@ -2953,14 +3175,35 @@ public final class AciConfiguration extends VendorConfiguration {
   /**
    * OSPF configuration for L3Out.
    *
-   * <p>Defines OSPF process settings and areas for an L3Out.
+   * <p>Defines OSPF process settings, areas, and interfaces for an L3Out.
    */
   public static class OspfConfig implements Serializable {
+    private String _name;
+    private String _description;
     private String _processId;
+    private String _areaId;
     private Map<String, OspfArea> _areas;
+    private List<OspfInterface> _ospfInterfaces;
 
     public OspfConfig() {
       _areas = new TreeMap<>();
+      _ospfInterfaces = new ArrayList<>();
+    }
+
+    public @Nullable String getName() {
+      return _name;
+    }
+
+    public void setName(String name) {
+      _name = name;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
     }
 
     public @Nullable String getProcessId() {
@@ -2971,12 +3214,28 @@ public final class AciConfiguration extends VendorConfiguration {
       _processId = processId;
     }
 
+    public @Nullable String getAreaId() {
+      return _areaId;
+    }
+
+    public void setAreaId(String areaId) {
+      _areaId = areaId;
+    }
+
     public Map<String, OspfArea> getAreas() {
       return _areas;
     }
 
     public void setAreas(Map<String, OspfArea> areas) {
       _areas = new TreeMap<>(areas);
+    }
+
+    public List<OspfInterface> getOspfInterfaces() {
+      return _ospfInterfaces;
+    }
+
+    public void setOspfInterfaces(List<OspfInterface> ospfInterfaces) {
+      _ospfInterfaces = new ArrayList<>(ospfInterfaces);
     }
   }
 
@@ -3016,6 +3275,79 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setAreaType(String areaType) {
       _areaType = areaType;
+    }
+  }
+
+  /**
+   * OSPF interface configuration for L3Out.
+   *
+   * <p>Defines OSPF interface-specific settings for an L3Out OSPF configuration.
+   */
+  public static class OspfInterface implements Serializable {
+    private String _name;
+    private String _description;
+    private Integer _cost;
+    private Integer _helloInterval;
+    private Integer _deadInterval;
+    private String _networkType;
+    private Boolean _passive;
+
+    public OspfInterface() {}
+
+    public @Nullable String getName() {
+      return _name;
+    }
+
+    public void setName(String name) {
+      _name = name;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+
+    public @Nullable Integer getCost() {
+      return _cost;
+    }
+
+    public void setCost(Integer cost) {
+      _cost = cost;
+    }
+
+    public @Nullable Integer getHelloInterval() {
+      return _helloInterval;
+    }
+
+    public void setHelloInterval(Integer helloInterval) {
+      _helloInterval = helloInterval;
+    }
+
+    public @Nullable Integer getDeadInterval() {
+      return _deadInterval;
+    }
+
+    public void setDeadInterval(Integer deadInterval) {
+      _deadInterval = deadInterval;
+    }
+
+    public @Nullable String getNetworkType() {
+      return _networkType;
+    }
+
+    public void setNetworkType(String networkType) {
+      _networkType = networkType;
+    }
+
+    public @Nullable Boolean getPassive() {
+      return _passive;
+    }
+
+    public void setPassive(Boolean passive) {
+      _passive = passive;
     }
   }
 

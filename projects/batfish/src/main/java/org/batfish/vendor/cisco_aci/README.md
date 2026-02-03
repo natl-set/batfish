@@ -132,6 +132,41 @@ filter.setEntries(ImmutableList.of(entry1, entry2));
 - `applyToFrag`: Apply to fragmented packets
 - `stateful`: Stateful inspection flag
 
+#### L3Out (`l3extOut`)
+L3Out (Layer 3 Outside) defines external connectivity for a tenant:
+
+```java
+// L3Out with BGP peers and static routes
+AciConfiguration.L3Out l3out = new AciConfiguration.L3Out("l3out1");
+l3out.setTenant("web-tier");
+l3out.setDescription("External connectivity");
+l3out.setVrf("web-tier:vrf1");
+
+// BGP peer
+AciConfiguration.BgpPeer peer = new AciConfiguration.BgpPeer();
+peer.setPeerAddress("192.168.1.1");
+peer.setRemoteAs("65001");
+l3out.getBgpPeers().add(peer);
+
+// Static route
+AciConfiguration.StaticRoute route = new AciConfiguration.StaticRoute();
+route.setPrefix("0.0.0.0/0");
+route.setNextHop("192.168.1.254");
+l3out.getStaticRoutes().add(route);
+
+// External EPG with subnets
+AciConfiguration.ExternalEpg epg = new AciConfiguration.ExternalEpg("extepg1");
+epg.getSubnets().add("0.0.0.0/0");
+l3out.getExternalEpgs().add(epg);
+```
+
+**L3Out Child Objects:**
+- **bgpExtP / bgpPeerP**: BGP peer definitions with address, AS, password
+- **ipRouteP**: Static routes with prefix and next hop
+- **ospfExtP / ospfIfP**: OSPF configuration with area, cost, timers
+- **l3extInstP**: External EPG with subnets (l3extSubnet)
+- **l3extRsEctx**: VRF relationship
+
 ## ACI JSON/XML Parsing
 
 ### JSON Structure
@@ -434,32 +469,29 @@ IP Access List ~CONTRACT~web_contract
 
 The following features are partially implemented or not yet supported:
 
-1. **L3Out Conversion**: The `convertL3Outs()` method has basic implementation. Full external connectivity (BGP peers, OSPF, static routes) conversion is in progress.
+1. **EPG to Interface Binding**: The `convertPathAttachments()` method has basic implementation but may not handle all EPG-to-interface binding scenarios.
 
-2. **EPG to Interface Binding**: The `convertPathAttachments()` method has basic implementation but may not handle all EPG-to-interface binding scenarios.
+2. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
 
-3. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
+3. **QoS and Service Graphs**: QoS policies and service graph redirection are not modeled.
 
-4. **QoS and Service Graphs**: QoS policies and service graph redirection are not modeled.
+4. **Endpoint Learning**: Dynamic endpoint learning and IP address migration are not represented.
 
-5. **Endpoint Learning**: Dynamic endpoint learning and IP address migration are not represented.
+5. **Multicast**: Multicast policies and configurations are not converted.
 
-6. **Multicast**: Multicast policies and configurations are not converted.
+6. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces.
 
-7. **BGP Route Maps**: L3Out BGP policies use simplified conversion; complex route-maps may not be fully represented.
+7. **FEX and Virtual Port Channels**: Fabric Extender and vPC configurations need additional handling.
 
-8. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces.
+8. **Filter Actions**: Contract subject `action` attribute (deny filters) is not fully supported.
 
-9. **FEX and Virtual Port Channels**: Fabric Extender and vPC configurations need additional handling.
-
-10. **Filter Actions**: Contract subject `action` attribute (deny filters) is not fully supported.
+9. **OSPF Process Conversion**: OSPF interface configurations are parsed but full OSPF process to OspfProcess conversion is not complete (OspfProcess is not available in datamodel).
 
 ## TODO Items
 
 Based on the code, here are the key areas for future development:
 
 ### High Priority
-- [ ] Complete L3Out conversion (BGP peers, OSPF, static routes)
 - [ ] Improve EPG path attachment handling
 - [ ] Add support for contract subject `action` attribute (deny filters)
 
@@ -467,6 +499,7 @@ Based on the code, here are the key areas for future development:
 - [ ] Model QoS policies from contracts
 - [ ] Handle service graph configurations
 - [ ] Add support for multicast configurations
+- [ ] Complete OSPF process conversion when OspfProcess is available in datamodel
 
 ### Low Priority
 - [ ] Implement endpoint discovery from active endpoints
