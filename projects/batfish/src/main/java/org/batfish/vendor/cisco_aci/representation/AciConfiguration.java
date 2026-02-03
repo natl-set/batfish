@@ -359,16 +359,28 @@ public final class AciConfiguration extends VendorConfiguration {
     String podId = attrs.getPodId();
     String role = attrs.getRole();
 
-    // Use nodeId as key
-    if (nodeId == null) {
-      warnings.redFlagf("Fabric node missing ID, skipping");
-      return;
-    }
+    // Determine the key to use for this fabric node
+    // Use nodeId if available, otherwise fallback to name
+    String key = nodeId;
+    String name;
 
     // Get the name from fabricNodeIdentP if available, otherwise from fabricNodePEp
-    String name = nodeIdToName.get(nodeId);
-    if (name == null || name.isEmpty()) {
+    if (nodeId != null) {
+      name = nodeIdToName.get(nodeId);
+      if (name == null || name.isEmpty()) {
+        name = attrs.getName();
+      }
+    } else {
       name = attrs.getName();
+    }
+
+    // If still null, we can't store this node
+    if (key == null || key.isEmpty()) {
+      key = name;
+      if (key == null || key.isEmpty()) {
+        warnings.redFlagf("Fabric node missing both ID and name, skipping");
+        return;
+      }
     }
 
     FabricNode fabricNode = new FabricNode();
@@ -377,7 +389,7 @@ public final class AciConfiguration extends VendorConfiguration {
     if (name != null && !name.isEmpty()) {
       fabricNode.setName(name);
     } else {
-      fabricNode.setName("aci-node-" + nodeId);
+      fabricNode.setName("aci-node-" + key);
     }
     fabricNode.setPodId(podId);
     fabricNode.setRole(role);
@@ -386,9 +398,10 @@ public final class AciConfiguration extends VendorConfiguration {
     if (nodePep.getChildren() != null) {
       for (AciFabricNodePEp.FabricNodePEpChild nodeChild : nodePep.getChildren()) {
         if (nodeChild.getFabricInterface() != null) {
-          AciInterface ifaceObj = nodeChild.getFabricInterface();
+          AciFabricNodePEp.AciInterface ifaceObj = nodeChild.getFabricInterface();
           if (ifaceObj.getAttributes() != null) {
-            AciInterface.AciInterfaceAttributes ifaceAttrs = ifaceObj.getAttributes();
+            AciFabricNodePEp.AciInterface.AciInterfaceAttributes ifaceAttrs =
+                ifaceObj.getAttributes();
             String ifaceName = ifaceAttrs.getName();
             if (ifaceName != null && !ifaceName.isEmpty()) {
               FabricNode.Interface iface = new FabricNode.Interface();
