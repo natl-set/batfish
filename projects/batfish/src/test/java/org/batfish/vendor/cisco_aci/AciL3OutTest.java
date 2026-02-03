@@ -229,6 +229,10 @@ public class AciL3OutTest {
 
     assertThat(config.getHostname(), equalTo("aci-fabric"));
     assertThat(config.getTenants(), hasKey("infra"));
+    // Verify L3Out is stored in the L3Outs map
+    assertThat(config.getL3Outs().size(), equalTo(1));
+    assertThat(config.getL3Outs(), hasKey("infra:l3out1"));
+    assertThat(config.getL3Outs().get("infra:l3out1").getTenant(), equalTo("infra"));
   }
 
   /** Test parsing L3Out with logical node profile */

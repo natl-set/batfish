@@ -389,6 +389,12 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> contractMap = (Map<String, Object>) childMap.get("vzBrCP");
           parseContractFromMap(contractMap, tenantName, warnings);
         }
+        // Check for l3extOut (L3 Outside - routed external connectivity)
+        else if (childMap.containsKey("l3extOut")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> l3outMap = (Map<String, Object>) childMap.get("l3extOut");
+          parseL3OutFromMap(l3outMap, tenantName, warnings);
+        }
         // Check for l2extOut (L2 Outside - bridged external connectivity)
         else if (childMap.containsKey("l2extOut")) {
           @SuppressWarnings("unchecked")
@@ -700,6 +706,58 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     _l2Outs.put(fqL2OutName, l2out);
+  }
+
+  /** Parses an L3Out (Layer 3 Outside) from a raw map structure. */
+  private void parseL3OutFromMap(
+      Map<String, Object> l3outMap, String tenantName, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) l3outMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    String l3outName = (String) attrs.get("name");
+    if (l3outName == null || l3outName.isEmpty()) {
+      return;
+    }
+
+    // Create L3Out with fully qualified name
+    String fqL3OutName = tenantName + ":" + l3outName;
+    L3Out l3out = new L3Out(l3outName);
+    l3out.setTenant(tenantName);
+    l3out.setDescription((String) attrs.get("descr"));
+    l3out.setEnforceRouteControl((String) attrs.get("enforceRtctrl"));
+    l3out.setMplsEnabled((String) attrs.get("mplsEnabled"));
+    l3out.setTargetDscp((String) attrs.get("targetDscp"));
+
+    // Parse children for VRF reference and other relationships
+    if (l3outMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) l3outMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+
+          // VRF relation (l3extRsEctx)
+          if (childMap.containsKey("l3extRsEctx")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsMap = (Map<String, Object>) childMap.get("l3extRsEctx");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsAttrs = (Map<String, Object>) rsMap.get("attributes");
+            if (rsAttrs != null) {
+              String vrfName = (String) rsAttrs.get("tnFvCtxName");
+              if (vrfName != null && !vrfName.isEmpty()) {
+                l3out.setVrf(tenantName + ":" + vrfName);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    _l3Outs.put(fqL3OutName, l3out);
   }
 
   /** Parses a contract subject from a raw map structure. */
@@ -2091,6 +2149,9 @@ public final class AciConfiguration extends VendorConfiguration {
     private String _tenant;
     private String _vrf;
     private String _description;
+    private String _enforceRouteControl;
+    private String _mplsEnabled;
+    private String _targetDscp;
     private BgpProcess _bgpProcess;
     private List<BgpPeer> _bgpPeers;
     private List<StaticRoute> _staticRoutes;
@@ -2130,6 +2191,30 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setDescription(String description) {
       _description = description;
+    }
+
+    public @Nullable String getEnforceRouteControl() {
+      return _enforceRouteControl;
+    }
+
+    public void setEnforceRouteControl(String enforceRouteControl) {
+      _enforceRouteControl = enforceRouteControl;
+    }
+
+    public @Nullable String getMplsEnabled() {
+      return _mplsEnabled;
+    }
+
+    public void setMplsEnabled(String mplsEnabled) {
+      _mplsEnabled = mplsEnabled;
+    }
+
+    public @Nullable String getTargetDscp() {
+      return _targetDscp;
+    }
+
+    public void setTargetDscp(String targetDscp) {
+      _targetDscp = targetDscp;
     }
 
     public @Nullable BgpProcess getBgpProcess() {
