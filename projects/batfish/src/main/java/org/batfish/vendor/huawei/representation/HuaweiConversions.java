@@ -182,7 +182,7 @@ public class HuaweiConversions {
       HuaweiInterface huaweiIface = entry.getValue();
 
       // Building with owner=c automatically adds to c.getAllInterfaces()
-      toInterface(huaweiIface, vrf, c);
+      toInterface(huaweiIface, vrf, c, huaweiCfg);
     }
   }
 
@@ -192,10 +192,14 @@ public class HuaweiConversions {
    * @param huaweiIface The Huawei interface to convert
    * @param vrf The VRF to attach the interface to
    * @param c The Configuration that owns the interface
+   * @param huaweiCfg The Huawei configuration (for ACL lookup)
    * @return A Batfish Interface object
    */
   public static @Nonnull Interface toInterface(
-      @Nonnull HuaweiInterface huaweiIface, @Nonnull Vrf vrf, @Nonnull Configuration c) {
+      @Nonnull HuaweiInterface huaweiIface,
+      @Nonnull Vrf vrf,
+      @Nonnull Configuration c,
+      @Nonnull HuaweiConfiguration huaweiCfg) {
     String name = huaweiIface.getName();
     // Use builder pattern
     Interface.Builder builder =
@@ -226,6 +230,28 @@ public class HuaweiConversions {
       Double defaultSpeed = HuaweiInterface.getDefaultBandwidth(huaweiIface.getName());
       if (defaultSpeed != null) {
         builder.setSpeed(defaultSpeed);
+      }
+    }
+
+    // Set incoming filter if present
+    if (huaweiIface.getIncomingFilter() != null) {
+      String aclName = huaweiIface.getIncomingFilter();
+      HuaweiAcl acl = huaweiCfg.getAcls().get(aclName);
+      if (acl != null) {
+        IpAccessList ipAcl = toIpAccessList(acl);
+        c.getIpAccessLists().put(ipAcl.getName(), ipAcl);
+        builder.setIncomingFilter(ipAcl);
+      }
+    }
+
+    // Set outgoing filter if present
+    if (huaweiIface.getOutgoingFilter() != null) {
+      String aclName = huaweiIface.getOutgoingFilter();
+      HuaweiAcl acl = huaweiCfg.getAcls().get(aclName);
+      if (acl != null) {
+        IpAccessList ipAcl = toIpAccessList(acl);
+        c.getIpAccessLists().put(ipAcl.getName(), ipAcl);
+        builder.setOutgoingFilter(ipAcl);
       }
     }
 

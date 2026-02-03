@@ -1209,13 +1209,103 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * Process exit from acl_ipv6_rule rule - extract permit/deny rule for IPv6.
    *
    * <p>Extracts IPv6 ACL rule information including action, protocol, source, destination, and
-   * ports. @TODO IPv6 ACL extraction is incomplete. HuaweiAclLine needs additional methods
-   * (setIpv6, setIcmpType, setIcmpCode, setEstablished, setFragment, setLogging, setTimeRange).
+   * ports.
    */
   @Override
   public void exitAcl_ipv6_rule(HuaweiParser.Acl_ipv6_ruleContext ctx) {
-    // TODO: Implement complete IPv6 ACL extraction
-    // Currently stubbed due to incomplete HuaweiAclLine implementation
+    if (_currentAcl == null) {
+      return;
+    }
+
+    try {
+      // Extract action (permit/deny)
+      String action = "deny"; // Default to deny
+      if (ctx.action != null) {
+        action = ctx.action.getText().toLowerCase();
+      }
+
+      // Create ACL line with sequence number (use size of existing lines + 1)
+      int seqNum = _currentAcl.getLines().size() + 1;
+      HuaweiAclLine line = new HuaweiAclLine(seqNum, action);
+      line.setIpv6(true);
+
+      // Extract protocol
+      String protocol = "ipv6"; // Default to IPv6 (any protocol)
+      if (ctx.TCP() != null) {
+        protocol = "tcp";
+      } else if (ctx.UDP() != null) {
+        protocol = "udp";
+      } else if (ctx.ICMPV6() != null) {
+        protocol = "icmpv6";
+      } else if (ctx.IPV6() != null) {
+        protocol = "ipv6";
+      }
+      line.setProtocol(protocol);
+
+      // Extract source IPv6 address
+      if (ctx.src_addr_ipv6 != null) {
+        line.setSource(ctx.src_addr_ipv6.getText());
+      } else if (ctx.src_any_ipv6 != null) {
+        line.setSource("any");
+      }
+
+      // Extract destination IPv6 address
+      if (ctx.dest_addr_ipv6 != null) {
+        line.setDestination(ctx.dest_addr_ipv6.getText());
+      } else if (ctx.dest_any_ipv6 != null) {
+        line.setDestination("any");
+      }
+
+      // Extract source port
+      if (ctx.src_port_ipv6 != null || ctx.src_port_start_ipv6 != null) {
+        String portOp = "";
+        if (ctx.eq != null) {
+          portOp = "eq ";
+        } else if (ctx.gt != null) {
+          portOp = "gt ";
+        } else if (ctx.lt != null) {
+          portOp = "lt ";
+        } else if (ctx.range != null
+            && ctx.src_port_start_ipv6 != null
+            && ctx.src_port_end_ipv6 != null) {
+          portOp = "range " + ctx.src_port_start_ipv6.getText() + " ";
+          line.setSourcePort(portOp + ctx.src_port_end_ipv6.getText());
+        }
+        if (!portOp.isEmpty() && ctx.src_port_ipv6 != null) {
+          line.setSourcePort(portOp + ctx.src_port_ipv6.getText());
+        }
+      }
+
+      // Extract destination port
+      if (ctx.dest_port_ipv6 != null || ctx.dest_port_start_ipv6 != null) {
+        String portOp = "";
+        if (ctx.eq2 != null) {
+          portOp = "eq ";
+        } else if (ctx.gt2 != null) {
+          portOp = "gt ";
+        } else if (ctx.lt2 != null) {
+          portOp = "lt ";
+        } else if (ctx.range2 != null
+            && ctx.dest_port_start_ipv6 != null
+            && ctx.dest_port_end_ipv6 != null) {
+          portOp = "range " + ctx.dest_port_start_ipv6.getText() + " ";
+          line.setDestinationPort(portOp + ctx.dest_port_end_ipv6.getText());
+        }
+        if (!portOp.isEmpty() && ctx.dest_port_ipv6 != null) {
+          line.setDestinationPort(portOp + ctx.dest_port_ipv6.getText());
+        }
+      }
+
+      // Add the line to the ACL
+      _currentAcl.addLine(line);
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing IPv6 ACL rule at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
   }
 
   /**
