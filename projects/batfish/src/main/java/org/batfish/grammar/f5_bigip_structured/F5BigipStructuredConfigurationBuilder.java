@@ -196,6 +196,7 @@ import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_
 import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VLAN_INTERFACE;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
@@ -723,7 +724,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
     return Prefix6.parse(ctx.getText());
   }
 
-  private static @Nonnull String unquote(String text) {
+  @VisibleForTesting
+  static @Nonnull String unquote(String text) {
     if (text.length() < 2 || text.charAt(0) != '"' || text.charAt(text.length() - 1) != '"') {
       // not quoted
       return text;
@@ -949,7 +951,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
     _currentDeviceGroup.setType(toType(ctx.type));
   }
 
-  private static @Nonnull DeviceGroupType toType(Device_group_typeContext ctx) {
+  @VisibleForTesting
+  static @Nonnull DeviceGroupType toType(Device_group_typeContext ctx) {
     if (ctx.SYNC_FAILOVER() != null) {
       return DeviceGroupType.SYNC_FAILOVER;
     } else {

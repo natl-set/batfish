@@ -15,6 +15,8 @@ import org.batfish.datamodel.ConcreteInterfaceAddress;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.IpProtocol;
+import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.RouteFilterList;
 import org.batfish.referencelibrary.AddressGroup;
 import org.batfish.referencelibrary.GeneratedRefBookUtils;
@@ -210,7 +212,7 @@ public class F5BigipConfigurationTest {
   public void testToRouterFilterList_prefixList_ipv4ReturnsNonNull() {
     PrefixList plist = new PrefixList("name");
     PrefixListEntry entry = new PrefixListEntry(1L);
-    entry.setPrefix(org.batfish.datamodel.Prefix.parse("0.0.0.0/0"));
+    entry.setPrefix(Prefix.parse("0.0.0.0/0"));
     plist.getEntries().put(1L, entry);
 
     RouteFilterList rfl = toRouteFilterList(plist, new Warnings(), "file");
@@ -1294,5 +1296,317 @@ public class F5BigipConfigurationTest {
 
       assertThat(rule.getIpProtocol(), equalTo(protocol));
     }
+  }
+
+  // ==================== Static Method Tests ====================
+
+  @Test
+  public void testComputeAccessListRouteFilterName() {
+    assertThat(
+        F5BigipConfiguration.computeAccessListRouteFilterName("my_acl"),
+        equalTo("~access-list~my_acl~"));
+  }
+
+  @Test
+  public void testComputeAccessListRouteFilterName_empty() {
+    assertThat(
+        F5BigipConfiguration.computeAccessListRouteFilterName(""), equalTo("~access-list~~"));
+  }
+
+  @Test
+  public void testComputeAccessListRouteFilterName_withSpecialChars() {
+    assertThat(
+        F5BigipConfiguration.computeAccessListRouteFilterName("acl-123_test"),
+        equalTo("~access-list~acl-123_test~"));
+  }
+
+  @Test
+  public void testComputeBgpCommonExportPolicyName() {
+    assertThat(
+        F5BigipConfiguration.computeBgpCommonExportPolicyName("bgp_proc"),
+        equalTo("~BGP_COMMON_EXPORT_POLICY:bgp_proc~"));
+  }
+
+  @Test
+  public void testComputeBgpCommonExportPolicyName_empty() {
+    assertThat(
+        F5BigipConfiguration.computeBgpCommonExportPolicyName(""),
+        equalTo("~BGP_COMMON_EXPORT_POLICY:~"));
+  }
+
+  @Test
+  public void testComputeBgpPeerExportPolicyName() {
+    assertThat(
+        F5BigipConfiguration.computeBgpPeerExportPolicyName("bgp_proc", Ip.parse("1.2.3.4")),
+        equalTo("~BGP_PEER_EXPORT_POLICY:bgp_proc:1.2.3.4~"));
+  }
+
+  @Test
+  public void testComputeBgpPeerExportPolicyName_privateRange() {
+    assertThat(
+        F5BigipConfiguration.computeBgpPeerExportPolicyName("bgp_proc", Ip.parse("10.0.0.1")),
+        equalTo("~BGP_PEER_EXPORT_POLICY:bgp_proc:10.0.0.1~"));
+  }
+
+  @Test
+  public void testComputeBgpPeerExportPolicyName_loopback() {
+    assertThat(
+        F5BigipConfiguration.computeBgpPeerExportPolicyName("bgp_proc", Ip.parse("127.0.0.1")),
+        equalTo("~BGP_PEER_EXPORT_POLICY:bgp_proc:127.0.0.1~"));
+  }
+
+  @Test
+  public void testComputeInterfaceIncomingFilterName() {
+    assertThat(
+        F5BigipConfiguration.computeInterfaceIncomingFilterName("vlan10"),
+        equalTo("~incoming_filter:vlan10~"));
+  }
+
+  @Test
+  public void testComputeInterfaceIncomingFilterName_empty() {
+    assertThat(
+        F5BigipConfiguration.computeInterfaceIncomingFilterName(""), equalTo("~incoming_filter:~"));
+  }
+
+  @Test
+  public void testComputeInterfaceIncomingFilterName_withDots() {
+    assertThat(
+        F5BigipConfiguration.computeInterfaceIncomingFilterName("vlan.10.20"),
+        equalTo("~incoming_filter:vlan.10.20~"));
+  }
+
+  /** Tests for {@link PoolMember} */
+  @Test
+  public void testPoolMemberConstruction() {
+    PoolMember member = new PoolMember("member1", null, 80);
+    assertThat(member.getName(), equalTo("member1"));
+    assertThat(member.getPort(), equalTo(80));
+  }
+
+  @Test
+  public void testPoolMember_withAddress() {
+    PoolMember member = new PoolMember("member1", null, 443);
+    member.setAddress(Ip.parse("10.0.0.1"));
+    assertThat(member.getAddress(), equalTo(Ip.parse("10.0.0.1")));
+  }
+
+  @Test
+  public void testPoolMember_withAddress6() {
+    PoolMember member = new PoolMember("member1", null, 443);
+    member.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
+    assertThat(member.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+  }
+
+  @Test
+  public void testPoolMember_withNode() {
+    PoolMember member = new PoolMember("member1", "node1", 80);
+    assertThat(member.getNode(), equalTo("node1"));
+  }
+
+  @Test
+  public void testPoolMember_withDescription() {
+    PoolMember member = new PoolMember("member1", null, 80);
+    member.setDescription("test description");
+    assertThat(member.getDescription(), equalTo("test description"));
+  }
+
+  /** Tests for {@link Virtual} */
+  @Test
+  public void testVirtualConstruction() {
+    Virtual virtual = new Virtual("virtual1");
+    assertThat(virtual.getName(), equalTo("virtual1"));
+  }
+
+  @Test
+  public void testVirtual_withDestination() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setDestination("192.168.1.100");
+    assertThat(virtual.getDestination(), equalTo("192.168.1.100"));
+  }
+
+  @Test
+  public void testVirtual_withPool() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setPool("pool1");
+    assertThat(virtual.getPool(), equalTo("pool1"));
+  }
+
+  @Test
+  public void testVirtual_withVlansEnabled() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setVlansEnabled(true);
+    assertThat(virtual.getVlansEnabled(), equalTo(true));
+  }
+
+  @Test
+  public void testVirtual_addVlan() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.getVlans().add("vlan10");
+    virtual.getVlans().add("vlan20");
+    assertThat(virtual.getVlans().size(), equalTo(2));
+    assertThat(virtual.getVlans().contains("vlan10"), equalTo(true));
+  }
+
+  @Test
+  public void testVirtual_withIpProtocol() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setIpProtocol(IpProtocol.TCP);
+    assertThat(virtual.getIpProtocol(), equalTo(IpProtocol.TCP));
+  }
+
+  @Test
+  public void testVirtual_withDestinationPort() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.setDestinationPort(443);
+    assertThat(virtual.getDestinationPort(), equalTo(443));
+  }
+
+  /** Tests for {@link Interface} */
+  @Test
+  public void testInterfaceConstruction() {
+    Interface iface = new Interface("vlan10");
+    assertThat(iface.getName(), equalTo("vlan10"));
+  }
+
+  @Test
+  public void testInterface_withBandwidth() {
+    Interface iface = new Interface("vlan10");
+    iface.setBandwidth(1000.0);
+    assertThat(iface.getBandwidth(), equalTo(1000.0));
+  }
+
+  @Test
+  public void testInterface_withSpeed() {
+    Interface iface = new Interface("vlan10");
+    iface.setSpeed(1000.0);
+    assertThat(iface.getSpeed(), equalTo(1000.0));
+  }
+
+  @Test
+  public void testInterface_withDisabled() {
+    Interface iface = new Interface("vlan10");
+    iface.setDisabled(true);
+    assertThat(iface.getDisabled(), equalTo(true));
+  }
+
+  @Test
+  public void testInterface_withDescription() {
+    Interface iface = new Interface("vlan10");
+    iface.setDescription("Test interface");
+    assertThat(iface.getDescription(), equalTo("Test interface"));
+  }
+
+  /** Tests for {@link Self} */
+  @Test
+  public void testSelfConstruction() {
+    Self self = new Self("self1");
+    assertThat(self.getName(), equalTo("self1"));
+  }
+
+  @Test
+  public void testSelf_withAddress() {
+    Self self = new Self("self1");
+    ConcreteInterfaceAddress addr = ConcreteInterfaceAddress.parse("172.16.0.1/24");
+    self.setAddress(addr);
+    assertThat(self.getAddress(), equalTo(addr));
+  }
+
+  @Test
+  public void testSelf_withVlan() {
+    Self self = new Self("self1");
+    self.setVlan("vlan100");
+    assertThat(self.getVlan(), equalTo("vlan100"));
+  }
+
+  /** Tests for {@link Route} */
+  @Test
+  public void testRouteConstruction() {
+    Route route = new Route("route1");
+    assertThat(route.getName(), equalTo("route1"));
+  }
+
+  @Test
+  public void testRoute_withNetwork() {
+    Route route = new Route("route1");
+    route.setNetwork(Prefix.parse("10.0.0.0/24"));
+    assertThat(route.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
+  }
+
+  @Test
+  public void testRoute_withGw() {
+    Route route = new Route("route1");
+    route.setGw(Ip.parse("192.168.1.1"));
+    assertThat(route.getGw(), equalTo(Ip.parse("192.168.1.1")));
+  }
+
+  /** Tests for {@link SnatPool} */
+  @Test
+  public void testSnatPoolConstruction() {
+    SnatPool pool = new SnatPool("snatpool1");
+    assertThat(pool.getName(), equalTo("snatpool1"));
+  }
+
+  @Test
+  public void testSnatPool_withMembers() {
+    SnatPool pool = new SnatPool("snatpool1");
+    pool.getMembers().add("10.0.0.1");
+    pool.getMembers().add("10.0.0.2");
+    assertThat(pool.getMembers().size(), equalTo(2));
+  }
+
+  /** Tests for {@link SnatTranslation} */
+  @Test
+  public void testSnatTranslationConstruction() {
+    SnatTranslation translation = new SnatTranslation("trans1");
+    assertThat(translation.getName(), equalTo("trans1"));
+  }
+
+  @Test
+  public void testSnatTranslation_withAddress() {
+    SnatTranslation translation = new SnatTranslation("trans1");
+    translation.setAddress(Ip.parse("203.0.113.10"));
+    assertThat(translation.getAddress(), equalTo(Ip.parse("203.0.113.10")));
+  }
+
+  @Test
+  public void testSnatTranslation_withAddress6() {
+    SnatTranslation translation = new SnatTranslation("trans1");
+    translation.setAddress6(org.batfish.datamodel.Ip6.parse("2001:db8::1"));
+    assertThat(translation.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("2001:db8::1")));
+  }
+
+  /** Tests for {@link Device} */
+  @Test
+  public void testDeviceConstruction() {
+    Device device = new Device("device1");
+    assertThat(device.getName(), equalTo("device1"));
+  }
+
+  @Test
+  public void testDevice_withHostname() {
+    Device device = new Device("device1");
+    device.setHostname("bigip1.example.com");
+    assertThat(device.getHostname(), equalTo("bigip1.example.com"));
+  }
+
+  @Test
+  public void testDevice_withManagementIp() {
+    Device device = new Device("device1");
+    device.setManagementIp(Ip.parse("10.10.10.10"));
+    assertThat(device.getManagementIp(), equalTo(Ip.parse("10.10.10.10")));
+  }
+
+  @Test
+  public void testDevice_withConfigSyncIp() {
+    Device device = new Device("device1");
+    device.setConfigSyncIp(Ip.parse("10.10.10.11"));
+    assertThat(device.getConfigSyncIp(), equalTo(Ip.parse("10.10.10.11")));
+  }
+
+  @Test
+  public void testDevice_withSelfDevice() {
+    Device device = new Device("device1");
+    device.setSelfDevice(true);
+    assertThat(device.getSelfDevice(), equalTo(true));
   }
 }
