@@ -1,19 +1,23 @@
 package org.batfish.vendor.huawei.representation;
 
 import java.io.Serializable;
-import java.util.Map;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-// import org.batfish.datamodel.Ip; // TODO: Add when needed
-// import org.batfish.datamodel.RouteDistinguisher; // TODO: Implement when needed
 
 /**
  * Represents a Virtual Routing and Forwarding (VRF) instance on a Huawei VRP device.
  *
- * <p>This is a stub class for future VRF implementation. It will store VRF configuration including
- * route distinguisher, route targets, and VRF-specific interfaces and routing protocol instances.
+ * <p>VRFs allow multiple routing tables to coexist on the same router. Each VRF has its own:
+ *
+ * <ul>
+ *   <li>Route distinguisher (RD) - identifies VRF in BGP VPN updates
+ *   <li>Route targets (RT) - controls import/export of routes between VRFs
+ *   <li>Address families - IPv4 and/or IPv6
+ *   <li>Interfaces bound to the VRF
+ * </ul>
  */
 public class HuaweiVrf implements Serializable {
 
@@ -22,21 +26,26 @@ public class HuaweiVrf implements Serializable {
   /** VRF name */
   private @Nonnull String _name;
 
-  /** Route distinguisher */
-  // private @Nullable RouteDistinguisher _routeDistinguisher;
-  private @Nullable String _routeDistinguisher; // Stub for now
+  /** Route distinguisher (format: ASN:NN or IP:NN) */
+  private @Nullable String _routeDistinguisher;
 
   /** Import route targets */
-  private Map<String, Object> _importRouteTargets;
+  private @Nonnull SortedSet<String> _importRouteTargets;
 
   /** Export route targets */
-  private Map<String, Object> _exportRouteTargets;
+  private @Nonnull SortedSet<String> _exportRouteTargets;
 
   /** VRF description */
   private @Nullable String _description;
 
-  /** Interfaces in this VRF */
-  private Map<String, HuaweiInterface> _interfaces;
+  /** Interfaces in this VRF (mapped by interface name) */
+  private @Nonnull TreeMap<String, HuaweiInterface> _interfaces;
+
+  /** IPv4 address family enabled */
+  private boolean _ipv4Enabled;
+
+  /** IPv6 address family enabled */
+  private boolean _ipv6Enabled;
 
   /** VRF-specific BGP process */
   private @Nullable HuaweiBgpProcess _bgpProcess;
@@ -44,14 +53,13 @@ public class HuaweiVrf implements Serializable {
   /** VRF-specific OSPF process */
   private @Nullable HuaweiOspfProcess _ospfProcess;
 
-  /** VRF address family (IPv4, IPv6, or both) */
-  private @Nullable String _addressFamily;
-
   public HuaweiVrf(@Nonnull String name) {
     _name = name;
-    _importRouteTargets = new TreeMap<>();
-    _exportRouteTargets = new TreeMap<>();
+    _importRouteTargets = new TreeSet<>();
+    _exportRouteTargets = new TreeSet<>();
     _interfaces = new TreeMap<>();
+    _ipv4Enabled = false;
+    _ipv6Enabled = false;
   }
 
   /**
@@ -93,57 +101,65 @@ public class HuaweiVrf implements Serializable {
   /**
    * Gets the import route targets.
    *
-   * @return A map of import route targets
+   * @return A sorted set of import route target strings
    */
-  public @Nonnull Map<String, Object> getImportRouteTargets() {
+  public @Nonnull SortedSet<String> getImportRouteTargets() {
     return _importRouteTargets;
   }
 
   /**
    * Sets the import route targets.
    *
-   * @param importRouteTargets The map of import route targets to set
+   * @param importRouteTargets The sorted set of import route targets to set
    */
-  public void setImportRouteTargets(@Nonnull Map<String, Object> importRouteTargets) {
+  public void setImportRouteTargets(@Nonnull SortedSet<String> importRouteTargets) {
     _importRouteTargets = importRouteTargets;
   }
 
   /**
    * Adds an import route target.
    *
-   * @param routeTarget The route target to add
+   * @param routeTarget The route target to add (format: ASN:NN or IP:NN)
    */
-  public void addImportRouteTarget(String routeTarget) {
-    // TODO: Parse and store route target properly
-    _importRouteTargets.put(routeTarget, routeTarget);
+  public void addImportRouteTarget(@Nonnull String routeTarget) {
+    _importRouteTargets.add(routeTarget);
   }
 
   /**
    * Gets the export route targets.
    *
-   * @return A map of export route targets
+   * @return A sorted set of export route target strings
    */
-  public @Nonnull Map<String, Object> getExportRouteTargets() {
+  public @Nonnull SortedSet<String> getExportRouteTargets() {
     return _exportRouteTargets;
   }
 
   /**
    * Sets the export route targets.
    *
-   * @param exportRouteTargets The map of export route targets to set
+   * @param exportRouteTargets The sorted set of export route targets to set
    */
-  public void setExportRouteTargets(@Nonnull Map<String, Object> exportRouteTargets) {
+  public void setExportRouteTargets(@Nonnull SortedSet<String> exportRouteTargets) {
     _exportRouteTargets = exportRouteTargets;
   }
 
   /**
    * Adds an export route target.
    *
-   * @param routeTarget The route target to add
+   * @param routeTarget The route target to add (format: ASN:NN or IP:NN)
    */
-  public void addExportRouteTarget(String routeTarget) {
-    // TODO: Parse and store route target properly
-    _exportRouteTargets.put(routeTarget, routeTarget);
+  public void addExportRouteTarget(@Nonnull String routeTarget) {
+    _exportRouteTargets.add(routeTarget);
+  }
+
+  /**
+   * Adds a route target for both import and export.
+   *
+   * @param routeTarget The route target to add (format: ASN:NN or IP:NN)
+   */
+  public void addBothRouteTarget(@Nonnull String routeTarget) {
+    addImportRouteTarget(routeTarget);
+    addExportRouteTarget(routeTarget);
   }
 
   /**
@@ -169,7 +185,7 @@ public class HuaweiVrf implements Serializable {
    *
    * @return A map of interface names to interface configurations
    */
-  public @Nonnull Map<String, HuaweiInterface> getInterfaces() {
+  public @Nonnull TreeMap<String, HuaweiInterface> getInterfaces() {
     return _interfaces;
   }
 
@@ -178,7 +194,7 @@ public class HuaweiVrf implements Serializable {
    *
    * @param interfaces The map of interface names to configurations
    */
-  public void setInterfaces(@Nonnull Map<String, HuaweiInterface> interfaces) {
+  public void setInterfaces(@Nonnull TreeMap<String, HuaweiInterface> interfaces) {
     _interfaces = interfaces;
   }
 
@@ -188,8 +204,44 @@ public class HuaweiVrf implements Serializable {
    * @param name The interface name
    * @param iface The interface configuration
    */
-  public void addInterface(String name, HuaweiInterface iface) {
+  public void addInterface(@Nonnull String name, @Nonnull HuaweiInterface iface) {
     _interfaces.put(name, iface);
+  }
+
+  /**
+   * Checks if IPv4 address family is enabled for this VRF.
+   *
+   * @return true if IPv4 address family is enabled
+   */
+  public boolean isIpv4Enabled() {
+    return _ipv4Enabled;
+  }
+
+  /**
+   * Sets whether IPv4 address family is enabled for this VRF.
+   *
+   * @param ipv4Enabled true to enable IPv4 address family
+   */
+  public void setIpv4Enabled(boolean ipv4Enabled) {
+    _ipv4Enabled = ipv4Enabled;
+  }
+
+  /**
+   * Checks if IPv6 address family is enabled for this VRF.
+   *
+   * @return true if IPv6 address family is enabled
+   */
+  public boolean isIpv6Enabled() {
+    return _ipv6Enabled;
+  }
+
+  /**
+   * Sets whether IPv6 address family is enabled for this VRF.
+   *
+   * @param ipv6Enabled true to enable IPv6 address family
+   */
+  public void setIpv6Enabled(boolean ipv6Enabled) {
+    _ipv6Enabled = ipv6Enabled;
   }
 
   /**
@@ -226,23 +278,5 @@ public class HuaweiVrf implements Serializable {
    */
   public void setOspfProcess(@Nullable HuaweiOspfProcess ospfProcess) {
     _ospfProcess = ospfProcess;
-  }
-
-  /**
-   * Gets the VRF address family.
-   *
-   * @return The address family (IPv4, IPv6, or null for both)
-   */
-  public @Nullable String getAddressFamily() {
-    return _addressFamily;
-  }
-
-  /**
-   * Sets the VRF address family.
-   *
-   * @param addressFamily The address family to set
-   */
-  public void setAddressFamily(@Nullable String addressFamily) {
-    _addressFamily = addressFamily;
   }
 }

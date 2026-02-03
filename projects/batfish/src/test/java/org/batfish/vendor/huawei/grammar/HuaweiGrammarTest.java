@@ -1463,13 +1463,13 @@ public class HuaweiGrammarTest {
 
     // Check import route targets (should have 200:1 from import, 300:1 from both)
     assertThat(vrf.getImportRouteTargets().size(), equalTo(2));
-    assertThat(vrf.getImportRouteTargets().containsKey("200:1"), equalTo(true));
-    assertThat(vrf.getImportRouteTargets().containsKey("300:1"), equalTo(true));
+    assertThat(vrf.getImportRouteTargets().contains("200:1"), equalTo(true));
+    assertThat(vrf.getImportRouteTargets().contains("300:1"), equalTo(true));
 
     // Check export route targets (should have 100:1 from export, 300:1 from both)
     assertThat(vrf.getExportRouteTargets().size(), equalTo(2));
-    assertThat(vrf.getExportRouteTargets().containsKey("100:1"), equalTo(true));
-    assertThat(vrf.getExportRouteTargets().containsKey("300:1"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().contains("100:1"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().contains("300:1"), equalTo(true));
   }
 
   @Test
@@ -3328,7 +3328,7 @@ public class HuaweiGrammarTest {
     HuaweiVrf vrf = config.getVrfs().get("VRF1");
     assertThat(vrf, notNullValue());
     assertThat(vrf.getImportRouteTargets().size(), equalTo(1));
-    assertThat(vrf.getImportRouteTargets().containsKey("65001:100"), equalTo(true));
+    assertThat(vrf.getImportRouteTargets().contains("65001:100"), equalTo(true));
     assertThat(vrf.getExportRouteTargets().size(), equalTo(0));
   }
 
@@ -3349,7 +3349,7 @@ public class HuaweiGrammarTest {
     HuaweiVrf vrf = config.getVrfs().get("VRF1");
     assertThat(vrf, notNullValue());
     assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
-    assertThat(vrf.getExportRouteTargets().containsKey("65001:200"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().contains("65001:200"), equalTo(true));
     assertThat(vrf.getImportRouteTargets().size(), equalTo(0));
   }
 
@@ -3370,9 +3370,9 @@ public class HuaweiGrammarTest {
     HuaweiVrf vrf = config.getVrfs().get("VRF1");
     assertThat(vrf, notNullValue());
     assertThat(vrf.getImportRouteTargets().size(), equalTo(1));
-    assertThat(vrf.getImportRouteTargets().containsKey("65001:300"), equalTo(true));
+    assertThat(vrf.getImportRouteTargets().contains("65001:300"), equalTo(true));
     assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
-    assertThat(vrf.getExportRouteTargets().containsKey("65001:300"), equalTo(true));
+    assertThat(vrf.getExportRouteTargets().contains("65001:300"), equalTo(true));
   }
 
   @Test

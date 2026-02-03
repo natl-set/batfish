@@ -34,9 +34,11 @@ import org.batfish.datamodel.SubRange;
 import org.batfish.datamodel.Vrf;
 import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.MatchHeaderSpace;
+import org.batfish.datamodel.bgp.RouteDistinguisher;
 import org.batfish.datamodel.ospf.OspfArea;
 import org.batfish.datamodel.ospf.OspfProcess;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily;
+import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily.HuaweiVrfData;
 
 /**
  * Conversion utilities for transforming Huawei VRP configurations to Batfish's vendor-independent
@@ -859,6 +861,8 @@ public class HuaweiConversions {
    */
   public static void toConfigurationVrfs(
       @Nonnull Configuration c, @Nonnull HuaweiConfiguration huaweiCfg) {
+    HuaweiFamily huaweiFamily = c.getVendorFamily().getHuawei();
+
     for (HuaweiVrf huaweiVrf : huaweiCfg.getVrfs().values()) {
       String vrfName = huaweiVrf.getName();
 
@@ -870,18 +874,56 @@ public class HuaweiConversions {
       // Create VRF builder
       Vrf.Builder vrfBuilder = Vrf.builder().setName(vrfName);
 
-      // Set route distinguisher if present
-      // TODO: Parse and convert RD string to RouteDistinguisher object
-      // if (huaweiVrf.getRouteDistinguisher() != null) {
-      //   RouteDistinguisher rd = RouteDistinguisher.parse(huaweiVrf.getRouteDistinguisher());
-      //   vrfBuilder.setRouteDistinguisher(rd);
-      // }
-
       // Build the VRF
       Vrf vrf = vrfBuilder.build();
 
+      // Set description if present (must be done after build)
+      if (huaweiVrf.getDescription() != null) {
+        vrf.setDescription(huaweiVrf.getDescription());
+      }
+
       // Add to configuration
       c.getVrfs().put(vrfName, vrf);
+
+      // Store VRF-specific data in HuaweiFamily
+      HuaweiVrfData vrfData = new HuaweiVrfData(vrfName);
+
+      // Parse and set route distinguisher if present
+      if (huaweiVrf.getRouteDistinguisher() != null) {
+        try {
+          RouteDistinguisher rd = RouteDistinguisher.parse(huaweiVrf.getRouteDistinguisher());
+          vrfData.setRouteDistinguisher(rd);
+        } catch (IllegalArgumentException e) {
+          // Invalid RD format - log warning but continue
+          String warning =
+              String.format(
+                  "Invalid route distinguisher '%s' for VRF '%s': %s",
+                  huaweiVrf.getRouteDistinguisher(), vrfName, e.getMessage());
+          // TODO: Add warning to configuration warnings
+        }
+      }
+
+      // Set import route targets
+      if (huaweiVrf.getImportRouteTargets() != null
+          && !huaweiVrf.getImportRouteTargets().isEmpty()) {
+        vrfData.setImportRouteTargets(huaweiVrf.getImportRouteTargets());
+      }
+
+      // Set export route targets
+      if (huaweiVrf.getExportRouteTargets() != null
+          && !huaweiVrf.getExportRouteTargets().isEmpty()) {
+        vrfData.setExportRouteTargets(huaweiVrf.getExportRouteTargets());
+      }
+
+      // Set description
+      vrfData.setDescription(huaweiVrf.getDescription());
+
+      // Set address family flags
+      vrfData.setIpv4Enabled(huaweiVrf.isIpv4Enabled());
+      vrfData.setIpv6Enabled(huaweiVrf.isIpv6Enabled());
+
+      // Store VRF data in HuaweiFamily
+      huaweiFamily.putVrf(vrfName, vrfData);
     }
   }
 

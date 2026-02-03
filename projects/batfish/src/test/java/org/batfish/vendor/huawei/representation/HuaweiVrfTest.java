@@ -6,8 +6,9 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Map;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.apache.commons.lang3.SerializationUtils;
 import org.junit.Test;
 
@@ -65,24 +66,24 @@ public class HuaweiVrfTest {
     vrf.addImportRouteTarget("300:1");
 
     assertThat(vrf.getImportRouteTargets().size(), equalTo(3));
-    assertThat(vrf.getImportRouteTargets().containsKey("100:1"), equalTo(true));
-    assertThat(vrf.getImportRouteTargets().containsKey("200:1"), equalTo(true));
-    assertThat(vrf.getImportRouteTargets().containsKey("300:1"), equalTo(true));
+    assertTrue(vrf.getImportRouteTargets().contains("100:1"));
+    assertTrue(vrf.getImportRouteTargets().contains("200:1"));
+    assertTrue(vrf.getImportRouteTargets().contains("300:1"));
   }
 
   @Test
   public void testSetImportRouteTargets() {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
 
-    Map<String, Object> routeTargets = new TreeMap<>();
-    routeTargets.put("100:1", "100:1");
-    routeTargets.put("200:1", "200:1");
+    SortedSet<String> routeTargets = new TreeSet<>();
+    routeTargets.add("100:1");
+    routeTargets.add("200:1");
 
     vrf.setImportRouteTargets(routeTargets);
 
     assertThat(vrf.getImportRouteTargets().size(), equalTo(2));
-    assertThat(vrf.getImportRouteTargets().containsKey("100:1"), equalTo(true));
-    assertThat(vrf.getImportRouteTargets().containsKey("200:1"), equalTo(true));
+    assertTrue(vrf.getImportRouteTargets().contains("100:1"));
+    assertTrue(vrf.getImportRouteTargets().contains("200:1"));
   }
 
   @Test
@@ -95,24 +96,24 @@ public class HuaweiVrfTest {
     vrf.addExportRouteTarget("300:1");
 
     assertThat(vrf.getExportRouteTargets().size(), equalTo(3));
-    assertThat(vrf.getExportRouteTargets().containsKey("100:1"), equalTo(true));
-    assertThat(vrf.getExportRouteTargets().containsKey("200:1"), equalTo(true));
-    assertThat(vrf.getExportRouteTargets().containsKey("300:1"), equalTo(true));
+    assertTrue(vrf.getExportRouteTargets().contains("100:1"));
+    assertTrue(vrf.getExportRouteTargets().contains("200:1"));
+    assertTrue(vrf.getExportRouteTargets().contains("300:1"));
   }
 
   @Test
   public void testSetExportRouteTargets() {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
 
-    Map<String, Object> routeTargets = new TreeMap<>();
-    routeTargets.put("100:1", "100:1");
-    routeTargets.put("200:1", "200:1");
+    SortedSet<String> routeTargets = new TreeSet<>();
+    routeTargets.add("100:1");
+    routeTargets.add("200:1");
 
     vrf.setExportRouteTargets(routeTargets);
 
     assertThat(vrf.getExportRouteTargets().size(), equalTo(2));
-    assertThat(vrf.getExportRouteTargets().containsKey("100:1"), equalTo(true));
-    assertThat(vrf.getExportRouteTargets().containsKey("200:1"), equalTo(true));
+    assertTrue(vrf.getExportRouteTargets().contains("100:1"));
+    assertTrue(vrf.getExportRouteTargets().contains("200:1"));
   }
 
   @Test
@@ -157,7 +158,7 @@ public class HuaweiVrfTest {
   public void testSetInterfaces() {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
 
-    Map<String, HuaweiInterface> interfaces = new TreeMap<>();
+    TreeMap<String, HuaweiInterface> interfaces = new TreeMap<>();
     HuaweiInterface iface1 = new HuaweiInterface("GigabitEthernet0/0/1");
     HuaweiInterface iface2 = new HuaweiInterface("GigabitEthernet0/0/2");
     interfaces.put("GigabitEthernet0/0/1", iface1);
@@ -218,20 +219,24 @@ public class HuaweiVrfTest {
   public void testAddressFamily() {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
 
-    // Initially null
-    assertThat(vrf.getAddressFamily(), nullValue());
+    // Initially disabled
+    assertThat(vrf.isIpv4Enabled(), equalTo(false));
+    assertThat(vrf.isIpv6Enabled(), equalTo(false));
 
-    // Set and get - IPv4
-    vrf.setAddressFamily("ipv4");
-    assertThat(vrf.getAddressFamily(), equalTo("ipv4"));
+    // Enable IPv4
+    vrf.setIpv4Enabled(true);
+    assertThat(vrf.isIpv4Enabled(), equalTo(true));
+    assertThat(vrf.isIpv6Enabled(), equalTo(false));
 
-    // Update - IPv6
-    vrf.setAddressFamily("ipv6");
-    assertThat(vrf.getAddressFamily(), equalTo("ipv6"));
+    // Enable IPv6
+    vrf.setIpv6Enabled(true);
+    assertThat(vrf.isIpv4Enabled(), equalTo(true));
+    assertThat(vrf.isIpv6Enabled(), equalTo(true));
 
-    // Set to null
-    vrf.setAddressFamily(null);
-    assertThat(vrf.getAddressFamily(), nullValue());
+    // Disable IPv4
+    vrf.setIpv4Enabled(false);
+    assertThat(vrf.isIpv4Enabled(), equalTo(false));
+    assertThat(vrf.isIpv6Enabled(), equalTo(true));
   }
 
   @Test
@@ -239,7 +244,7 @@ public class HuaweiVrfTest {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
     vrf.setRouteDistinguisher("65000:100");
     vrf.setDescription("Test VRF");
-    vrf.setAddressFamily("ipv4");
+    vrf.setIpv4Enabled(true);
 
     HuaweiBgpProcess bgpProcess = new HuaweiBgpProcess(65000);
     vrf.setBgpProcess(bgpProcess);
@@ -258,7 +263,7 @@ public class HuaweiVrfTest {
     assertThat(clone.getName(), equalTo(vrf.getName()));
     assertThat(clone.getRouteDistinguisher(), equalTo(vrf.getRouteDistinguisher()));
     assertThat(clone.getDescription(), equalTo(vrf.getDescription()));
-    assertThat(clone.getAddressFamily(), equalTo(vrf.getAddressFamily()));
+    assertThat(clone.isIpv4Enabled(), equalTo(vrf.isIpv4Enabled()));
     assertThat(clone.getImportRouteTargets().size(), equalTo(vrf.getImportRouteTargets().size()));
     assertThat(clone.getExportRouteTargets().size(), equalTo(vrf.getExportRouteTargets().size()));
     assertThat(clone.getInterfaces().size(), equalTo(vrf.getInterfaces().size()));
@@ -273,7 +278,7 @@ public class HuaweiVrfTest {
     // Configure all properties
     vrf.setRouteDistinguisher("65000:100");
     vrf.setDescription("Customer A VRF for VPN services");
-    vrf.setAddressFamily("ipv4");
+    vrf.setIpv4Enabled(true);
 
     // Add multiple route targets
     vrf.addImportRouteTarget("65000:100");
@@ -300,16 +305,16 @@ public class HuaweiVrfTest {
     assertThat(vrf.getName(), equalTo("CUSTOMER_A"));
     assertThat(vrf.getRouteDistinguisher(), equalTo("65000:100"));
     assertThat(vrf.getDescription(), equalTo("Customer A VRF for VPN services"));
-    assertThat(vrf.getAddressFamily(), equalTo("ipv4"));
+    assertThat(vrf.isIpv4Enabled(), equalTo(true));
 
     assertThat(vrf.getImportRouteTargets().size(), equalTo(3));
-    assertTrue(vrf.getImportRouteTargets().containsKey("65000:100"));
-    assertTrue(vrf.getImportRouteTargets().containsKey("65000:200"));
-    assertTrue(vrf.getImportRouteTargets().containsKey("65000:300"));
+    assertTrue(vrf.getImportRouteTargets().contains("65000:100"));
+    assertTrue(vrf.getImportRouteTargets().contains("65000:200"));
+    assertTrue(vrf.getImportRouteTargets().contains("65000:300"));
 
     assertThat(vrf.getExportRouteTargets().size(), equalTo(2));
-    assertTrue(vrf.getExportRouteTargets().containsKey("65000:100"));
-    assertTrue(vrf.getExportRouteTargets().containsKey("65000:400"));
+    assertTrue(vrf.getExportRouteTargets().contains("65000:100"));
+    assertTrue(vrf.getExportRouteTargets().contains("65000:400"));
 
     assertThat(vrf.getInterfaces().size(), equalTo(2));
     assertTrue(vrf.getInterfaces().containsKey("GigabitEthernet0/0/1"));
@@ -327,7 +332,8 @@ public class HuaweiVrfTest {
     assertThat(vrf.getName(), equalTo("MINIMAL"));
     assertThat(vrf.getRouteDistinguisher(), nullValue());
     assertThat(vrf.getDescription(), nullValue());
-    assertThat(vrf.getAddressFamily(), nullValue());
+    assertThat(vrf.isIpv4Enabled(), equalTo(false));
+    assertThat(vrf.isIpv6Enabled(), equalTo(false));
     assertThat(vrf.getImportRouteTargets().size(), equalTo(0));
     assertThat(vrf.getExportRouteTargets().size(), equalTo(0));
     assertThat(vrf.getInterfaces().size(), equalTo(0));
@@ -336,7 +342,7 @@ public class HuaweiVrfTest {
   }
 
   @Test
-  public void testReplaceRouteTargetMaps() {
+  public void testReplaceRouteTargetSets() {
     HuaweiVrf vrf = new HuaweiVrf("VRF1");
 
     // Add initial route targets
@@ -346,21 +352,21 @@ public class HuaweiVrfTest {
     assertThat(vrf.getImportRouteTargets().size(), equalTo(1));
     assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
 
-    // Replace with new maps
-    Map<String, Object> newImportTargets = new TreeMap<>();
-    newImportTargets.put("300:1", "300:1");
-    newImportTargets.put("400:1", "400:1");
+    // Replace with new sets
+    SortedSet<String> newImportTargets = new TreeSet<>();
+    newImportTargets.add("300:1");
+    newImportTargets.add("400:1");
     vrf.setImportRouteTargets(newImportTargets);
 
-    Map<String, Object> newExportTargets = new TreeMap<>();
-    newExportTargets.put("500:1", "500:1");
+    SortedSet<String> newExportTargets = new TreeSet<>();
+    newExportTargets.add("500:1");
     vrf.setExportRouteTargets(newExportTargets);
 
     assertThat(vrf.getImportRouteTargets().size(), equalTo(2));
     assertThat(vrf.getExportRouteTargets().size(), equalTo(1));
-    assertTrue(vrf.getImportRouteTargets().containsKey("300:1"));
-    assertTrue(vrf.getImportRouteTargets().containsKey("400:1"));
-    assertTrue(vrf.getExportRouteTargets().containsKey("500:1"));
+    assertTrue(vrf.getImportRouteTargets().contains("300:1"));
+    assertTrue(vrf.getImportRouteTargets().contains("400:1"));
+    assertTrue(vrf.getExportRouteTargets().contains("500:1"));
   }
 
   @Test
@@ -374,7 +380,7 @@ public class HuaweiVrfTest {
     assertThat(vrf.getInterfaces().size(), equalTo(1));
 
     // Replace with new map
-    Map<String, HuaweiInterface> newInterfaces = new TreeMap<>();
+    TreeMap<String, HuaweiInterface> newInterfaces = new TreeMap<>();
     HuaweiInterface iface2 = new HuaweiInterface("GigabitEthernet0/0/2");
     HuaweiInterface iface3 = new HuaweiInterface("GigabitEthernet0/0/3");
     newInterfaces.put("GigabitEthernet0/0/2", iface2);

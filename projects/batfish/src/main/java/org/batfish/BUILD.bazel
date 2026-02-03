@@ -5,9 +5,14 @@ package(default_visibility = ["//visibility:public"])
 
 java_library(
     name = "batfish",
-    srcs = glob([
-        "**/*.java",
-    ]),
+    srcs = glob(
+        [
+            "**/*.java",
+        ],
+        exclude = [
+            "vendor/**/*.java",
+        ],
+    ),
     plugins = [
         "//:auto_service_plugin",
     ],
