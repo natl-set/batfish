@@ -38,6 +38,7 @@ import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.datamodel.bgp.RouteDistinguisher;
 import org.batfish.datamodel.ospf.OspfArea;
+import org.batfish.datamodel.ospf.OspfAreaSummary;
 import org.batfish.datamodel.ospf.OspfInterfaceSettings;
 import org.batfish.datamodel.ospf.OspfNetworkType;
 import org.batfish.datamodel.ospf.OspfProcess;
@@ -1137,7 +1138,31 @@ public class HuaweiConversions {
         break;
     }
 
-    // TODO: Convert area ranges - not implemented in Huawei grammar yet
+    // Convert area ranges (abr-summary) to OspfAreaSummary
+    if (!huaweiArea.getAreaRanges().isEmpty()) {
+      ImmutableMap.Builder<Prefix, OspfAreaSummary> summariesBuilder = ImmutableMap.builder();
+      for (Map.Entry<Prefix, HuaweiOspfProcess.HuaweiOspfAreaRange> entry :
+          huaweiArea.getAreaRanges().entrySet()) {
+        Prefix prefix = entry.getKey();
+        HuaweiOspfProcess.HuaweiOspfAreaRange huaweiRange = entry.getValue();
+
+        // Determine the summary route behavior based on advertise flag
+        OspfAreaSummary.SummaryRouteBehavior behavior;
+        if (huaweiRange.isAdvertise()) {
+          behavior = OspfAreaSummary.SummaryRouteBehavior.ADVERTISE_AND_INSTALL_DISCARD;
+        } else {
+          behavior = OspfAreaSummary.SummaryRouteBehavior.NOT_ADVERTISE_AND_NO_DISCARD;
+        }
+
+        // Get the cost if set
+        Long metric = huaweiRange.getCost();
+
+        OspfAreaSummary summary = new OspfAreaSummary(behavior, metric);
+        summariesBuilder.put(prefix, summary);
+      }
+      builder.setSummaries(summariesBuilder.build());
+    }
+
     // TODO: Convert area authentication - extracted but not converted to Batfish model
     // Area authentication extraction is implemented in grammar as state 3 (in grammar, not
     // implemented)
