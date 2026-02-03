@@ -1217,7 +1217,13 @@ public final class AciConversion {
     }
 
     // Try to find an interface with an IP in the same subnet as the peer
-    Ip peerAddress = Ip.parse(bgpPeer.getPeerAddress());
+    Ip peerAddress;
+    try {
+      peerAddress = Ip.parse(bgpPeer.getPeerAddress());
+    } catch (IllegalArgumentException e) {
+      // Invalid peer address - can't find matching subnet
+      return null;
+    }
     for (Interface iface : interfaces.values()) {
       if (iface.getConcreteAddress() != null) {
         Prefix subnet = iface.getConcreteAddress().getPrefix();

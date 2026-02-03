@@ -88,6 +88,14 @@ public class AciL3OutOspfTest {
 
     // OSPF config is null by default
     assertThat(l3out.getOspfConfig(), equalTo(null));
+
+    // Test setting OSPF configuration
+    AciConfiguration.OspfConfig ospfConfig = new AciConfiguration.OspfConfig();
+    ospfConfig.setProcessId("100");
+    l3out.setOspfConfig(ospfConfig);
+
+    assertThat(l3out.getOspfConfig(), equalTo(ospfConfig));
+    assertThat(l3out.getOspfConfig().getProcessId(), equalTo("100"));
   }
 
   /** Test multiple L3Outs. */
@@ -125,5 +133,46 @@ public class AciL3OutOspfTest {
     l3out.setVrf("tenant1:vrf1");
 
     assertThat(l3out.getVrf(), equalTo("tenant1:vrf1"));
+  }
+
+  /** Test OSPF area configuration. */
+  @Test
+  public void testOspfAreaConfiguration() {
+    AciConfiguration.L3Out l3out = new AciConfiguration.L3Out("tenant1:l3out1");
+
+    AciConfiguration.OspfConfig ospfConfig = new AciConfiguration.OspfConfig();
+    ospfConfig.setProcessId("1");
+
+    AciConfiguration.OspfArea area0 = new AciConfiguration.OspfArea();
+    area0.setAreaId("0.0.0.0");
+    area0.setAreaType("regular");
+
+    AciConfiguration.OspfArea area1 = new AciConfiguration.OspfArea();
+    area1.setAreaId("0.0.0.1");
+    area1.setAreaType("stub");
+
+    ospfConfig.getAreas().put("0.0.0.0", area0);
+    ospfConfig.getAreas().put("0.0.0.1", area1);
+
+    l3out.setOspfConfig(ospfConfig);
+
+    assertThat(l3out.getOspfConfig(), equalTo(ospfConfig));
+    assertThat(l3out.getOspfConfig().getAreas().size(), equalTo(2));
+    assertThat(l3out.getOspfConfig().getAreas(), hasKey("0.0.0.0"));
+    assertThat(l3out.getOspfConfig().getAreas(), hasKey("0.0.0.1"));
+  }
+
+  /** Test OSPF area with networks. */
+  @Test
+  public void testOspfAreaWithNetworks() {
+    AciConfiguration.OspfArea area = new AciConfiguration.OspfArea();
+    area.setAreaId("0.0.0.0");
+
+    area.getNetworks().add("10.1.1.0/24");
+    area.getNetworks().add("10.2.1.0/24");
+
+    assertThat(area.getNetworks().size(), equalTo(2));
+    assertThat(area.getNetworks().get(0), equalTo("10.1.1.0/24"));
+    assertThat(area.getNetworks().get(1), equalTo("10.2.1.0/24"));
   }
 }

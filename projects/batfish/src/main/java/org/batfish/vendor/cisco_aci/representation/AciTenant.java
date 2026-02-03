@@ -41,8 +41,6 @@ public class AciTenant implements Serializable {
   }
 
   /** Attributes of an ACI Tenant (fvTenant). */
-
-  /** Attributes of an ACI Tenant (fvTenant). */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciTenantAttributes implements Serializable {
