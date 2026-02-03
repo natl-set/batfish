@@ -41,6 +41,7 @@ import org.batfish.datamodel.ospf.OspfArea;
 import org.batfish.datamodel.ospf.OspfInterfaceSettings;
 import org.batfish.datamodel.ospf.OspfNetworkType;
 import org.batfish.datamodel.ospf.OspfProcess;
+import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily.HuaweiVrfData;
 
@@ -564,6 +565,7 @@ public class HuaweiConversions {
         ospfSettingsBuilder.setEnabled(true);
         ospfSettingsBuilder.setPassive(
             huaweiSettings.getPassive() != null && huaweiSettings.getPassive());
+        ospfSettingsBuilder.setProcess(String.valueOf(huaweiOspf.getProcessId()));
 
         // Set hello interval (default is 10 seconds)
         ospfSettingsBuilder.setHelloInterval(
@@ -579,19 +581,15 @@ public class HuaweiConversions {
           ospfSettingsBuilder.setAreaName(areaId);
         }
 
-        // Set cost (default is 1 for non-loopback, 0 for loopback)
+        // Set cost (only if explicitly set)
         Integer cost = huaweiSettings.getCost();
         if (cost != null) {
           ospfSettingsBuilder.setCost(cost);
-        } else if (iface.getName().contains("Loopback")) {
-          ospfSettingsBuilder.setCost(0);
-        } else {
-          ospfSettingsBuilder.setCost(1);
         }
 
         // Note: Retransmit interval is extracted but not set (not supported in Batfish model)
 
-        // Set network type (if supported)
+        // Set network type (default to BROADCAST if not specified)
         String networkType = huaweiSettings.getNetworkType();
         if (networkType != null) {
           switch (networkType.toUpperCase()) {
@@ -610,9 +608,13 @@ public class HuaweiConversions {
               ospfSettingsBuilder.setNetworkType(OspfNetworkType.POINT_TO_MULTIPOINT);
               break;
             default:
-              // Unknown network type - leave unset
+              // Unknown network type - use default
+              ospfSettingsBuilder.setNetworkType(OspfNetworkType.BROADCAST);
               break;
           }
+        } else {
+          // Default network type is BROADCAST
+          ospfSettingsBuilder.setNetworkType(OspfNetworkType.BROADCAST);
         }
 
         // Set the OSPF settings on the interface
@@ -630,11 +632,15 @@ public class HuaweiConversions {
       ospfBuilder.setExportPolicyName(exportPolicyName);
 
       // Create a basic routing policy for redistribution
-      // Note: This is a placeholder that accepts all redistributed routes
+      // Note: This is a placeholder with empty statements
       // A full implementation would convert route policies and handle metrics/tags
       if (!c.getRoutingPolicies().containsKey(exportPolicyName)) {
-        // Create a placeholder policy - actual redistribution logic is complex
-        // and would require proper routing policy conversion
+        RoutingPolicy policy =
+            RoutingPolicy.builder()
+                .setName(exportPolicyName)
+                .setStatements(ImmutableList.of())
+                .build();
+        c.getRoutingPolicies().put(exportPolicyName, policy);
       }
     }
 
