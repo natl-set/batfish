@@ -30,6 +30,7 @@ import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.Vrf;
 import org.batfish.vendor.cisco_aci.representation.AciConfiguration;
 import org.batfish.vendor.cisco_aci.representation.AciConversion;
+import org.batfish.vendor.cisco_aci.representation.AciVrfModel;
 import org.junit.Test;
 
 /** Tests of {@link AciConversion} and ACI configuration conversion. */
@@ -43,25 +44,23 @@ public class AciConversionTest {
     config.setHostname("test-fabric");
     config.setVendor(ConfigurationFormat.CISCO_ACI);
 
-    // Create fabric nodes
-    AciConfiguration.FabricNode spine1 = createFabricNode("node1", "spine1", "101", "spine");
-    AciConfiguration.FabricNode spine2 = createFabricNode("node2", "spine2", "102", "spine");
-    AciConfiguration.FabricNode leaf1 = createFabricNode("node3", "leaf1", "201", "leaf");
-    AciConfiguration.FabricNode leaf2 = createFabricNode("node4", "leaf2", "202", "leaf");
+    // Create fabric nodes (nodeId, name, podId, role)
+    AciConfiguration.FabricNode spine1 = createFabricNode("101", "spine1", "1", "spine");
+    AciConfiguration.FabricNode spine2 = createFabricNode("102", "spine2", "1", "spine");
+    AciConfiguration.FabricNode leaf1 = createFabricNode("201", "leaf1", "2", "leaf");
+    AciConfiguration.FabricNode leaf2 = createFabricNode("202", "leaf2", "2", "leaf");
 
-    config.getFabricNodes().put("node1", spine1);
-    config.getFabricNodes().put("node2", spine2);
-    config.getFabricNodes().put("node3", leaf1);
-    config.getFabricNodes().put("node4", leaf2);
+    config.getFabricNodes().put("101", spine1);
+    config.getFabricNodes().put("102", spine2);
+    config.getFabricNodes().put("201", leaf1);
+    config.getFabricNodes().put("202", leaf2);
 
     // Create VRFs
-    org.batfish.vendor.cisco_aci.representation.AciVrfModel vrf1 =
-        new org.batfish.vendor.cisco_aci.representation.AciVrfModel("vrf1");
+    AciVrfModel vrf1 = new AciVrfModel("vrf1");
     vrf1.setTenant("tenant1");
     vrf1.setDescription("Test VRF 1");
 
-    org.batfish.vendor.cisco_aci.representation.AciVrfModel vrf2 =
-        new org.batfish.vendor.cisco_aci.representation.AciVrfModel("vrf2");
+    AciVrfModel vrf2 = new AciVrfModel("vrf2");
     vrf2.setTenant("tenant1");
     vrf2.setDescription("Test VRF 2");
 
@@ -164,11 +163,12 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Should have 4 configurations (4 fabric nodes)
+    // Keys are now nodeIds to ensure uniqueness
     assertThat(configs.size(), equalTo(4));
-    assertThat(configs, hasKey("spine1"));
-    assertThat(configs, hasKey("spine2"));
-    assertThat(configs, hasKey("leaf1"));
-    assertThat(configs, hasKey("leaf2"));
+    assertThat(configs, hasKey("101"));
+    assertThat(configs, hasKey("102"));
+    assertThat(configs, hasKey("201"));
+    assertThat(configs, hasKey("202"));
   }
 
   @Test
@@ -204,7 +204,7 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Check that VLAN interfaces are created for bridge domains
-    Configuration leaf1Config = configs.get("leaf1");
+    Configuration leaf1Config = configs.get("201");
     assertNotNull(leaf1Config);
 
     // Bridge domains should create VLAN interfaces with subnet addresses
@@ -229,7 +229,7 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Check that ACLs are created for contracts
-    Configuration leaf1Config = configs.get("leaf1");
+    Configuration leaf1Config = configs.get("201");
     assertNotNull(leaf1Config);
 
     String aclName = AciConversion.getContractAclName("web_contract");
@@ -282,7 +282,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
-    Configuration config = configs.get("leaf1");
+    Configuration config = configs.get("201");
     assertNotNull(config);
 
     // Verify interface types are correct
@@ -359,7 +359,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
-    Configuration config = configs.get("leaf1");
+    Configuration config = configs.get("201");
     String aclName = AciConversion.getContractAclName("web_contract");
     IpAccessList acl = config.getIpAccessLists().get(aclName);
     assertNotNull(acl);
@@ -470,8 +470,7 @@ public class AciConversionTest {
     config.getFabricNodes().put("node1", node);
 
     // Create VRF
-    org.batfish.vendor.cisco_aci.representation.AciVrfModel vrf =
-        new org.batfish.vendor.cisco_aci.representation.AciVrfModel("shared_vrf");
+    AciVrfModel vrf = new AciVrfModel("shared_vrf");
     vrf.setTenant("tenant1");
     config.getVrfs().put("shared_vrf", vrf);
 
@@ -498,7 +497,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = configs.get("leaf1");
+    Configuration leafConfig = configs.get("201");
     assertNotNull(leafConfig);
 
     // All bridge domain subnets should be accessible via interfaces
@@ -556,7 +555,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = configs.get("leaf1");
+    Configuration leafConfig = configs.get("201");
     String aclName = AciConversion.getContractAclName("multi_filter_contract");
     IpAccessList acl = leafConfig.getIpAccessLists().get(aclName);
     assertNotNull(acl);
