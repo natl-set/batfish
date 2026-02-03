@@ -232,6 +232,12 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of fabric node IDs to fabric node configurations */
   private Map<String, FabricNode> _fabricNodes;
 
+  /** Map of (nodeId, interfaceName) to path attachment details */
+  private Map<String, Map<String, PathAttachment>> _pathAttachmentMap;
+
+  /** Map of node IDs to interface names discovered from path attachments */
+  private Map<String, List<String>> _nodeInterfaces;
+
   /** Map of L3Out names to L3Out configurations */
   private Map<String, L3Out> _l3Outs;
 
@@ -249,6 +255,8 @@ public final class AciConfiguration extends VendorConfiguration {
     _contracts = new TreeMap<>();
     _filters = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
+    _pathAttachmentMap = new TreeMap<>();
+    _nodeInterfaces = new TreeMap<>();
     _l3Outs = new TreeMap<>();
     _l2Outs = new TreeMap<>();
   }
@@ -474,6 +482,12 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> epgMap = (Map<String, Object>) childMap.get("fvAEPg");
           parseEpgFromMap(epgMap, tenantName, null, warnings);
         }
+        // Check for mgmtMgmtP (Management policy - contains OOB management node bindings)
+        else if (childMap.containsKey("mgmtMgmtP")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> mgmtMgmtMap = (Map<String, Object>) childMap.get("mgmtMgmtP");
+          parseManagementPolicyFromMap(mgmtMgmtMap, warnings);
+        }
         // Log warning for unrecognized tenant child types
         else {
           @SuppressWarnings("unchecked")
@@ -486,6 +500,127 @@ public final class AciConfiguration extends VendorConfiguration {
                     + " configuration will not be analyzed.",
                 unknownType, name, tenantName);
           }
+        }
+      }
+    }
+  }
+
+  /**
+   * Parses management policy (mgmtMgmtP) to extract out-of-band management IPs.
+   *
+   * <p>Management policy structure: mgmtMgmtP → mgmtOoB → mgmtRsOoBStNode The mgmtRsOoBStNode
+   * contains: - tDn: "topology/pod-{podId}/node-{nodeId}" - identifies the fabric node - addr:
+   * management IP address with prefix (e.g., "10.35.1.52/24") - gw: default gateway (e.g.,
+   * "10.35.1.1") - addr6/gateway6: IPv6 addresses (optional)
+   */
+  private void parseManagementPolicyFromMap(Map<String, Object> mgmtMgmtMap, Warnings warnings) {
+    if (mgmtMgmtMap == null) {
+      return;
+    }
+
+    // Navigate to mgmtOoB (Out-of-band management interface)
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) mgmtMgmtMap.get("attributes");
+    @SuppressWarnings("unchecked")
+    List<Object> children = (List<Object>) mgmtMgmtMap.get("children");
+
+    if (children == null) {
+      return;
+    }
+
+    // Look for mgmtOoB child
+    for (Object childObj : children) {
+      if (!(childObj instanceof Map)) {
+        continue;
+      }
+
+      @SuppressWarnings("unchecked")
+      Map<String, Object> childMap = (Map<String, Object>) childObj;
+
+      if (!childMap.containsKey("mgmtOoB")) {
+        continue;
+      }
+
+      @SuppressWarnings("unchecked")
+      Map<String, Object> mgmtOoBMap = (Map<String, Object>) childMap.get("mgmtOoB");
+      if (mgmtOoBMap == null) {
+        continue;
+      }
+
+      // Parse mgmtOoB children for mgmtRsOoBStNode
+      @SuppressWarnings("unchecked")
+      List<Object> oobChildren = (List<Object>) mgmtOoBMap.get("children");
+      if (oobChildren == null) {
+        continue;
+      }
+
+      for (Object oobChildObj : oobChildren) {
+        if (!(oobChildObj instanceof Map)) {
+          continue;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> oobChildMap = (Map<String, Object>) oobChildObj;
+
+        if (!oobChildMap.containsKey("mgmtRsOoBStNode")) {
+          continue;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> oobStNodeMap = (Map<String, Object>) oobChildMap.get("mgmtRsOoBStNode");
+        if (oobStNodeMap == null) {
+          continue;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stNodeAttrs = (Map<String, Object>) oobStNodeMap.get("attributes");
+        if (stNodeAttrs == null) {
+          continue;
+        }
+
+        // Extract management information
+        String tDn = (String) stNodeAttrs.get("tDn");
+        String addr = (String) stNodeAttrs.get("addr");
+        String gw = (String) stNodeAttrs.get("gw");
+        String addr6 = (String) stNodeAttrs.get("addr6");
+        String gateway6 = (String) stNodeAttrs.get("gateway6");
+
+        if (tDn == null || addr == null) {
+          continue;
+        }
+
+        // Parse tDn to extract node ID
+        // tDn format: "topology/pod-1/node-1208"
+        String nodeId = null;
+        String[] parts = tDn.split("/");
+        for (String part : parts) {
+          if (part.startsWith("node-")) {
+            nodeId = part.substring(5);
+            break;
+          }
+        }
+
+        if (nodeId == null) {
+          warnings.redFlag(String.format("Could not parse node ID from management tDn: %s", tDn));
+          continue;
+        }
+
+        // Create ManagementInfo object
+        ManagementInfo mgmtInfo = new ManagementInfo();
+        mgmtInfo.setAddress(addr);
+        mgmtInfo.setGateway(gw);
+        mgmtInfo.setAddress6(addr6);
+        mgmtInfo.setGateway6(gateway6);
+
+        // Find the fabric node and attach management info
+        FabricNode node = _fabricNodes.get(nodeId);
+        if (node != null) {
+          node.setManagementInfo(mgmtInfo);
+        } else {
+          warnings.redFlag(
+              String.format(
+                  "Management IP %s references unknown node ID %s (from tDn: %s)",
+                  addr, nodeId, tDn));
         }
       }
     }
@@ -1319,6 +1454,26 @@ public final class AciConfiguration extends VendorConfiguration {
   @JsonProperty(PROP_FABRIC_NODES)
   public void setFabricNodes(Map<String, FabricNode> fabricNodes) {
     _fabricNodes = new TreeMap<>(fabricNodes);
+  }
+
+  /**
+   * Returns the map of path attachments linking EPGs to physical interfaces.
+   *
+   * @return Map of (nodeId, interfaceName) to PathAttachment details
+   */
+  @Nonnull
+  public Map<String, Map<String, PathAttachment>> getPathAttachmentMap() {
+    return _pathAttachmentMap;
+  }
+
+  /**
+   * Returns the map of node IDs to interface names discovered from path attachments.
+   *
+   * @return Map of node IDs to lists of interface names
+   */
+  @Nonnull
+  public Map<String, List<String>> getNodeInterfaces() {
+    return _nodeInterfaces;
   }
 
   /**
@@ -2194,6 +2349,17 @@ public final class AciConfiguration extends VendorConfiguration {
       public void setVlan(String vlan) {
         _vlan = vlan;
       }
+    }
+
+    /** Management information for the fabric node (out-of-band management). */
+    private ManagementInfo _managementInfo;
+
+    public @Nullable ManagementInfo getManagementInfo() {
+      return _managementInfo;
+    }
+
+    public void setManagementInfo(@Nullable ManagementInfo managementInfo) {
+      _managementInfo = managementInfo;
     }
   }
 
@@ -3736,6 +3902,139 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setDescription(String description) {
       _description = description;
+    }
+  }
+
+  /** Management information for out-of-band management. */
+  public static class ManagementInfo implements Serializable {
+    private String _address;
+    private String _gateway;
+    private String _gateway6;
+    private String _address6;
+
+    public @Nullable String getAddress() {
+      return _address;
+    }
+
+    public void setAddress(@Nullable String address) {
+      _address = address;
+    }
+
+    public @Nullable String getGateway() {
+      return _gateway;
+    }
+
+    public void setGateway(@Nullable String gateway) {
+      _gateway = gateway;
+    }
+
+    public @Nullable String getGateway6() {
+      return _gateway6;
+    }
+
+    public void setGateway6(@Nullable String gateway6) {
+      _gateway6 = gateway6;
+    }
+
+    public @Nullable String getAddress6() {
+      return _address6;
+    }
+
+    public void setAddress6(@Nullable String address6) {
+      _address6 = address6;
+    }
+  }
+
+  /**
+   * Path attachment information linking EPGs to physical interfaces.
+   *
+   * <p>Path attachments (fvRsPathAtt) contain:
+   *
+   * <ul>
+   *   <li>tDn: Target distinguished name identifying the physical interface
+   *   <li>encap: VLAN encapsulation (e.g., "vlan-2717")
+   *   <li>descr: Description of the attachment
+   * </ul>
+   */
+  public static class PathAttachment implements Serializable {
+    private final String _tdn;
+    private String _podId;
+    private String _nodeId;
+    private String _interface;
+    private String _encap;
+    private String _description;
+    private String _epgName;
+    private String _epgTenant;
+
+    public PathAttachment(String tdn) {
+      _tdn = tdn;
+      parseTdn(tdn);
+    }
+
+    private void parseTdn(String tdn) {
+      // tDn format: topology/pod-{podId}/paths-{nodeId}/pathep-[{interface}]
+      if (tdn == null) {
+        return;
+      }
+
+      String[] parts = tdn.split("/");
+      for (String part : parts) {
+        if (part.startsWith("pod-")) {
+          _podId = part.substring(4);
+        } else if (part.startsWith("paths-")) {
+          _nodeId = part.substring(6);
+        } else if (part.startsWith("pathep-[")) {
+          _interface = part.substring(8, part.length() - 1);
+        }
+      }
+    }
+
+    public String getTdn() {
+      return _tdn;
+    }
+
+    public @Nullable String getPodId() {
+      return _podId;
+    }
+
+    public @Nullable String getNodeId() {
+      return _nodeId;
+    }
+
+    public @Nullable String getInterface() {
+      return _interface;
+    }
+
+    public @Nullable String getEncap() {
+      return _encap;
+    }
+
+    public void setEncap(@Nullable String encap) {
+      _encap = encap;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(@Nullable String description) {
+      _description = description;
+    }
+
+    public @Nullable String getEpgName() {
+      return _epgName;
+    }
+
+    public void setEpgName(@Nullable String epgName) {
+      _epgName = epgName;
+    }
+
+    public @Nullable String getEpgTenant() {
+      return _epgTenant;
+    }
+
+    public void setEpgTenant(@Nullable String epgTenant) {
+      _epgTenant = epgTenant;
     }
   }
 }
