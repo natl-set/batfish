@@ -540,6 +540,13 @@ public final class AciConversion {
         continue;
       }
 
+      // Extract tenant name from fully-qualified contract name (tenant:contract)
+      String tenantName = null;
+      int colonIdx = contractName.indexOf(':');
+      if (colonIdx > 0) {
+        tenantName = contractName.substring(0, colonIdx);
+      }
+
       String aclName = getContractAclName(contractName);
       ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
 
@@ -547,10 +554,34 @@ public final class AciConversion {
       if (contract.getSubjects() != null) {
         for (AciConfiguration.Contract.Subject subject : contract.getSubjects()) {
           if (subject.getFilters() != null) {
-            for (AciConfiguration.Contract.Filter filter : subject.getFilters()) {
-              // Convert filter to ACL lines
-              List<ExprAclLine> aclLines = toAclLines(filter, contractName, c, warnings);
-              lines.addAll(aclLines);
+            for (AciConfiguration.Contract.Filter filterRef : subject.getFilters()) {
+              // Try to resolve the filter reference to a full filter with entries
+              String filterName = filterRef.getName();
+              if (filterName == null || filterName.isEmpty()) {
+                // Fall back to basic filter conversion
+                lines.addAll(toAclLines(filterRef, contractName, c, warnings));
+                continue;
+              }
+
+              // Build fully-qualified filter name
+              String fqFilterName =
+                  (tenantName != null) ? (tenantName + ":" + filterName) : filterName;
+
+              AciConfiguration.Filter fullFilter = aciConfig.getFilters().get(fqFilterName);
+
+              if (fullFilter != null
+                  && fullFilter.getEntries() != null
+                  && !fullFilter.getEntries().isEmpty()) {
+                // Convert each entry in the filter to ACL lines
+                for (AciConfiguration.Filter.Entry filterEntry : fullFilter.getEntries()) {
+                  List<ExprAclLine> entryLines =
+                      toAclEntryLines(filterEntry, contractName, filterName, c, warnings);
+                  lines.addAll(entryLines);
+                }
+              } else {
+                // Filter not found or has no entries, fall back to basic filter conversion
+                lines.addAll(toAclLines(filterRef, contractName, c, warnings));
+              }
             }
           }
         }
@@ -685,6 +716,152 @@ public final class AciConversion {
     ExprAclLine line =
         new ExprAclLine(
             action, matchExpr, String.format("Contract %s filter %s", contractName, filterName));
+
+    lines.add(line);
+    return lines.build();
+  }
+
+  /**
+   * Converts a filter entry to ACL lines.
+   *
+   * <p>This method converts ACI filter entries (vzEntry) to Batfish ACL lines, supporting:
+   *
+   * <ul>
+   *   <li>IP protocols - TCP, UDP, ICMP, or protocol number
+   *   <li>TCP/UDP ports - Single ports or ranges (dPort, sPort, dFromPort/dToPort,
+   *       sFromPort/sToPort)
+   *   <li>IP address ranges - srcAddr, dstAddr
+   *   <li>ICMP types and codes - icmpv4T/icmpv4C, icmpv6T/icmpv6C
+   *   <li>Non-IP traffic - ARP via arpOpc, etherType
+   * </ul>
+   *
+   * @param entry The filter entry
+   * @param contractName The contract name for trace elements
+   * @param filterName The filter name for trace elements
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   * @return List of ACL lines
+   */
+  private static List<ExprAclLine> toAclEntryLines(
+      AciConfiguration.Filter.Entry entry,
+      String contractName,
+      String filterName,
+      Configuration c,
+      Warnings warnings) {
+
+    ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
+    LineAction action = LineAction.PERMIT; // Default action for filter entries
+    ImmutableList.Builder<AclLineMatchExpr> matchExprs = ImmutableList.builder();
+
+    // Handle non-IP traffic via etherType (e.g., ARP, MPLS)
+    if (entry.getEtherType() != null && !entry.getEtherType().isEmpty()) {
+      AclLineMatchExpr etherTypeExpr =
+          toEtherType(entry.getEtherType(), contractName, entry.getName(), warnings);
+      if (etherTypeExpr != null) {
+        matchExprs.add(etherTypeExpr);
+      }
+    }
+
+    // Match on IP protocol if specified
+    if (entry.getProtocol() != null) {
+      AclLineMatchExpr protocolExpr = toIpProtocolMatchExpr(entry.getProtocol(), warnings);
+      if (protocolExpr != null) {
+        matchExprs.add(protocolExpr);
+
+        // Handle ICMP-specific fields (type and code)
+        String protocol = entry.getProtocol().toLowerCase();
+        if (protocol.contains("icmpv4") || protocol.equals("icmp")) {
+          if (entry.getIcmpv4Type() != null) {
+            matchExprs.add(toIcmpTypeCode(entry.getIcmpv4Type(), entry.getIcmpv4Code(), warnings));
+          }
+        } else if (protocol.contains("icmpv6")) {
+          if (entry.getIcmpv6Type() != null) {
+            matchExprs.add(toIcmpTypeCode(entry.getIcmpv6Type(), entry.getIcmpv6Code(), warnings));
+          }
+        }
+      }
+    }
+
+    // Match on source IP address if specified
+    if (entry.getSourceAddress() != null && !entry.getSourceAddress().isEmpty()) {
+      AclLineMatchExpr srcAddrExpr = toIpMatchExpr(entry.getSourceAddress(), true, warnings);
+      if (srcAddrExpr != null) {
+        matchExprs.add(srcAddrExpr);
+      }
+    }
+
+    // Match on destination IP address if specified
+    if (entry.getDestinationAddress() != null && !entry.getDestinationAddress().isEmpty()) {
+      AclLineMatchExpr dstAddrExpr = toIpMatchExpr(entry.getDestinationAddress(), false, warnings);
+      if (dstAddrExpr != null) {
+        matchExprs.add(dstAddrExpr);
+      }
+    }
+
+    // Match on destination ports - handle both single port and port range
+    String dstPort = entry.getDestinationPort();
+    String dstFromPort = entry.getDestinationFromPort();
+    String dstToPort = entry.getDestinationToPort();
+
+    if (dstPort != null || (dstFromPort != null && dstToPort != null)) {
+      List<String> dstPorts = new ArrayList<>();
+      if (dstPort != null) {
+        dstPorts.add(dstPort);
+      } else if (dstFromPort != null && dstToPort != null) {
+        dstPorts.add(dstFromPort + "-" + dstToPort);
+      }
+      IntegerSpace portSpace = toPortSpace(dstPorts, contractName, entry.getName(), true, warnings);
+      if (!portSpace.isEmpty()) {
+        matchExprs.add(AclLineMatchExprs.matchDstPort(portSpace));
+      }
+    }
+
+    // Match on source ports - handle both single port and port range
+    String srcPort = entry.getSourcePort();
+    String srcFromPort = entry.getSourceFromPort();
+    String srcToPort = entry.getSourceToPort();
+
+    if (srcPort != null || (srcFromPort != null && srcToPort != null)) {
+      List<String> srcPorts = new ArrayList<>();
+      if (srcPort != null) {
+        srcPorts.add(srcPort);
+      } else if (srcFromPort != null && srcToPort != null) {
+        srcPorts.add(srcFromPort + "-" + srcToPort);
+      }
+      IntegerSpace portSpace =
+          toPortSpace(srcPorts, contractName, entry.getName(), false, warnings);
+      if (!portSpace.isEmpty()) {
+        matchExprs.add(AclLineMatchExprs.matchSrcPort(portSpace));
+      }
+    }
+
+    // Handle ARP opcode if specified
+    if (entry.getArpOpcode() != null && !entry.getArpOpcode().isEmpty()) {
+      warnings.redFlagf(
+          "ARP opcode specified in contract %s filter %s entry %s: %s. ARP filtering has limited"
+              + " effect in IP ACLs.",
+          contractName, filterName, entry.getName(), entry.getArpOpcode());
+    }
+
+    // Handle stateful flag - warn that this may not be fully supported
+    if (Boolean.TRUE.equals(entry.getStateful())) {
+      warnings.redFlagf(
+          "Stateful filtering specified in contract %s filter %s entry %s. Stateful filtering"
+              + " may not be fully supported in ACL conversion.",
+          contractName, filterName, entry.getName());
+    }
+
+    AclLineMatchExpr matchExpr =
+        matchExprs.build().isEmpty()
+            ? AclLineMatchExprs.TRUE
+            : AclLineMatchExprs.and(matchExprs.build());
+
+    String entryName = entry.getName() != null ? entry.getName() : "unnamed";
+    ExprAclLine line =
+        new ExprAclLine(
+            action,
+            matchExpr,
+            String.format("Contract %s filter %s entry %s", contractName, filterName, entryName));
 
     lines.add(line);
     return lines.build();
@@ -1829,6 +2006,104 @@ public final class AciConversion {
   }
 
   /**
+   * Converts an ACI etherType string to a match expression.
+   *
+   * <p>This overload is for filter entries which use entry names instead of filter objects.
+   *
+   * @param etherType The etherType string (e.g., "arp", "ip", "0x0806")
+   * @param contractName The contract name for warnings
+   * @param entryName The entry name for warnings
+   * @param warnings Warnings container
+   * @return A match expression for the etherType, or null if not applicable
+   */
+  private static @Nullable AclLineMatchExpr toEtherType(
+      String etherType, String contractName, String entryName, Warnings warnings) {
+    String et = etherType.toLowerCase().trim();
+
+    // Handle hex format (0x prefix or just hex digits)
+    int etherTypeValue;
+    if (et.startsWith("0x") || et.startsWith("0X")) {
+      try {
+        etherTypeValue = Integer.parseInt(et.substring(2), 16);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid etherType in contract %s entry %s: %s", contractName, entryName, etherType);
+        return null;
+      }
+    } else if (et.matches("[0-9a-f]+")) {
+      try {
+        etherTypeValue = Integer.parseInt(et, 16);
+      } catch (NumberFormatException e) {
+        warnings.redFlagf(
+            "Invalid etherType in contract %s entry %s: %s", contractName, entryName, etherType);
+        return null;
+      }
+    } else {
+      // Handle named etherTypes
+      switch (et) {
+        case "arp":
+          etherTypeValue = 0x0806;
+          break;
+        case "ipv4":
+        case "ip":
+          etherTypeValue = 0x0800;
+          return null; // IP is the default, no special matching needed
+        case "trill":
+          etherTypeValue = 0x22F3;
+          break;
+        case "macsec":
+          etherTypeValue = 0x88E5;
+          break;
+        case "fcoe":
+          etherTypeValue = 0x8906;
+          break;
+        case "lldp":
+          etherTypeValue = 0x88CC;
+          break;
+        case "mpls":
+        case "mpls-unicast":
+          etherTypeValue = 0x8847;
+          break;
+        default:
+          warnings.redFlagf(
+              "Unknown etherType name in contract %s entry %s: %s",
+              contractName, entryName, etherType);
+          return null;
+      }
+    }
+
+    // Match on the etherType
+    switch (etherTypeValue) {
+      case 0x0800: // IPv4
+        return null; // No filtering needed for IPv4 (default)
+      case 0x0806: // ARP
+        // ARP is L2 only, won't match IP traffic
+        warnings.redFlagf(
+            "ARP etherType specified in contract %s entry %s: ARP filtering has limited effect in"
+                + " IP ACLs",
+            contractName, entryName);
+        return AclLineMatchExprs.FALSE;
+      case 0x86DD: // IPv6
+        return AclLineMatchExprs.matchIpProtocol(IpProtocol.IPV6);
+      case 0x8847: // MPLS unicast
+      case 0x8848: // MPLS multicast
+        // MPLS is L2.5 - warn about limited effect
+        warnings.redFlagf(
+            "MPLS etherType specified in contract %s entry %s: MPLS filtering has limited effect"
+                + " in IP ACLs",
+            contractName, entryName);
+        return AclLineMatchExprs.FALSE; // Will not match any IP traffic
+      default:
+        // Other non-IP etherTypes
+        warnings.redFlagf(
+            "Non-IP etherType (0x%04x) specified in contract %s entry %s: This will not match IP"
+                + " traffic",
+            etherTypeValue, contractName, entryName);
+        return AclLineMatchExprs.FALSE;
+    }
+  }
+
+  /**
    * Parses ICMP type and code into a match expression.
    *
    * <p>Supports:
@@ -2025,6 +2300,83 @@ public final class AciConversion {
           warnings.redFlagf(
               "Invalid %s port in contract %s filter %s: %s",
               portType, contractName, filter.getName(), portStr);
+        }
+      }
+    }
+
+    return portSpace.build();
+  }
+
+  /**
+   * Converts a list of port strings to an IntegerSpace.
+   *
+   * <p>This overload is for filter entries which use entry names instead of filter objects.
+   *
+   * @param ports List of port strings (single ports or ranges like "80" or "8080-8090")
+   * @param contractName The contract name for warnings
+   * @param entryName The entry name for warnings
+   * @param isDestination True for destination ports, false for source ports
+   * @param warnings Warnings container
+   * @return An IntegerSpace containing the specified ports
+   */
+  private static @Nonnull IntegerSpace toPortSpace(
+      List<String> ports,
+      String contractName,
+      String entryName,
+      boolean isDestination,
+      Warnings warnings) {
+    IntegerSpace.Builder portSpace = IntegerSpace.builder();
+    String portType = isDestination ? "destination" : "source";
+
+    for (String portStr : ports) {
+      String ps = portStr.trim();
+      if (ps.isEmpty()) {
+        continue;
+      }
+
+      // Check for range syntax (e.g., "8080-8090")
+      if (ps.contains("-")) {
+        String[] parts = ps.split("-", 2);
+        if (parts.length == 2) {
+          try {
+            int start = Integer.parseInt(parts[0].trim());
+            int end = Integer.parseInt(parts[1].trim());
+            if (start < 0 || start > 65535 || end < 0 || end > 65535) {
+              warnings.redFlagf(
+                  "Invalid %s port range in contract %s entry %s: %s (ports must be 0-65535)",
+                  portType, contractName, entryName, portStr);
+            } else if (start > end) {
+              warnings.redFlagf(
+                  "Invalid %s port range in contract %s entry %s: %s (start > end)",
+                  portType, contractName, entryName, portStr);
+            } else {
+              portSpace.including(new SubRange(start, end));
+            }
+          } catch (NumberFormatException e) {
+            warnings.redFlagf(
+                "Invalid %s port range in contract %s entry %s: %s",
+                portType, contractName, entryName, portStr);
+          }
+        } else {
+          warnings.redFlagf(
+              "Invalid %s port range in contract %s entry %s: %s",
+              portType, contractName, entryName, portStr);
+        }
+      } else {
+        // Single port
+        try {
+          int port = Integer.parseInt(ps);
+          if (port < 0 || port > 65535) {
+            warnings.redFlagf(
+                "Invalid %s port in contract %s entry %s: %s (must be 0-65535)",
+                portType, contractName, entryName, portStr);
+          } else {
+            portSpace.including(port);
+          }
+        } catch (NumberFormatException e) {
+          warnings.redFlagf(
+              "Invalid %s port in contract %s entry %s: %s",
+              portType, contractName, entryName, portStr);
         }
       }
     }

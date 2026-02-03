@@ -36568,25 +36568,60 @@
                 "class" : "org.batfish.datamodel.ExprAclLine",
                 "action" : "PERMIT",
                 "matchCondition" : {
-                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "22"
+                    }
+                  ]
                 },
-                "name" : "Contract tenant1:mgmt-contract filter tcp-ssh-filter"
+                "name" : "Contract tenant1:mgmt-contract filter tcp-ssh-filter entry ssh"
               },
               {
                 "class" : "org.batfish.datamodel.ExprAclLine",
                 "action" : "PERMIT",
                 "matchCondition" : {
-                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "UDP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "53"
+                    }
+                  ]
                 },
-                "name" : "Contract tenant1:mgmt-contract filter udp-dns-filter"
+                "name" : "Contract tenant1:mgmt-contract filter udp-dns-filter entry dns"
               },
               {
                 "class" : "org.batfish.datamodel.ExprAclLine",
                 "action" : "PERMIT",
                 "matchCondition" : {
-                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "ICMP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                      "headerSpace" : {
+                        "icmpTypes" : [
+                          "8-8"
+                        ],
+                        "negate" : false
+                      }
+                    }
+                  ]
                 },
-                "name" : "Contract tenant1:mgmt-contract filter icmp-echo-filter"
+                "name" : "Contract tenant1:mgmt-contract filter icmp-echo-filter entry icmp-echo"
               },
               {
                 "class" : "org.batfish.datamodel.ExprAclLine",
@@ -36605,17 +36640,37 @@
                 "class" : "org.batfish.datamodel.ExprAclLine",
                 "action" : "PERMIT",
                 "matchCondition" : {
-                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "80"
+                    }
+                  ]
                 },
-                "name" : "Contract tenant1:web-contract filter tcp-http-filter"
+                "name" : "Contract tenant1:web-contract filter tcp-http-filter entry http"
               },
               {
                 "class" : "org.batfish.datamodel.ExprAclLine",
                 "action" : "PERMIT",
                 "matchCondition" : {
-                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "443"
+                    }
+                  ]
                 },
-                "name" : "Contract tenant1:web-contract filter tcp-https-filter"
+                "name" : "Contract tenant1:web-contract filter tcp-https-filter entry https"
               },
               {
                 "class" : "org.batfish.datamodel.ExprAclLine",
