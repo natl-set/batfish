@@ -1272,8 +1272,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return An immutable map of L2Out names to L2Out configurations
    */
-  @Nonnull
-  public Map<String, L2Out> getL2Outs() {
+  public @Nonnull Map<String, L2Out> getL2Outs() {
     return _l2Outs;
   }
 
