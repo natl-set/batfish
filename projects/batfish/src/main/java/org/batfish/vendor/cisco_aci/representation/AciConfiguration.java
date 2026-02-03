@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -71,6 +72,7 @@ public final class AciConfiguration extends VendorConfiguration {
   private static final String PROP_CONTRACTS = "contracts";
   private static final String PROP_FABRIC_NODES = "fabricNodes";
   private static final String PROP_L3_OUTS = "l3Outs";
+  private static final String PROP_L2_OUTS = "l2Outs";
 
   /**
    * Creates an {@link AciConfiguration} from JSON text.
@@ -104,7 +106,7 @@ public final class AciConfiguration extends VendorConfiguration {
     aciConfiguration.setFilename(filename);
 
     // Extract hostname from polUni attributes or use default
-    String hostname = extractHostname(polUni);
+    String hostname = extractHostname(polUni, filename);
     aciConfiguration.setHostname(hostname);
 
     // Parse all elements from the nested structure
@@ -142,7 +144,7 @@ public final class AciConfiguration extends VendorConfiguration {
     aciConfiguration.setFilename(filename);
 
     // Extract hostname from polUni attributes or use default
-    String hostname = extractHostname(polUni);
+    String hostname = extractHostname(polUni, filename);
     aciConfiguration.setHostname(hostname);
 
     // Parse all elements from the nested structure
@@ -191,12 +193,19 @@ public final class AciConfiguration extends VendorConfiguration {
     }
   }
 
-  /** Extracts a hostname from the polUni structure. Uses a default if not found. */
-  private static String extractHostname(AciPolUniInternal polUni) {
+  /** Extracts a hostname from the polUni structure. Uses filename-derived name if not found. */
+  private static String extractHostname(AciPolUniInternal polUni, String filename) {
     if (polUni.getAttributes() != null && polUni.getAttributes().getName() != null) {
       return polUni.getAttributes().getName();
     }
-    return "aci-fabric";
+    // Use filename to generate a deterministic hostname
+    // Extract base name without extension and path
+    String basename = filename.substring(filename.lastIndexOf('/') + 1);
+    if (basename.contains(".")) {
+      basename = basename.substring(0, basename.lastIndexOf('.'));
+    }
+    // Use a unique prefix that won't conflict with "aci-fabric"
+    return "aci-" + basename;
   }
 
   private String _hostname;
@@ -222,6 +231,9 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of L3Out names to L3Out configurations */
   private Map<String, L3Out> _l3Outs;
 
+  /** Map of L2Out names to L2Out configurations */
+  private Map<String, L2Out> _l2Outs;
+
   /** The vendor format for this configuration */
   private ConfigurationFormat _vendor;
 
@@ -233,6 +245,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _contracts = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
     _l3Outs = new TreeMap<>();
+    _l2Outs = new TreeMap<>();
   }
 
   /**
@@ -376,11 +389,30 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> contractMap = (Map<String, Object>) childMap.get("vzBrCP");
           parseContractFromMap(contractMap, tenantName, warnings);
         }
+        // Check for l2extOut (L2 Outside - bridged external connectivity)
+        else if (childMap.containsKey("l2extOut")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> l2outMap = (Map<String, Object>) childMap.get("l2extOut");
+          parseL2OutFromMap(l2outMap, tenantName, warnings);
+        }
         // Check for fvAEPg directly under tenant (uncommon but possible)
         else if (childMap.containsKey("fvAEPg")) {
           @SuppressWarnings("unchecked")
           Map<String, Object> epgMap = (Map<String, Object>) childMap.get("fvAEPg");
           parseEpgFromMap(epgMap, tenantName, null, warnings);
+        }
+        // Log warning for unrecognized tenant child types
+        else {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childAttrs = (Map<String, Object>) childMap.get("attributes");
+          if (childAttrs != null) {
+            String name = (String) childAttrs.get("name");
+            String unknownType = childMap.keySet().iterator().next();
+            warnings.redFlagf(
+                "Skipping unsupported tenant child object: %s (name: %s) in tenant %s. This"
+                    + " configuration will not be analyzed.",
+                unknownType, name, tenantName);
+          }
         }
       }
     }
@@ -625,6 +657,51 @@ public final class AciConfiguration extends VendorConfiguration {
     tenant.getContracts().put(fqContractName, contract);
   }
 
+  /** Parses an L2Out (Layer 2 Outside) from a raw map structure. */
+  private void parseL2OutFromMap(
+      Map<String, Object> l2outMap, String tenantName, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) l2outMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+
+    String l2outName = (String) attrs.get("name");
+    if (l2outName == null || l2outName.isEmpty()) {
+      return;
+    }
+
+    // Create L2Out with fully qualified name
+    String fqL2OutName = tenantName + ":" + l2outName;
+    L2Out l2out = new L2Out(l2outName);
+    l2out.setTenant(tenantName);
+    l2out.setDescription((String) attrs.get("descr"));
+
+    // Parse children for bridge domain references
+    if (l2outMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) l2outMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+          // Look for l2extRsEBd (relation to external bridge domain)
+          if (childMap.containsKey("l2extRsEBd")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsMap = (Map<String, Object>) childMap.get("l2extRsEBd");
+            Map<String, Object> rsAttrs = (Map<String, Object>) rsMap.get("attributes");
+            if (rsAttrs != null) {
+              l2out.setBridgeDomain((String) rsAttrs.get("tnFvBDName"));
+              l2out.setEncapsulation((String) rsAttrs.get("encap"));
+            }
+          }
+        }
+      }
+    }
+
+    _l2Outs.put(fqL2OutName, l2out);
+  }
+
   /** Parses a contract subject from a raw map structure. */
   private void parseContractSubjectFromMap(
       Map<String, Object> subjMap, Contract contract, Warnings warnings) {
@@ -788,6 +865,21 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Returns the map of L2Out names to L2Out configurations.
+   *
+   * @return An immutable map of L2Out names to L2Out configurations
+   */
+  @Nonnull
+  public Map<String, L2Out> getL2Outs() {
+    return _l2Outs;
+  }
+
+  @JsonProperty(PROP_L2_OUTS)
+  public void setL2Outs(Map<String, L2Out> l2Outs) {
+    _l2Outs = new TreeMap<>(l2Outs);
+  }
+
+  /**
    * Gets or creates a tenant with the given name.
    *
    * @param name The tenant name
@@ -899,7 +991,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A tenant is a logical container for application policies in ACI. It contains bridge domains,
    * VRFs, EPGs, and contracts.
    */
-  public static class Tenant {
+  public static class Tenant implements Serializable {
     private final String _name;
     private Map<String, BridgeDomain> _bridgeDomains;
     private Map<String, AciVrfModel> _vrfs;
@@ -957,7 +1049,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A bridge domain is a Layer 2 forwarding domain within a tenant. It contains subnets and can
    * be associated with a VRF.
    */
-  public static class BridgeDomain {
+  public static class BridgeDomain implements Serializable {
     private final String _name;
     private String _vrf;
     private String _tenant;
@@ -1012,7 +1104,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>An EPG is a collection of endpoints that share similar policy requirements. EPGs are the
    * fundamental building blocks for ACI policy application.
    */
-  public static class Epg {
+  public static class Epg implements Serializable {
     private final String _name;
     private String _tenant;
     private String _bridgeDomain;
@@ -1077,7 +1169,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A contract defines the allowed communication between EPGs. It contains subjects and filters
    * that specify the protocols and ports for communication.
    */
-  public static class Contract {
+  public static class Contract implements Serializable {
     private final String _name;
     private String _tenant;
     private String _description;
@@ -1126,7 +1218,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** A contract subject contains filters that define specific traffic rules. */
-    public static class Subject {
+    public static class Subject implements Serializable {
       private String _name;
       private List<Filter> _filters;
 
@@ -1152,7 +1244,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** A contract filter defines specific traffic matching criteria (protocols, ports). */
-    public static class Filter {
+    public static class Filter implements Serializable {
       private String _name;
       private String _etherType;
       private String _ipProtocol;
@@ -1266,7 +1358,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A fabric node represents a physical or virtual switch in the ACI fabric. It contains
    * interface and connectivity information.
    */
-  public static class FabricNode {
+  public static class FabricNode implements Serializable {
     private String _nodeId;
     private String _name;
     private String _role;
@@ -1318,7 +1410,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Interface configuration on a fabric node. */
-    public static class Interface {
+    public static class Interface implements Serializable {
       private String _name;
       private String _type;
       private String _description;
@@ -1398,7 +1490,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * AciPolUni} uses AciChild for a more generic structure.
    */
   @JsonDeserialize(using = AciPolUniDeserializer.class)
-  public static class AciPolUniInternal {
+  public static class AciPolUniInternal implements Serializable {
     private AciPolUniInternalAttributes _attributes;
     private List<PolUniChild> _children;
 
@@ -1419,7 +1511,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of the polUni root element. */
-    public static class AciPolUniInternalAttributes {
+    public static class AciPolUniInternalAttributes implements Serializable {
       @JsonProperty("annotation")
       private @Nullable String _annotation;
 
@@ -1445,7 +1537,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements at the polUni level. */
-    public static class PolUniChild {
+    public static class PolUniChild implements Serializable {
       private @Nullable AciTenant _fvTenant;
 
       private @Nullable AciFabricInst _fabricInst;
@@ -1476,7 +1568,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * Custom deserializer for AciPolUniInternal that handles the heterogenous children array
    * structure.
    */
-  public static class AciPolUniDeserializer extends JsonDeserializer<AciPolUniInternal> {
+  public static class AciPolUniDeserializer extends JsonDeserializer<AciPolUniInternal>
+      implements Serializable {
     @Override
     public AciPolUniInternal deserialize(JsonParser p, DeserializationContext ctxt)
         throws IOException {
@@ -1698,7 +1791,7 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricInst element containing fabric-wide configuration. */
-  public static class AciFabricInst {
+  public static class AciFabricInst implements Serializable {
     private AciFabricInstAttributes _attributes;
     private List<FabricInstChild> _children;
 
@@ -1719,7 +1812,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of fabricInst. */
-    public static class AciFabricInstAttributes {
+    public static class AciFabricInstAttributes implements Serializable {
       private @Nullable String _distinguishedName;
 
       private @Nullable String _name;
@@ -1746,7 +1839,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of fabricInst. */
-    public static class FabricInstChild {
+    public static class FabricInstChild implements Serializable {
       private @Nullable AciFabricProtPol _fabricProtPol;
 
       @JsonProperty("fabricProtPol")
@@ -1762,7 +1855,7 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricProtPol element containing fabric protection policies. */
-  public static class AciFabricProtPol {
+  public static class AciFabricProtPol implements Serializable {
     private List<FabricProtPolChild> _children;
 
     public @Nullable List<FabricProtPolChild> getChildren() {
@@ -1774,7 +1867,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of fabricProtPol. */
-    public static class FabricProtPolChild {
+    public static class FabricProtPolChild implements Serializable {
       private @Nullable AciFabricExplicitGEp _fabricExplicitGEp;
 
       @JsonProperty("fabricExplicitGEp")
@@ -1790,7 +1883,7 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricExplicitGEp element containing explicit fabric endpoints. */
-  public static class AciFabricExplicitGEp {
+  public static class AciFabricExplicitGEp implements Serializable {
     private List<FabricExplicitGEpChild> _children;
 
     public @Nullable List<FabricExplicitGEpChild> getChildren() {
@@ -1802,7 +1895,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of fabricExplicitGEp. */
-    public static class FabricExplicitGEpChild {
+    public static class FabricExplicitGEpChild implements Serializable {
       private @Nullable AciFabricNodePEp _fabricNodePEp;
 
       @JsonProperty("fabricNodePEp")
@@ -1818,7 +1911,7 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents a fabric node endpoint (fabricNodePEp). */
-  public static class AciFabricNodePEp {
+  public static class AciFabricNodePEp implements Serializable {
     private AciFabricNodePEpAttributes _attributes;
 
     public @Nullable AciFabricNodePEpAttributes getAttributes() {
@@ -1830,7 +1923,7 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of a fabric node. */
-    public static class AciFabricNodePEpAttributes {
+    public static class AciFabricNodePEpAttributes implements Serializable {
       private @Nullable String _annotation;
       private @Nullable String _description;
       private @Nullable String _distinguishedName;
@@ -1934,12 +2027,66 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * ACI L2Out (Layer 2 Outside) configuration.
+   *
+   * <p>An L2Out defines Layer 2 external connectivity through a bridge domain, using encapsulation
+   * like VLAN or VXLAN rather than IP routing.
+   */
+  public static class L2Out implements Serializable {
+    private final String _name;
+    private String _tenant;
+    private String _description;
+    private String _bridgeDomain;
+    private String _encapsulation;
+
+    public L2Out(String name) {
+      _name = name;
+    }
+
+    public String getName() {
+      return _name;
+    }
+
+    public @Nullable String getTenant() {
+      return _tenant;
+    }
+
+    public void setTenant(String tenant) {
+      _tenant = tenant;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+
+    public @Nullable String getBridgeDomain() {
+      return _bridgeDomain;
+    }
+
+    public void setBridgeDomain(String bridgeDomain) {
+      _bridgeDomain = bridgeDomain;
+    }
+
+    public @Nullable String getEncapsulation() {
+      return _encapsulation;
+    }
+
+    public void setEncapsulation(String encapsulation) {
+      _encapsulation = encapsulation;
+    }
+  }
+
+  /**
    * ACI L3Out (Layer 3 Outside) configuration.
    *
    * <p>An L3Out defines external connectivity for a tenant, including BGP peering, static routes,
    * OSPF configuration, and external EPGs (L3ExtEpg).
    */
-  public static class L3Out {
+  public static class L3Out implements Serializable {
     private final String _name;
     private String _tenant;
     private String _vrf;
@@ -2032,7 +2179,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines BGP process-level settings for an L3Out including AS number, router ID,
    * administrative distances, and BGP timers.
    */
-  public static class BgpProcess {
+  public static class BgpProcess implements Serializable {
     private Long _as;
     private String _routerId;
     private Integer _ebgpAdminCost;
@@ -2104,7 +2251,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines a BGP peer within an L3Out including peer address, AS numbers, policies, and route
    * target (route-map) configurations.
    */
-  public static class BgpPeer {
+  public static class BgpPeer implements Serializable {
     private String _peerAddress;
     private String _remoteAs;
     private String _localAs;
@@ -2292,7 +2439,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines a static route within an L3Out including prefix, next hop, and associated
    * parameters.
    */
-  public static class StaticRoute {
+  public static class StaticRoute implements Serializable {
     private String _prefix;
     private String _nextHop;
     private String _nextHopInterface;
@@ -2354,7 +2501,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Defines OSPF process settings and areas for an L3Out.
    */
-  public static class OspfConfig {
+  public static class OspfConfig implements Serializable {
     private String _processId;
     private Map<String, OspfArea> _areas;
 
@@ -2384,7 +2531,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Defines an OSPF area within an L3Out OSPF configuration.
    */
-  public static class OspfArea {
+  public static class OspfArea implements Serializable {
     private String _areaId;
     private List<String> _networks;
     private String _areaType;
@@ -2424,7 +2571,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines an external endpoint group for external connectivity, including subnets and
    * associated interfaces.
    */
-  public static class ExternalEpg {
+  public static class ExternalEpg implements Serializable {
     private final String _name;
     private List<String> _subnets;
     private String _nextHop;

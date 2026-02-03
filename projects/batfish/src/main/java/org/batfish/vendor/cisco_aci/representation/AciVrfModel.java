@@ -1,5 +1,6 @@
 package org.batfish.vendor.cisco_aci.representation;
 
+import java.io.Serializable;
 import javax.annotation.Nullable;
 
 /**
@@ -8,7 +9,7 @@ import javax.annotation.Nullable;
  * <p>A VRF (Virtual Routing and Forwarding) instance provides Layer 3 routing isolation within a
  * tenant.
  */
-public class AciVrfModel {
+public class AciVrfModel implements Serializable {
   private final String _name;
   private @Nullable String _tenant;
   private @Nullable String _description;

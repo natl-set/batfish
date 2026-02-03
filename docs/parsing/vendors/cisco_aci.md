@@ -12,9 +12,9 @@ Cisco ACI configurations have several unique characteristics that distinguish th
 4. **Fabric-Wide Configuration**: A single configuration applies to the entire fabric (spines and leaves)
 5. **Dynamic Typing**: Children objects use heterogeneous keys (e.g., `fvTenant`, `fvCtx`, `vzBrCP`)
 
-## Unique: Jackson-Based Parsing (No ANTLR4)
+## Jackson-Based Parsing (No ANTLR4)
 
-**Cisco ACI is unique among Batfish vendor implementations** - it does NOT use ANTLR4 grammars for parsing. Instead, ACI uses Jackson JSON/XML parsing via `BatfishObjectMapper`.
+Cisco ACI uses Jackson JSON/XML parsing via `BatfishObjectMapper` rather than ANTLR4 grammars for parsing. This approach is **shared with other cloud/SDN vendors** in Batfish, not unique to ACI.
 
 ### Why Jackson Instead of ANTLR4?
 
@@ -23,17 +23,36 @@ ACI configurations are exported from the APIC (Application Policy Infrastructure
 - Do not require line-by-line CLI parsing
 - Are more naturally handled by a tree-based JSON/XML parser
 
-All other Batfish vendor implementations (Cisco NX-OS, IOS-XR, Juniper, Arista, etc.) use ANTLR4 to parse CLI configurations. ACI is the exception.
+### Similar Approaches in Other Vendors
 
-### Comparison with ANTLR4-Based Vendors
+**Cloud/SDN vendors** that use Jackson-based parsing (like ACI):
+- **AWS**: JSON configuration exports parsed with Jackson (`BatfishObjectMapper`)
+- **Azure**: JSON configuration exports parsed with Jackson (`BatfishObjectMapper`)
+- **Sonic**: JSON (`config_db.json`) and YAML (`snmp.yml`) parsed with Jackson, plus ANTLR4 for FRR routing configuration
 
-| Aspect | ANTLR4 Vendors (NX-OS, IOS-XR, etc.) | Cisco ACI |
-|--------|--------------------------------------|-----------|
-| Input Format | CLI commands (text) | JSON/XML exports |
+**Traditional network vendors** use ANTLR4 CLI parsing:
+- Cisco NX-OS, IOS-XR, Juniper, Arista, etc.
+
+### Comparison Table
+
+| Aspect | ANTLR4 Vendors (NX-OS, IOS-XR, etc.) | Jackson Vendors (ACI, AWS, Azure, Sonic) |
+|--------|--------------------------------------|------------------------------------------|
+| Input Format | CLI commands (text) | JSON/XML/YAML exports |
 | Parser | ANTLR4 grammar files | Jackson (BatfishObjectMapper) |
-| Grammar Files | `*.g4` files (Lexer, Parser) | None |
+| Grammar Files | `*.g4` files (Lexer, Parser) | None (for config parsing) |
 | Configuration Model | Line-based, hierarchical CLI blocks | Object tree with attributes/children |
 | Extraction | Parse tree listeners | Jackson deserialization |
+| Examples | Cisco NX-OS, Juniper, Arista | Cisco ACI, AWS, Azure, Sonic |
+
+### Entry Point Comparison
+
+| Vendor | Entry Point Method | File Types |
+|--------|-------------------|------------|
+| **Cisco ACI** | `AciConfiguration.fromJson/fromXml/fromFile()` | JSON, XML |
+| **AWS** | `AwsConfiguration.addConfigElement(JsonNode)` | JSON |
+| **Azure** | `AzureConfiguration.addConfigElement(JsonNode)` | JSON |
+| **Sonic** | `SonicControlPlaneExtractor.processNonFrrFiles()` | JSON (config_db), YAML (snmp.yml) |
+| **Traditional** | ControlPlaneExtractor with ANTLR4 | CLI text |
 
 ## ACI JSON Structure
 
@@ -474,3 +493,21 @@ The following features are partially implemented or not yet supported:
 - [Parsing Documentation](../README.md)
 - [Implementation Guide](../implementation_guide.md)
 - [ACI README](../../../projects/batfish/src/main/java/org/batfish/vendor/cisco_aci/README.md)
+
+### Related Vendor Implementations
+
+For comparison with other Jackson-based parsing implementations:
+
+- **AWS**: `/projects/batfish/src/main/java/org/batfish/representation/aws/`
+  - Entry point: `AwsConfiguration.java`
+  - Uses `BatfishObjectMapper.mapper().convertValue()` for JSON deserialization
+
+- **Azure**: `/projects/batfish/src/main/java/org/batfish/representation/azure/`
+  - Entry point: `AzureConfiguration.java`
+  - Uses `BatfishObjectMapper` for JSON deserialization
+
+- **Sonic**: `/projects/batfish/src/main/java/org/batfish/vendor/sonic/`
+  - Entry point: `SonicControlPlaneExtractor.java`
+  - Uses `BatfishObjectMapper` for `ConfigDb` JSON deserialization
+  - Uses `ObjectMapper(new YAMLFactory())` for YAML files
+  - Also uses ANTLR4 for FRR routing daemon CLI configs (`frr.conf`)
