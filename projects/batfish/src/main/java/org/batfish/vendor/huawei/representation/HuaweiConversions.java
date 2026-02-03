@@ -399,71 +399,12 @@ public class HuaweiConversions {
         .setNetworkNextHopIpTieBreaker(HIGHEST_NEXT_HOP_IP)
         .setRedistributeNextHopIpTieBreaker(HIGHEST_NEXT_HOP_IP);
 
-    // Build and set BGP process
+    // Build BGP process first (network origination and active neighbors are added after)
     BgpProcess bgpProcess = bgpBuilder.build();
     vrf.setBgpProcess(bgpProcess);
 
-    // Convert BGP neighbors/peers
-    // Note: HuaweiBgpProcess already stores neighbors as BgpPeerConfig objects
-    // We need to convert them to BgpActivePeerConfig
-    huaweiBgp
-        .getNeighbors()
-        .forEach(
-            (peerIp, peerConfig) -> {
-              // If it's already an active peer config, use it directly
-              if (peerConfig instanceof BgpActivePeerConfig) {
-                bgpProcess.getActiveNeighbors().put(peerIp, (BgpActivePeerConfig) peerConfig);
-              } else {
-                // Otherwise create a new active peer config
-                BgpActivePeerConfig.Builder builder = BgpActivePeerConfig.builder();
-                builder.setPeerAddress(peerIp);
-                // Additional peer settings would be copied here if the peerConfig has them
-                bgpProcess.getActiveNeighbors().put(peerIp, builder.build());
-              }
-            });
-
-    // Apply peer group settings to member peers
-    // Peers are already assigned to groups during extraction (peer X.X.X.X group GROUP_NAME)
-    // Now apply group properties to those peers
-    for (Map.Entry<Ip, BgpPeerConfig> entry : huaweiBgp.getNeighbors().entrySet()) {
-      if (entry.getValue() instanceof BgpActivePeerConfig) {
-        BgpActivePeerConfig peer = (BgpActivePeerConfig) entry.getValue();
-        String groupName = peer.getGroup();
-        if (groupName != null) {
-          HuaweiBgpProcess.HuaweiBgpPeerGroup group = huaweiBgp.getPeerGroups().get(groupName);
-          if (group != null) {
-            // Apply peer group settings to the peer
-            // Only apply if not already set on the peer (peer-specific config overrides group
-            // config)
-
-            // Apply remote AS from group if peer doesn't have one
-            if (peer.getRemoteAsns() == null || peer.getRemoteAsns().isEmpty()) {
-              if (group.getRemoteAs() != null) {
-                BgpActivePeerConfig.Builder newPeerBuilder =
-                    BgpActivePeerConfig.builder()
-                        .setPeerAddress(peer.getPeerAddress())
-                        .setRemoteAsns(LongSpace.of(group.getRemoteAs()))
-                        .setGroup(peer.getGroup());
-                peer = newPeerBuilder.build();
-                bgpProcess.getActiveNeighbors().put(entry.getKey(), peer);
-              }
-            }
-
-            // Note: Route policies from peer groups are not yet applied
-            // Route policy conversion would need to be implemented first
-            // The following group settings are tracked but not applied:
-            // - routePolicyIn, routePolicyOut (need route policy conversion)
-            // - password (needs authentication settings)
-            // - localAs (supported but not applied from group)
-            // - routeReflectorClient, clusterId (route reflector settings)
-          }
-        }
-      }
-    }
-
-    // Convert network announcements
+    // Convert network announcements to origination space
     // Network announcements are configured with the "network" command in BGP view
-    // They are added to the origination space of the BGP process
     for (HuaweiBgpProcess.HuaweiBgpNetwork network : huaweiBgp.getNetworks()) {
       Prefix prefix = network.getNetwork();
       if (prefix != null) {
@@ -471,6 +412,55 @@ public class HuaweiConversions {
       }
       // Note: Route policy for network is tracked but not yet applied
       // This would require converting route policies to Batfish format first
+    }
+
+    // Convert BGP neighbors/peers and add to active neighbors
+    // Note: HuaweiBgpProcess already stores neighbors as BgpPeerConfig objects
+    // We need to convert them to BgpActivePeerConfig
+    for (Map.Entry<Ip, BgpPeerConfig> entry : huaweiBgp.getNeighbors().entrySet()) {
+      Ip peerIp = entry.getKey();
+      BgpPeerConfig peerConfig = entry.getValue();
+
+      BgpActivePeerConfig activePeerConfig;
+      if (peerConfig instanceof BgpActivePeerConfig) {
+        activePeerConfig = (BgpActivePeerConfig) peerConfig;
+      } else {
+        // Otherwise create a new active peer config
+        BgpActivePeerConfig.Builder builder = BgpActivePeerConfig.builder();
+        builder.setPeerAddress(peerIp);
+        activePeerConfig = builder.build();
+      }
+
+      // Apply peer group settings to member peers
+      // Peers are already assigned to groups during extraction (peer X.X.X.X group GROUP_NAME)
+      String groupName = activePeerConfig.getGroup();
+      if (groupName != null) {
+        HuaweiBgpProcess.HuaweiBgpPeerGroup group = huaweiBgp.getPeerGroups().get(groupName);
+        if (group != null) {
+          // Apply remote AS from group if peer doesn't have one
+          if (activePeerConfig.getRemoteAsns() == null
+              || activePeerConfig.getRemoteAsns().isEmpty()) {
+            if (group.getRemoteAs() != null) {
+              BgpActivePeerConfig.Builder newPeerBuilder =
+                  BgpActivePeerConfig.builder()
+                      .setPeerAddress(activePeerConfig.getPeerAddress())
+                      .setRemoteAsns(LongSpace.of(group.getRemoteAs()))
+                      .setGroup(activePeerConfig.getGroup());
+              activePeerConfig = newPeerBuilder.build();
+            }
+          }
+
+          // Note: Route policies from peer groups are not yet applied
+          // Route policy conversion would need to be implemented first
+          // The following group settings are tracked but not applied:
+          // - routePolicyIn, routePolicyOut (need route policy conversion)
+          // - password (needs authentication settings)
+          // - localAs (supported but not applied from group)
+          // - routeReflectorClient, clusterId (route reflector settings)
+        }
+      }
+
+      bgpProcess.getActiveNeighbors().put(peerIp, activePeerConfig);
     }
 
     // TODO: Convert address families
@@ -483,6 +473,7 @@ public class HuaweiConversions {
     // TODO: Convert route maps and policies
     // Route policy names are extracted in some contexts but full conversion is not implemented
     // This is tracked in the parsing documentation as state 3 (in grammar, not implemented)
+    // Including main rib independent network policy conversion
   }
 
   /**
