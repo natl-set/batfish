@@ -327,8 +327,22 @@ public final class AciConversion {
                 .setHumanName(ifaceName)
                 .setDeclaredNames(ImmutableList.of(ifaceName));
 
+        // Build description from existing description and fabric interface status
+        StringBuilder description = new StringBuilder();
         if (fvIface.getDescription() != null) {
-          ifaceBuilder.setDescription(fvIface.getDescription());
+          description.append(fvIface.getDescription());
+        }
+
+        // Mark fabric interfaces
+        if (isFabricInterface(ifaceName, node.getRole())) {
+          if (description.length() > 0) {
+            description.append(" | ");
+          }
+          description.append("Fabric interface (IS-IS/Overlay)");
+        }
+
+        if (description.length() > 0) {
+          ifaceBuilder.setDescription(description.toString());
         }
 
         Interface iface = ifaceBuilder.build();
@@ -336,20 +350,143 @@ public final class AciConversion {
       }
     }
 
-    // Add loopback interface if not present
+    // Also add interfaces discovered from path attachments (fvRsPathAtt)
+    String nodeId = node.getNodeId();
+    if (nodeId != null && aciConfig.getNodeInterfaces() != null) {
+      List<String> pathAttachmentInterfaces = aciConfig.getNodeInterfaces().get(nodeId);
+      if (pathAttachmentInterfaces != null) {
+        for (String ifaceName : pathAttachmentInterfaces) {
+          // Only add if not already present
+          if (!interfaces.containsKey(ifaceName)) {
+            Interface.Builder ifaceBuilder =
+                Interface.builder()
+                    .setName(ifaceName)
+                    .setType(InterfaceType.PHYSICAL)
+                    .setOwner(c)
+                    .setVrf(vrf)
+                    .setAdminUp(true)
+                    .setMtu(DEFAULT_MTU)
+                    .setHumanName(ifaceName)
+                    .setDeclaredNames(ImmutableList.of(ifaceName));
+
+            // Add description from path attachment if available
+            boolean hasDescription = false;
+            StringBuilder description = new StringBuilder();
+
+            if (aciConfig.getPathAttachmentMap() != null) {
+              Map<String, AciConfiguration.PathAttachment> nodeAttachments =
+                  aciConfig.getPathAttachmentMap().get(nodeId);
+              if (nodeAttachments != null) {
+                AciConfiguration.PathAttachment attachment = nodeAttachments.get(ifaceName);
+                if (attachment != null) {
+                  if (attachment.getDescription() != null) {
+                    description.append(attachment.getDescription());
+                    hasDescription = true;
+                  }
+                  // Add EPG information
+                  if (attachment.getEpgName() != null) {
+                    if (hasDescription) {
+                      description.append(" | ");
+                    }
+                    description
+                        .append("EPG: ")
+                        .append(attachment.getEpgTenant())
+                        .append(":")
+                        .append(attachment.getEpgName());
+                    hasDescription = true;
+                  }
+                  // Add VLAN information
+                  if (attachment.getEncap() != null) {
+                    if (hasDescription) {
+                      description.append(" | ");
+                    }
+                    description.append("VLAN: ").append(attachment.getEncap());
+                    hasDescription = true;
+                  }
+                }
+              }
+            }
+
+            // Mark fabric interfaces
+            if (isFabricInterface(ifaceName, node.getRole())) {
+              if (hasDescription) {
+                description.append(" | ");
+              }
+              description.append("Fabric interface (IS-IS/Overlay)");
+            }
+
+            if (hasDescription) {
+              ifaceBuilder.setDescription(description.toString());
+            }
+
+            Interface iface = ifaceBuilder.build();
+            interfaces.put(ifaceName, iface);
+          }
+        }
+      }
+    }
+
+    // Add loopback interface if not present (this is the VTEP interface in ACI)
     String loopbackName = "loopback0";
     if (!interfaces.containsKey(loopbackName)) {
-      Interface loopback =
+      Interface.Builder loopbackBuilder =
           Interface.builder()
               .setName(loopbackName)
               .setType(InterfaceType.LOOPBACK)
               .setOwner(c)
               .setVrf(vrf)
               .setAdminUp(true)
-              .setHumanName("Loopback0")
-              .setDeclaredNames(ImmutableList.of(loopbackName))
-              .build();
+              .setHumanName("VTEP Loopback")
+              .setDeclaredNames(ImmutableList.of(loopbackName));
+
+      // Note: VTEP IP is dynamically assigned via DHCP during fabric discovery
+      // and is not stored in the configuration export
+      String role = node.getRole();
+      if ("leaf".equalsIgnoreCase(role) || "spine".equalsIgnoreCase(role)) {
+        loopbackBuilder.setDescription(
+            "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool");
+      }
+
+      Interface loopback = loopbackBuilder.build();
       interfaces.put(loopbackName, loopback);
+    }
+
+    // Add management interface if out-of-band management is configured
+    AciConfiguration.ManagementInfo mgmtInfo = node.getManagementInfo();
+    if (mgmtInfo != null && mgmtInfo.getAddress() != null) {
+      String mgmtIfaceName = "mgmt0";
+      Interface.Builder mgmtBuilder =
+          Interface.builder()
+              .setName(mgmtIfaceName)
+              .setType(InterfaceType.PHYSICAL)
+              .setOwner(c)
+              .setVrf(vrf)
+              .setAdminUp(true)
+              .setHumanName("Management Interface")
+              .setDeclaredNames(ImmutableList.of(mgmtIfaceName));
+
+      // Parse the management IP address
+      // Format: "10.35.1.52/24"
+      String addr = mgmtInfo.getAddress();
+      try {
+        ConcreteInterfaceAddress address = ConcreteInterfaceAddress.parse(addr);
+        mgmtBuilder.setAddress(address);
+
+        // Set description with management info
+        StringBuilder descr = new StringBuilder("Out-of-band management interface");
+        if (mgmtInfo.getGateway() != null) {
+          descr.append(" | Gateway: ").append(mgmtInfo.getGateway());
+        }
+        mgmtBuilder.setDescription(descr.toString());
+
+        // Note: Static route for default gateway would be added to the VRF here
+        // if needed for management traffic routing
+      } catch (Exception e) {
+        warnings.redFlag("Failed to parse management address '" + addr + "': " + e.getMessage());
+      }
+
+      Interface mgmtIface = mgmtBuilder.build();
+      interfaces.put(mgmtIfaceName, mgmtIface);
     }
 
     // If no interfaces were defined, create a basic management interface
@@ -361,6 +498,42 @@ public final class AciConversion {
     }
 
     return interfaces;
+  }
+
+  /**
+   * Determines if an interface is a fabric-facing interface based on naming patterns.
+   *
+   * <p>In ACI, fabric interfaces are used for IS-IS and overlay traffic. Common patterns: -
+   * eth1/53-54: Fabric interfaces on leaf switches (for spine connectivity) - eth1/1-52: Front
+   * panel data ports (for EPGs/endpoints)
+   *
+   * @param ifaceName The interface name to check
+   * @param role The node role (leaf/spine)
+   * @return true if this appears to be a fabric interface
+   */
+  private static boolean isFabricInterface(String ifaceName, String role) {
+    if (ifaceName == null) {
+      return false;
+    }
+
+    // Convert to lowercase for pattern matching
+    String name = ifaceName.toLowerCase();
+
+    // Common fabric interface patterns
+    // On leaf switches: eth1/53-54 typically connect to spines
+    // On spine switches: eth1/1-52 may connect to leaves
+    if (name.matches(".*eth1/(5[3-9]|6[0-9]|[7-9][0-9]).*")) {
+      return true; // High-numbered eth1/X interfaces are typically fabric
+    }
+
+    // Spine switches: more interfaces are fabric-facing
+    if ("spine".equalsIgnoreCase(role)) {
+      if (name.matches(".*eth1/([1-9]|[1-5][0-9]).*")) {
+        return true; // Most interfaces on spines are fabric-facing
+      }
+    }
+
+    return false;
   }
 
   /**

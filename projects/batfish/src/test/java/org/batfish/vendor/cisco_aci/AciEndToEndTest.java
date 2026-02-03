@@ -556,4 +556,77 @@ public class AciEndToEndTest {
     // Real ACI fabric should have at least one node
     assertThat("Should have fabric nodes", aciConfig.getFabricNodes().size(), greaterThan(0));
   }
+
+  /** Test that verifies management IPs are correctly extracted. */
+  @Test
+  public void testManagementIpExtraction() throws IOException {
+    String configText = loadRealAciConfig();
+    Warnings warnings = new Warnings();
+
+    AciConfiguration aciConfig =
+        AciConfiguration.fromJson("real-aci-config.json", configText, warnings);
+
+    int nodesWithMgmt = 0;
+    int nodesWithoutMgmt = 0;
+
+    for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+      AciConfiguration.ManagementInfo mgmtInfo = node.getManagementInfo();
+
+      if (mgmtInfo != null && mgmtInfo.getAddress() != null) {
+        nodesWithMgmt++;
+
+        // Verify management IP structure
+        assertNotNull("Management address should not be null", mgmtInfo.getAddress());
+        assertTrue(
+            "Management address should contain CIDR notation", mgmtInfo.getAddress().contains("/"));
+
+        // Gateway is optional but should be valid if present
+        if (mgmtInfo.getGateway() != null) {
+          assertTrue(
+              "Gateway should be valid IP",
+              mgmtInfo.getGateway().matches("\\d+\\.\\d+\\.\\d+\\.\\d+"));
+        }
+      } else {
+        nodesWithoutMgmt++;
+      }
+    }
+
+    System.out.println("Management IP extraction:");
+    System.out.println("  Nodes with management IPs: " + nodesWithMgmt);
+    System.out.println("  Nodes without management IPs: " + nodesWithoutMgmt);
+    System.out.println("  Total nodes: " + aciConfig.getFabricNodes().size());
+
+    // Real ACI fabrics typically have management IPs configured
+    // We don't assert that all nodes must have management IPs, but we expect at least one
+    if (aciConfig.getFabricNodes().size() > 0) {
+      // Log whether management IPs were found
+      System.out.println(
+          nodesWithMgmt > 0
+              ? "Management IPs found and extracted successfully"
+              : "No management IPs found in this configuration");
+    }
+
+    // If management IPs were found, verify they create management interfaces in conversion
+    if (nodesWithMgmt > 0) {
+      aciConfig.setVendor(ConfigurationFormat.CISCO_ACI);
+      SortedMap<String, Configuration> configs =
+          AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
+
+      int mgmtInterfaces = 0;
+      for (Configuration config : configs.values()) {
+        Interface mgmtIface = config.getAllInterfaces().get("mgmt0");
+        if (mgmtIface != null) {
+          mgmtInterfaces++;
+          assertNotNull("Management interface should have an address", mgmtIface.getAddress());
+          assertTrue("Management interface should be admin up", mgmtIface.getAdminUp());
+        }
+      }
+
+      System.out.println("Management interfaces created: " + mgmtInterfaces);
+      assertThat(
+          "Should create management interfaces for nodes with management IPs",
+          mgmtInterfaces,
+          greaterThan(0));
+    }
+  }
 }
