@@ -37,8 +37,7 @@ public class HuaweiFamily implements Serializable {
    *
    * @return A sorted map of VRF names to VRF data
    */
-  @Nonnull
-  public SortedMap<String, HuaweiVrfData> getVrfs() {
+  public @Nonnull SortedMap<String, HuaweiVrfData> getVrfs() {
     return _vrfs;
   }
 
@@ -57,8 +56,7 @@ public class HuaweiFamily implements Serializable {
    * @param vrfName The VRF name
    * @return The VRF data, or null if not found
    */
-  @Nullable
-  public HuaweiVrfData getVrf(@Nonnull String vrfName) {
+  public @Nullable HuaweiVrfData getVrf(@Nonnull String vrfName) {
     return _vrfs.get(vrfName);
   }
 
