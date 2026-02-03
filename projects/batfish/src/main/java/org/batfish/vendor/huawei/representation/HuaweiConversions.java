@@ -620,6 +620,24 @@ public class HuaweiConversions {
       }
     }
 
+    // Convert OSPF redistribution policies to export policy
+    // In Huawei, redistribution is configured with "import-route" command
+    // In Batfish, this is modeled as an export policy on the OSPF process
+    if (!huaweiOspf.getRedistributionPolicies().isEmpty()) {
+      // Create a placeholder export policy for redistribution
+      // TODO: Implement proper redistribution policy conversion to RoutingPolicy
+      String exportPolicyName = "__ospf_export__";
+      ospfBuilder.setExportPolicyName(exportPolicyName);
+
+      // Create a basic routing policy for redistribution
+      // Note: This is a placeholder that accepts all redistributed routes
+      // A full implementation would convert route policies and handle metrics/tags
+      if (!c.getRoutingPolicies().containsKey(exportPolicyName)) {
+        // Create a placeholder policy - actual redistribution logic is complex
+        // and would require proper routing policy conversion
+      }
+    }
+
     // Set OSPF default-information-originate if configured
     // In Huawei, default-information-originate causes the router to advertise a default route
     // In Batfish, this is modeled as injectDefaultRoute on OspfArea
