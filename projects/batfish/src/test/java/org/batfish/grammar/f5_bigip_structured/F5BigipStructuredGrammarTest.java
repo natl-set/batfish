@@ -3709,4 +3709,53 @@ public final class F5BigipStructuredGrammarTest {
     HaGroupTrunk trunk = haGroup.getTrunks().get("t1");
     assertThat(trunk.getWeight(), equalTo(56));
   }
+
+  @Test
+  public void testKeywordTokensAsValues() throws IOException {
+    String filename = "f5_bigip_structured_keyword_values";
+    String hostname = "f5_bigip_structured_keyword_values";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that keyword tokens can be used as property values without warnings
+    // This verifies the fix for u_word rule that includes: ACTIVE, ALL, ANY,
+    // DISABLED, ENABLED, FALSE, SELF, TRUE
+
+    // Should have parsed without errors and have the config
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+  }
+
+  @Test
+  public void testDescriptionExtractionWithQuotedAndEscaped() throws IOException {
+    String filename = "f5_bigip_structured_keyword_values";
+    String hostname = "f5_bigip_structured_keyword_values";
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Test that descriptions are extracted correctly for:
+    // - Quoted strings
+    // - Unquoted values (including keywords)
+    // - Escaped quotes within quoted strings
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_quoted"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_quoted").getDescription(),
+        equalTo("this is a quoted description"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_escaped_quotes"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_escaped_quotes").getDescription(),
+        equalTo("she said \"hello world\" to the pool"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_disabled"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_disabled").getDescription(), equalTo("disabled"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_mixed"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_mixed").getDescription(),
+        equalTo("pool with disabled status"));
+  }
 }

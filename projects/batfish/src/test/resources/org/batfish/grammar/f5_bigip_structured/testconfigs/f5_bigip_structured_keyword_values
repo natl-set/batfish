@@ -1,0 +1,146 @@
+#TMSH-VERSION: 15.1.10.3
+# Test configuration to verify keyword tokens can be used as values
+# This tests the fix for u_word rule that now includes: ACTIVE, ALL, ANY, DISABLED,
+# ENABLED, FALSE, SELF, TRUE
+
+sys global-settings {
+    console-inactivity-timeout 600
+    gui-setup disabled
+    hostname f5_bigip_structured_keyword_values
+}
+
+# Test SELF keyword as interface name
+net self self {
+    address 10.0.0.1/24
+}
+
+# Test various keywords as values in different contexts
+ltm pool /Common/test_pool_all {
+    description all
+}
+
+ltm pool /Common/test_pool_any {
+    description any
+}
+
+ltm pool /Common/test_pool_auto {
+    description auto
+}
+
+# Test with boolean keywords
+ltm pool /Common/test_pool_true {
+    description true
+}
+
+ltm pool /Common/test_pool_false {
+    description false
+}
+
+# Test with state keywords
+ltm pool /Common/test_pool_enabled {
+    description enabled
+}
+
+ltm pool /Common/test_pool_disabled {
+    description disabled
+}
+
+ltm pool /Common/test_pool_active {
+    description active
+}
+
+# Test action keyword
+ltm pool /Common/test_pool_action {
+    description action
+}
+
+# Test mode keyword
+ltm pool /Common/test_pool_mode {
+    description mode
+}
+
+# Test status keyword
+ltm pool /Common/test_pool_status {
+    description status
+}
+
+# Test state keyword
+ltm pool /Common/test_pool_state {
+    description state
+}
+
+# Test type keyword
+ltm pool /Common/test_pool_type {
+    description type
+}
+
+# Test protocol keyword
+ltm pool /Common/test_pool_protocol {
+    description protocol
+}
+
+# Test address keyword
+ltm pool /Common/test_pool_address {
+    description address
+}
+
+# Test description keyword (meta - using description as value for description)
+ltm pool /Common/test_pool_description {
+    description description
+}
+
+# Test destination keyword
+ltm pool /Common/test_pool_destination {
+    description destination
+}
+
+# Test host keyword
+ltm pool /Common/test_pool_host {
+    description host
+}
+
+# Test key keyword
+ltm pool /Common/test_pool_key {
+    description key
+}
+
+# Test path keyword
+ltm pool /Common/test_pool_path {
+    description path
+}
+
+# Test port keyword
+ltm pool /Common/test_pool_port {
+    description port
+}
+
+# Test source keyword
+ltm pool /Common/test_pool_source {
+    description source
+}
+
+# Test value keyword
+ltm pool /Common/test_pool_value {
+    description value
+}
+
+# Test version keyword
+ltm pool /Common/test_pool_version {
+    description version
+}
+
+# Test quoted string descriptions (should also work)
+ltm pool /Common/test_pool_quoted {
+    description "this is a quoted description"
+}
+
+# Test escaped quotes in descriptions (should unescape properly)
+ltm pool /Common/test_pool_escaped_quotes {
+    description "she said \"hello world\" to the pool"
+}
+
+# Test mixed keywords and quoted strings
+ltm pool /Common/test_pool_mixed {
+    description "pool with disabled status"
+}
+
