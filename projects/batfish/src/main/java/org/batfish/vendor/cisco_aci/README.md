@@ -465,13 +465,162 @@ IP Access List ~CONTRACT~web_contract
   deny ip any any            ; Default deny
 ```
 
+## Path Attachments and Interface Mapping
+
+Path attachments (`fvRsPathAtt`) link EPGs to physical interfaces and are crucial for understanding the ACI fabric topology.
+
+### Path Attachment Structure
+
+Path attachments contain the critical mapping information:
+
+```json
+{
+  "fvRsPathAtt": {
+    "attributes": {
+      "tDn": "topology/pod-1/paths-1221/pathep-[eth1/29]",
+      "encap": "vlan-2717",
+      "descr": "Server Interface",
+      "instrImedcy": "immediate"
+    }
+  }
+}
+```
+
+### tDn (Target Distinguished Name) Parsing
+
+The `tDn` field encodes the topology information:
+
+- **Format**: `topology/pod-{podId}/paths-{nodeId}/pathep-[{interface}]`
+- **Example**: `topology/pod-1/paths-1221/pathep-[eth1/29]`
+  - Pod: 1
+  - Node: 1221
+  - Interface: eth1/29
+
+```java
+// PathAttachment parsing
+PathAttachment attachment = new PathAttachment(tDn);
+attachment.setPodId("1");
+attachment.setNodeId("1221");
+attachment.setInterface("eth1/29");
+attachment.setEncap("vlan-2717");
+```
+
+### Interface to Node Mapping
+
+Path attachments are stored in a two-level map for efficient lookup:
+
+```java
+// Map: nodeId → (interfaceName → PathAttachment)
+Map<String, Map<String, PathAttachment>> pathAttachmentMap;
+```
+
+This allows looking up all details about an interface during conversion:
+
+```java
+// Find all interfaces for a node
+Map<String, PathAttachment> nodeAttachments = pathAttachmentMap.get("1221");
+
+// Get details for a specific interface
+PathAttachment att = nodeAttachments.get("eth1/29");
+String epg = att.getEpgName();          // "EPG_SET_DEV_STA_ANT"
+String vlan = att.getEncap();           // "vlan-2717"
+String descr = att.getDescription();    // "Server Interface"
+```
+
+### Interface Conversion with Path Attachments
+
+During conversion, interfaces discovered from path attachments get:
+
+1. **Interface name**: Extracted from tDn (e.g., "eth1/29")
+2. **EPG association**: Tenant and EPG name
+3. **VLAN information**: Encapsulation VLAN
+4. **Description**: From the path attachment
+5. **Fabric interface marking**: High-numbered interfaces marked as fabric-facing
+
+```java
+Interface iface = Interface.builder()
+    .setName("eth1/29")
+    .setDescription("Server Interface | EPG: demo:EPG_SET_DEV_STA_ANT | VLAN: vlan-2717")
+    .build();
+```
+
+### VTEP Loopback Interface
+
+Each fabric node gets a loopback0 interface representing the VTEP:
+
+```java
+Interface loopback = Interface.builder()
+    .setName("loopback0")
+    .setType(InterfaceType.LOOPBACK)
+    .setDescription("VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool")
+    .build();
+```
+
+**Note**: The actual VTEP IP is dynamically assigned via DHCP during fabric discovery and is not stored in the configuration export.
+
+### Management Interface (Out-of-Band)
+
+When out-of-band management is configured, each fabric node with a management IP gets a dedicated management interface:
+
+```java
+Interface mgmtIface = Interface.builder()
+    .setName("mgmt0")
+    .setType(InterfaceType.PHYSICAL)
+    .setAddress(ConcreteInterfaceAddress.parse("10.35.1.52/24"))
+    .setDescription("Out-of-band management interface | Gateway: 10.35.1.1")
+    .build();
+```
+
+The management IP information is extracted from `mgmtRsOoBStNode` objects:
+
+```json
+{
+  "mgmtRsOoBStNode": {
+    "attributes": {
+      "addr": "10.35.1.52/24",
+      "gw": "10.35.1.1",
+      "tDn": "topology/pod-1/node-1208"
+    }
+  }
+}
+```
+
+The tDn is parsed to extract the node ID, which is used to associate the management IP with the correct fabric node.
+
+### Fabric Interface Detection
+
+Interfaces are automatically classified as fabric-facing based on naming patterns:
+
+- **Leaf switches**: eth1/53+ → Fabric interfaces (spine connectivity)
+- **Spine switches**: Most eth1/X interfaces → Fabric interfaces
+
+```java
+private static boolean isFabricInterface(String ifaceName, String role) {
+    if ("spine".equalsIgnoreCase(role)) {
+        return ifaceName.matches(".*eth1/([1-9]|[1-5][0-9]).*");
+    }
+    if (ifaceName.matches(".*eth1/(5[3-9]|6[0-9]).*")) {
+        return true;
+    }
+    return false;
+}
+```
+
+Fabric interfaces are marked with: `"Fabric interface (IS-IS/Overlay)"` in their description.
+
 ## Known Limitations
 
 The following features are partially implemented or not yet supported:
 
-1. **EPG to Interface Binding**: The `convertPathAttachments()` method has basic implementation but may not handle all EPG-to-interface binding scenarios.
+1. ~~**EPG to Interface Binding**~~: COMPLETED - `convertPathAttachments()` method now fully implements EPG-to-interface binding with:
+   - tDn parsing to extract pod, node, and interface information
+   - Encapsulation (VLAN) extraction from path attachments
+   - Description and EPG information storage
+   - Interface to node mapping via path attachment map
 
-2. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
+2. ~~**Management/OOB IP Extraction**~~: COMPLETED - Out-of-band management IPs are extracted from `mgmtRsOoBStNode` objects and associated with fabric nodes via tDn parsing. Management interfaces are created with `mgmt0` name and include IP address and gateway information.
+
+3. **Contract Scope**: Global and application profile contract scopes are treated the same as tenant-scoped contracts.
 
 3. **QoS and Service Graphs**: QoS policies and service graph redirection are not modeled.
 
@@ -479,7 +628,7 @@ The following features are partially implemented or not yet supported:
 
 5. **Multicast**: Multicast policies and configurations are not converted.
 
-6. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces.
+6. **VXLAN Tunnel Encapsulation**: ACI's use of VXLAN for fabric overlay is modeled as standard VLAN interfaces. VTEP loopback interface is created with description indicating dynamically assigned IP.
 
 7. **FEX and Virtual Port Channels**: Fabric Extender and vPC configurations need additional handling.
 
@@ -492,7 +641,8 @@ The following features are partially implemented or not yet supported:
 Based on the code, here are the key areas for future development:
 
 ### High Priority
-- [ ] Improve EPG path attachment handling
+- ~~[ ] Improve EPG path attachment handling~~ COMPLETED - Full tDn parsing, interface mapping, and EPG association implemented
+- ~~[ ] Extract management/OOB IP addresses~~ COMPLETED - Management IPs extracted from mgmtRsOoBStNode and associated with fabric nodes
 - [ ] Add support for contract subject `action` attribute (deny filters)
 
 ### Medium Priority

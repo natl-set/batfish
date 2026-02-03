@@ -451,4 +451,153 @@ public class AciFabricAndStructureTest {
     assertThat(AciStructureUsage.L3OUT_SELF_REF.getDescription(), equalTo("l3out"));
     assertThat(AciStructureUsage.L3OUT_VRF.getDescription(), equalTo("l3out vrf"));
   }
+
+  /**
+   * Test management IP parsing from mgmtMgmtP structure.
+   *
+   * <p>Verifies that out-of-band management IPs are correctly extracted from mgmtRsOoBStNode
+   * objects and associated with fabric nodes.
+   */
+  @Test
+  public void testManagementIpParsing() throws IOException {
+    // Create a minimal ACI config with management IPs
+    String json =
+        "{"
+            + "\"polUni\": {"
+            + "  \"children\": ["
+            + "    {"
+            + "      \"fvTenant\": {"
+            + "        \"attributes\": {\"name\": \"mgmt\"},"
+            + "        \"children\": ["
+            + "          {"
+            + "            \"mgmtMgmtP\": {"
+            + "              \"attributes\": {\"name\": \"default\"},"
+            + "              \"children\": ["
+            + "                {"
+            + "                  \"mgmtOoB\": {"
+            + "                    \"attributes\": {\"name\": \"default\"},"
+            + "                    \"children\": ["
+            + "                      {"
+            + "                        \"mgmtRsOoBStNode\": {"
+            + "                          \"attributes\": {"
+            + "                            \"addr\": \"10.35.1.52/24\","
+            + "                            \"gw\": \"10.35.1.1\","
+            + "                            \"tDn\": \"topology/pod-1/node-1208\""
+            + "                          }"
+            + "                        }"
+            + "                      },"
+            + "                      {"
+            + "                        \"mgmtRsOoBStNode\": {"
+            + "                          \"attributes\": {"
+            + "                            \"addr\": \"10.35.1.48/24\","
+            + "                            \"gw\": \"10.35.1.1\","
+            + "                            \"tDn\": \"topology/pod-1/node-1204\""
+            + "                          }"
+            + "                        }"
+            + "                      }"
+            + "                    ]"
+            + "                  }"
+            + "                }"
+            + "              ]"
+            + "            }"
+            + "          }"
+            + "        ]"
+            + "      }"
+            + "    },"
+            + "    {"
+            + "      \"fabricInst\": {"
+            + "        \"attributes\": {},"
+            + "        \"children\": ["
+            + "          {"
+            + "            \"fabricProtPol\": {"
+            + "              \"attributes\": {},"
+            + "              \"children\": ["
+            + "                {"
+            + "                  \"fabricExplicitGEp\": {"
+            + "                    \"attributes\": {},"
+            + "                    \"children\": ["
+            + "                      {"
+            + "                        \"fabricNodeIdentP\": {"
+            + "                          \"attributes\": {"
+            + "                            \"id\": \"1208\","
+            + "                            \"name\": \"leaf-1\""
+            + "                          }"
+            + "                        }"
+            + "                      },"
+            + "                      {"
+            + "                        \"fabricNodePEp\": {"
+            + "                          \"attributes\": {"
+            + "                            \"id\": \"1208\","
+            + "                            \"role\": \"leaf\","
+            + "                            \"podId\": \"1\""
+            + "                          }"
+            + "                        }"
+            + "                      },"
+            + "                      {"
+            + "                        \"fabricNodeIdentP\": {"
+            + "                          \"attributes\": {"
+            + "                            \"id\": \"1204\","
+            + "                            \"name\": \"leaf-2\""
+            + "                          }"
+            + "                        }"
+            + "                      },"
+            + "                      {"
+            + "                        \"fabricNodePEp\": {"
+            + "                          \"attributes\": {"
+            + "                            \"id\": \"1204\","
+            + "                            \"role\": \"leaf\","
+            + "                            \"podId\": \"1\""
+            + "                          }"
+            + "                        }"
+            + "                      }"
+            + "                    ]"
+            + "                  }"
+            + "                }"
+            + "              ]"
+            + "            }"
+            + "          }"
+            + "        ]"
+            + "      }"
+            + "    }"
+            + "  ]"
+            + "}"
+            + "}";
+
+    // Parse the configuration
+    Warnings warnings = new Warnings();
+    AciConfiguration aciConfig = AciConfiguration.fromJson("test-config.json", json, warnings);
+
+    // Verify management IPs were extracted
+    assertThat("Should have 2 fabric nodes", aciConfig.getFabricNodes().size(), equalTo(2));
+
+    // Check node 1208
+    AciConfiguration.FabricNode node1208 = aciConfig.getFabricNodes().get("1208");
+    assertThat("Node 1208 should exist", node1208, notNullValue());
+    assertThat("Node 1208 should have name", node1208.getName(), notNullValue());
+    assertThat(
+        "Node 1208 should have management info", node1208.getManagementInfo(), notNullValue());
+    assertThat(
+        "Node 1208 management address",
+        node1208.getManagementInfo().getAddress(),
+        equalTo("10.35.1.52/24"));
+    assertThat(
+        "Node 1208 management gateway",
+        node1208.getManagementInfo().getGateway(),
+        equalTo("10.35.1.1"));
+
+    // Check node 1204
+    AciConfiguration.FabricNode node1204 = aciConfig.getFabricNodes().get("1204");
+    assertThat("Node 1204 should exist", node1204, notNullValue());
+    assertThat("Node 1204 should have name", node1204.getName(), notNullValue());
+    assertThat(
+        "Node 1204 should have management info", node1204.getManagementInfo(), notNullValue());
+    assertThat(
+        "Node 1204 management address",
+        node1204.getManagementInfo().getAddress(),
+        equalTo("10.35.1.48/24"));
+    assertThat(
+        "Node 1204 management gateway",
+        node1204.getManagementInfo().getGateway(),
+        equalTo("10.35.1.1"));
+  }
 }
