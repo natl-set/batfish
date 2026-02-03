@@ -15,9 +15,11 @@ import org.batfish.datamodel.ConcreteInterfaceAddress;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.Ip6;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.Prefix6;
 import org.batfish.datamodel.RouteFilterList;
 import org.batfish.referencelibrary.AddressGroup;
 import org.batfish.referencelibrary.GeneratedRefBookUtils;
@@ -198,7 +200,7 @@ public class F5BigipConfigurationTest {
   public void testToRouterFilterList_prefixList_ipv6ReturnsNull() {
     PrefixList plist = new PrefixList("name");
     PrefixListEntry entry = new PrefixListEntry(1L);
-    entry.setPrefix6(org.batfish.datamodel.Prefix6.parse("::/0"));
+    entry.setPrefix6(Prefix6.parse("::/0"));
     plist.getEntries().put(1L, entry);
 
     RouteFilterList rfl = toRouteFilterList(plist, new Warnings(), "file");
@@ -228,7 +230,7 @@ public class F5BigipConfigurationTest {
   @Test
   public void testToAddressGroupPoolMemberAddress6Only() {
     PoolMember m1 = new PoolMember("m1", null, 80);
-    m1.setAddress6(org.batfish.datamodel.Ip6.parse("::1"));
+    m1.setAddress6(Ip6.parse("::1"));
     m1.setAddress(null); // Explicitly null
 
     Pool p1 = new Pool("p1");
@@ -244,7 +246,7 @@ public class F5BigipConfigurationTest {
   public void testToAddressGroupPoolMemberBothAddresses() {
     PoolMember m1 = new PoolMember("m1", null, 80);
     m1.setAddress(org.batfish.datamodel.Ip.parse("1.1.1.1"));
-    m1.setAddress6(org.batfish.datamodel.Ip6.parse("::1"));
+    m1.setAddress6(Ip6.parse("::1"));
 
     Pool p1 = new Pool("p1");
     p1.getMembers().put(m1.getName(), m1);
@@ -1394,8 +1396,8 @@ public class F5BigipConfigurationTest {
   @Test
   public void testPoolMember_withAddress6() {
     PoolMember member = new PoolMember("member1", null, 443);
-    member.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
-    assertThat(member.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+    member.setAddress6(Ip6.parse("fe80::1"));
+    assertThat(member.getAddress6(), equalTo(Ip6.parse("fe80::1")));
   }
 
   @Test
@@ -1572,8 +1574,8 @@ public class F5BigipConfigurationTest {
   @Test
   public void testSnatTranslation_withAddress6() {
     SnatTranslation translation = new SnatTranslation("trans1");
-    translation.setAddress6(org.batfish.datamodel.Ip6.parse("2001:db8::1"));
-    assertThat(translation.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("2001:db8::1")));
+    translation.setAddress6(Ip6.parse("2001:db8::1"));
+    assertThat(translation.getAddress6(), equalTo(Ip6.parse("2001:db8::1")));
   }
 
   /** Tests for {@link Device} */
@@ -1707,15 +1709,15 @@ public class F5BigipConfigurationTest {
   @Test
   public void testVirtualAddress_withAddress6() {
     VirtualAddress va = new VirtualAddress("va1");
-    va.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
-    assertThat(va.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+    va.setAddress6(Ip6.parse("fe80::1"));
+    assertThat(va.getAddress6(), equalTo(Ip6.parse("fe80::1")));
   }
 
   @Test
   public void testVirtualAddress_withMask6() {
     VirtualAddress va = new VirtualAddress("va1");
-    va.setMask6(org.batfish.datamodel.Ip6.parse("ffff:ffff::"));
-    assertThat(va.getMask6(), equalTo(org.batfish.datamodel.Ip6.parse("ffff:ffff::")));
+    va.setMask6(Ip6.parse("ffff:ffff::"));
+    assertThat(va.getMask6(), equalTo(Ip6.parse("ffff:ffff::")));
   }
 
   // ==================== Snat Tests ====================
@@ -1766,8 +1768,8 @@ public class F5BigipConfigurationTest {
   @Test
   public void testNode_withAddress6() {
     Node node = new Node("node1");
-    node.setAddress6(org.batfish.datamodel.Ip6.parse("fe80::1"));
-    assertThat(node.getAddress6(), equalTo(org.batfish.datamodel.Ip6.parse("fe80::1")));
+    node.setAddress6(Ip6.parse("fe80::1"));
+    assertThat(node.getAddress6(), equalTo(Ip6.parse("fe80::1")));
   }
 
   // ==================== Pool Tests ====================
