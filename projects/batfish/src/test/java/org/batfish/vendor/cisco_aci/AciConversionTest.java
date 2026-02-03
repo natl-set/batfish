@@ -257,7 +257,7 @@ public class AciConversionTest {
     AciConfiguration aciConfig = createTestAciConfiguration();
 
     // Add different interface types
-    AciConfiguration.FabricNode node = aciConfig.getFabricNodes().get("node3");
+    AciConfiguration.FabricNode node = aciConfig.getFabricNodes().get("201");
 
     AciConfiguration.FabricNode.Interface vlanIface = new AciConfiguration.FabricNode.Interface();
     vlanIface.setName("vlan100");
@@ -465,9 +465,9 @@ public class AciConversionTest {
     config.setHostname("multi-bd-test");
     config.setVendor(ConfigurationFormat.CISCO_ACI);
 
-    // Create a fabric node
-    AciConfiguration.FabricNode node = createFabricNode("node1", "leaf1", "201", "leaf");
-    config.getFabricNodes().put("node1", node);
+    // Create a fabric node (nodeId, name, podId, role)
+    AciConfiguration.FabricNode node = createFabricNode("201", "leaf1", "2", "leaf");
+    config.getFabricNodes().put("201", node);
 
     // Create VRF
     AciVrfModel vrf = new AciVrfModel("shared_vrf");
@@ -520,9 +520,9 @@ public class AciConversionTest {
     config.setHostname("multi-filter-contract");
     config.setVendor(ConfigurationFormat.CISCO_ACI);
 
-    // Create a fabric node
-    AciConfiguration.FabricNode node = createFabricNode("node1", "leaf1", "201", "leaf");
-    config.getFabricNodes().put("node1", node);
+    // Create a fabric node (nodeId, name, podId, role)
+    AciConfiguration.FabricNode node = createFabricNode("201", "leaf1", "2", "leaf");
+    config.getFabricNodes().put("201", node);
 
     // Create contract with multiple subjects and filters
     AciConfiguration.Contract contract = new AciConfiguration.Contract("multi_filter_contract");
