@@ -109,6 +109,30 @@ u_word
 :
   bracket_list
   | word
+  | ACTIVE
+  | ACTION
+  | ADDRESS
+  | ALL
+  | ANY
+  | DESCRIPTION
+  | DESTINATION
+  | DISABLED
+  | ENABLED
+  | FALSE
+  | HOST
+  | KEY
+  | MODE
+  | PATH
+  | PORT
+  | PROTOCOL
+  | SELF
+  | SOURCE
+  | STATE
+  | STATUS
+  | TRUE
+  | TYPE
+  | VALUE
+  | VERSION
 ;
 
 u_word_list
