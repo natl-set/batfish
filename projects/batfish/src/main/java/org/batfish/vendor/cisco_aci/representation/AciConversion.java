@@ -146,23 +146,27 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    // Use APIC prefix with nodeId for descriptive, unique hostnames
-    // Human-readable name is used for display purposes only
+    // Use fabric name + nodeId for globally unique, descriptive hostnames
+    // Example: "ACI-DC2-ce2" + "1201" → "ACI-DC2-ce2-1201"
     String nodeId = node.getNodeId();
     String nodeName = node.getName();
+    String fabricHostname = aciConfig.getHostname(); // e.g., "aci-dc2-ce2"
     String hostname;
     String humanName;
 
-    // Generate hostname with "apic-" prefix for clarity
+    // Generate hostname: {fabric}-{nodeId} for global uniqueness
     if (nodeId != null && !nodeId.isEmpty()) {
-      hostname = "apic-" + nodeId;
+      // Use fabric hostname (filename-derived) without extension
+      String fabricBase =
+          fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
+      hostname = fabricBase + "-" + nodeId;
     } else {
       hostname = "aci-node-unknown";
     }
 
-    // Use human-readable name for display, but always include nodeId for reference
+    // Use human-readable name for display, include hostname for reference
     if (nodeName != null && !nodeName.isEmpty()) {
-      humanName = nodeName + " (node " + hostname + ")";
+      humanName = nodeName + " (" + hostname + ")";
     } else {
       humanName = hostname;
     }
