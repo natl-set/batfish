@@ -223,6 +223,9 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of EPG names to EPG configurations */
   private Map<String, Epg> _epgs;
 
+  /** Map of Application Profile names to Application Profile configurations */
+  private Map<String, ApplicationProfile> _applicationProfiles;
+
   /** Map of contract names to contract configurations */
   private Map<String, Contract> _contracts;
 
@@ -255,6 +258,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _bridgeDomains = new TreeMap<>();
     _vrfs = new TreeMap<>();
     _epgs = new TreeMap<>();
+    _applicationProfiles = new TreeMap<>();
     _contracts = new TreeMap<>();
     _filters = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
@@ -834,6 +838,15 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     String apName = (String) attrs.get("name");
+    if (apName == null || apName.isEmpty()) {
+      return;
+    }
+
+    // Create or get Application Profile
+    String fqApName = tenantName + ":" + apName;
+    ApplicationProfile appProfile = getOrCreateApplicationProfile(fqApName);
+    appProfile.setTenant(tenantName);
+    appProfile.setDescription((String) attrs.get("descr"));
 
     // Parse children for EPGs
     if (apMap.containsKey("children")) {
@@ -847,6 +860,17 @@ public final class AciConfiguration extends VendorConfiguration {
             @SuppressWarnings("unchecked")
             Map<String, Object> epgMap = (Map<String, Object>) childMap.get("fvAEPg");
             parseEpgFromMap(epgMap, tenantName, apName, warnings);
+
+            // Add EPG name to Application Profile
+            @SuppressWarnings("unchecked")
+            Map<String, Object> epgAttrs = (Map<String, Object>) epgMap.get("attributes");
+            if (epgAttrs != null) {
+              String epgName = (String) epgAttrs.get("name");
+              if (epgName != null) {
+                String fqEpgName = tenantName + ":" + apName + ":" + epgName;
+                appProfile.addEpg(fqEpgName);
+              }
+            }
           }
         }
       }
@@ -871,6 +895,7 @@ public final class AciConfiguration extends VendorConfiguration {
     String fqEpgName = tenantName + ":" + (apName != null ? apName + ":" : "") + epgName;
     Epg epg = getOrCreateEpg(fqEpgName);
     epg.setTenant(tenantName);
+    epg.setApplicationProfile(apName);
     epg.setDescription((String) attrs.get("descr"));
 
     // Parse children for bridge domain association and contract references
@@ -1516,6 +1541,20 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Returns the map of Application Profile configurations.
+   *
+   * @return An immutable map of Application Profile names to configurations
+   */
+  @Nonnull
+  public Map<String, ApplicationProfile> getApplicationProfiles() {
+    return _applicationProfiles;
+  }
+
+  public void setApplicationProfiles(Map<String, ApplicationProfile> applicationProfiles) {
+    _applicationProfiles = new TreeMap<>(applicationProfiles);
+  }
+
+  /**
    * Returns the map of contract configurations.
    *
    * @return An immutable map of contract names to contract configurations
@@ -1657,6 +1696,16 @@ public final class AciConfiguration extends VendorConfiguration {
    */
   public @Nonnull Epg getOrCreateEpg(String name) {
     return _epgs.computeIfAbsent(name, Epg::new);
+  }
+
+  /**
+   * Gets or creates an Application Profile with the given name.
+   *
+   * @param name The Application Profile name
+   * @return The existing or newly created Application Profile
+   */
+  public @Nonnull ApplicationProfile getOrCreateApplicationProfile(String name) {
+    return _applicationProfiles.computeIfAbsent(name, ApplicationProfile::new);
   }
 
   /**
@@ -1869,6 +1918,52 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * ACI Application Profile (fvAp) configuration.
+   *
+   * <p>An Application Profile is a logical container for EPGs that belong to the same application
+   * tier or application.
+   */
+  public static class ApplicationProfile implements Serializable {
+    private final String _name;
+    private String _tenant;
+    private String _description;
+    private List<String> _epgNames;
+
+    public ApplicationProfile(String name) {
+      _name = name;
+      _epgNames = new ArrayList<>();
+    }
+
+    public String getName() {
+      return _name;
+    }
+
+    public @Nullable String getTenant() {
+      return _tenant;
+    }
+
+    public void setTenant(String tenant) {
+      _tenant = tenant;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+
+    public List<String> getEpgNames() {
+      return _epgNames;
+    }
+
+    public void addEpg(String epgName) {
+      _epgNames.add(epgName);
+    }
+  }
+
+  /**
    * ACI End Point Group (EPG) configuration.
    *
    * <p>An EPG is a collection of endpoints that share similar policy requirements. EPGs are the
@@ -1877,6 +1972,7 @@ public final class AciConfiguration extends VendorConfiguration {
   public static class Epg implements Serializable {
     private final String _name;
     private String _tenant;
+    private String _applicationProfile;
     private String _bridgeDomain;
     private String _description;
     private List<String> _providedContracts;
@@ -1898,6 +1994,14 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setTenant(String tenant) {
       _tenant = tenant;
+    }
+
+    public @Nullable String getApplicationProfile() {
+      return _applicationProfile;
+    }
+
+    public void setApplicationProfile(String applicationProfile) {
+      _applicationProfile = applicationProfile;
     }
 
     public @Nullable String getBridgeDomain() {
