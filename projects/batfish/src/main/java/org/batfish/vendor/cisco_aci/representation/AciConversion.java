@@ -146,28 +146,22 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    // Use fabric name + nodeId for globally unique, descriptive hostnames
-    // Example: "ACI-DC2-ce2" + "1201" → "ACI-DC2-ce2-1201"
+    // Use the actual node name from fabricNodeIdentP if available
+    // Example: nodeName = "SW-DC1-Leaf-NSAB07-SET-01" from config
     String nodeId = node.getNodeId();
     String nodeName = node.getName();
-    String fabricHostname = aciConfig.getHostname(); // e.g., "aci-dc2-ce2"
     String hostname;
     String humanName;
 
-    // Generate hostname: {fabric}-{nodeId} for global uniqueness
-    if (nodeId != null && !nodeId.isEmpty()) {
-      // Use fabric hostname (filename-derived) without extension
-      String fabricBase =
-          fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
-      hostname = fabricBase + "-" + nodeId;
-    } else {
-      hostname = "aci-node-unknown";
-    }
-
-    // Use human-readable name for display, include hostname for reference
+    // Prefer the actual node name from ACI config (fabricNodeIdentP.attributes.name)
     if (nodeName != null && !nodeName.isEmpty()) {
-      humanName = nodeName + " (" + hostname + ")";
+      // Use the real hostname from the ACI configuration
+      hostname = nodeName; // e.g., "SW-DC1-Leaf-NSAB07-SET-01"
+      // Include node ID in humanName for reference
+      humanName = nodeId != null ? nodeName + " (ID: " + nodeId + ")" : nodeName;
     } else {
+      // Fallback to nodeId if name is not available
+      hostname = nodeId != null ? nodeId : "aci-node-unknown";
       humanName = hostname;
     }
 
