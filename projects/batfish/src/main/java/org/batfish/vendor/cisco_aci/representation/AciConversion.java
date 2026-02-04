@@ -195,6 +195,9 @@ public final class AciConversion {
     Map<String, Interface> interfaces = convertInterfaces(node, aciConfig, defaultVrf, c, warnings);
     c.setInterfaces(interfaces);
 
+    // Create VPC peer-link interface if this node is part of a VPC pair
+    createVpcPeerLinkInterface(node, aciConfig, interfaces, defaultVrf, c, warnings);
+
     // Convert bridge domains to interface VLAN settings
     convertBridgeDomains(aciConfig, interfaces, defaultVrf, c, warnings);
 
@@ -2032,6 +2035,72 @@ public final class AciConversion {
   }
 
   /**
+   * Creates a VPC peer-link interface on a node if it's part of a VPC pair.
+   *
+   * @param node The fabric node
+   * @param aciConfig The ACI configuration
+   * @param interfaces Map of interfaces to add the VPC interface to
+   * @param defaultVrf The default VRF
+   * @param c The Batfish configuration
+   * @param warnings Warnings container
+   */
+  private static void createVpcPeerLinkInterface(
+      AciConfiguration.FabricNode node,
+      AciConfiguration aciConfig,
+      Map<String, Interface> interfaces,
+      Vrf defaultVrf,
+      Configuration c,
+      Warnings warnings) {
+    String nodeId = node.getNodeId();
+    if (nodeId == null) {
+      return;
+    }
+
+    // Check if this node is part of any VPC pair
+    for (AciConfiguration.VpcPair vpcPair : aciConfig.getVpcPairs().values()) {
+      if (nodeId.equals(vpcPair.getPeer1NodeId()) || nodeId.equals(vpcPair.getPeer2NodeId())) {
+        // This node is part of a VPC pair - create peer-link interface
+        String vpcIfaceName = "port-channel1";
+        String peerNodeId =
+            nodeId.equals(vpcPair.getPeer1NodeId())
+                ? vpcPair.getPeer2NodeId()
+                : vpcPair.getPeer1NodeId();
+
+        // Get the peer node to extract its name for description
+        AciConfiguration.FabricNode peerNode = aciConfig.getFabricNodes().get(peerNodeId);
+        String peerName =
+            (peerNode != null && peerNode.getName() != null && !peerNode.getName().isEmpty())
+                ? peerNode.getName()
+                : peerNodeId;
+
+        Interface.Builder vpcIfaceBuilder =
+            Interface.builder()
+                .setName(vpcIfaceName)
+                .setType(InterfaceType.AGGREGATED)
+                .setOwner(c)
+                .setVrf(defaultVrf)
+                .setAdminUp(true)
+                .setHumanName(
+                    String.format(
+                        "VPC Peer-link (VPC %s)",
+                        vpcPair.getVpcId() != null ? vpcPair.getVpcId() : ""))
+                .setDescription(
+                    String.format(
+                        "VPC peer-link connecting to %s (VPC: %s)",
+                        peerName,
+                        vpcPair.getVpcName() != null ? vpcPair.getVpcName() : vpcPair.getVpcId()))
+                .setDeclaredNames(ImmutableList.of(vpcIfaceName));
+
+        Interface vpcIface = vpcIfaceBuilder.build();
+        interfaces.put(vpcIfaceName, vpcIface);
+
+        // Only create one VPC interface per node
+        break;
+      }
+    }
+  }
+
+  /**
    * Creates edges between fabric nodes based on fabric topology.
    *
    * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates Layer 3 edges
@@ -2075,7 +2144,55 @@ public final class AciConversion {
       }
     }
 
+    // Create VPC peer-link edges
+    for (AciConfiguration.VpcPair vpcPair : aciConfig.getVpcPairs().values()) {
+      String peer1NodeId = vpcPair.getPeer1NodeId();
+      String peer2NodeId = vpcPair.getPeer2NodeId();
+
+      AciConfiguration.FabricNode peer1 = aciConfig.getFabricNodes().get(peer1NodeId);
+      AciConfiguration.FabricNode peer2 = aciConfig.getFabricNodes().get(peer2NodeId);
+
+      if (peer1 != null && peer2 != null) {
+        // Get the hostname for each peer
+        String peer1Hostname = getHostnameForNode(peer1, aciConfig);
+        String peer2Hostname = getHostnameForNode(peer2, aciConfig);
+
+        // VPC peer-link interface name
+        String vpcIfaceName = "port-channel1";
+
+        // Create edge between VPC peers
+        edges.add(Edge.of(peer1Hostname, vpcIfaceName, peer2Hostname, vpcIfaceName));
+      }
+    }
+
     return edges.build();
+  }
+
+  /**
+   * Gets the hostname for a fabric node, considering whether it has a real name or uses a generated
+   * one.
+   *
+   * @param node The fabric node
+   * @param aciConfig The ACI configuration
+   * @return The hostname for the node
+   */
+  private static String getHostnameForNode(
+      AciConfiguration.FabricNode node, AciConfiguration aciConfig) {
+    // Prefer the real name from the node
+    if (node.getName() != null && !node.getName().isEmpty()) {
+      return node.getName();
+    }
+
+    // Fallback to fabric name + nodeId
+    String nodeId = node.getNodeId();
+    String fabricHostname = aciConfig.getHostname();
+    if (nodeId != null && !nodeId.isEmpty()) {
+      String fabricBase =
+          fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
+      return fabricBase + "-" + nodeId;
+    }
+
+    return "aci-node-unknown";
   }
 
   /**
