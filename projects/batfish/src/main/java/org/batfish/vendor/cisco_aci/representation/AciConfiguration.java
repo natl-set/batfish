@@ -339,7 +339,12 @@ public final class AciConfiguration extends VendorConfiguration {
       return;
     }
     AciFabricNodeIdentP.AciFabricNodeIdentPAttributes attrs = nodeIdentP.getAttributes();
-    String nodeId = attrs.getId();
+    // fabricNodeIdentP can use either "id" or "nodeId" as the identifier field
+    // Prefer "nodeId" as it's the standard field, fallback to "id"
+    String nodeId = attrs.getNodeId();
+    if (nodeId == null || nodeId.isEmpty()) {
+      nodeId = attrs.getId();
+    }
     String name = attrs.getName();
 
     if (nodeId != null && name != null && !name.isEmpty()) {
@@ -385,12 +390,12 @@ public final class AciConfiguration extends VendorConfiguration {
 
     FabricNode fabricNode = new FabricNode();
     fabricNode.setNodeId(nodeId);
-    // Use the human-readable name if available, otherwise generate a fallback
+    // Use the human-readable name if available
+    // If no name is available, leave it null so AciConversion can use fabric+nodeId format
     if (name != null && !name.isEmpty()) {
       fabricNode.setName(name);
-    } else {
-      fabricNode.setName("aci-node-" + key);
     }
+    // Don't set a fallback name - let AciConversion generate unique hostname from fabric+nodeId
     fabricNode.setPodId(podId);
     fabricNode.setRole(role);
 
