@@ -7,8 +7,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -2217,6 +2219,144 @@ public final class AciConversion {
     }
 
     return "aci-node-unknown";
+  }
+
+  /**
+   * Detects inter-fabric connections between multiple ACI fabrics.
+   *
+   * <p>Analyzes L3Out configurations from multiple ACI fabrics to detect connections via:
+   *
+   * <ul>
+   *   <li>Shared external subnets in ExternalEPGs
+   *   <li>Common BGP peers
+   *   <li>Overlapping L3Out configurations
+   * </ul>
+   *
+   * @param aciConfigs Map of fabric names to ACI configurations
+   * @return Map of connection IDs to detected inter-fabric connections
+   */
+  public static Map<String, AciConfiguration.InterFabricConnection> detectInterFabricConnections(
+      Map<String, AciConfiguration> aciConfigs) {
+    Map<String, AciConfiguration.InterFabricConnection> connections = new TreeMap<>();
+
+    // Compare each pair of fabrics
+    List<String> fabrics = new ArrayList<>(aciConfigs.keySet());
+    for (int i = 0; i < fabrics.size(); i++) {
+      for (int j = i + 1; j < fabrics.size(); j++) {
+        String fabric1 = fabrics.get(i);
+        String fabric2 = fabrics.get(j);
+        AciConfiguration config1 = aciConfigs.get(fabric1);
+        AciConfiguration config2 = aciConfigs.get(fabric2);
+
+        // Check for shared external subnets
+        detectSharedExternalConnections(fabric1, config1, fabric2, config2, connections);
+
+        // Check for shared BGP peers
+        detectSharedBgpConnections(fabric1, config1, fabric2, config2, connections);
+      }
+    }
+
+    return connections;
+  }
+
+  /**
+   * Detects connections via shared external subnets in ExternalEPGs.
+   *
+   * @param fabric1 First fabric name
+   * @param config1 First fabric configuration
+   * @param fabric2 Second fabric name
+   * @param config2 Second fabric configuration
+   * @param connections Map to store detected connections
+   */
+  private static void detectSharedExternalConnections(
+      String fabric1,
+      AciConfiguration config1,
+      String fabric2,
+      AciConfiguration config2,
+      Map<String, AciConfiguration.InterFabricConnection> connections) {
+
+    // Collect external subnets from fabric1
+    Set<String> fabric1Subnets = new HashSet<>();
+    for (AciConfiguration.L3Out l3out : config1.getL3Outs().values()) {
+      for (AciConfiguration.ExternalEpg extEpg : l3out.getExternalEpgs()) {
+        fabric1Subnets.addAll(extEpg.getSubnets());
+      }
+    }
+
+    // Collect external subnets from fabric2
+    Set<String> fabric2Subnets = new HashSet<>();
+    for (AciConfiguration.L3Out l3out : config2.getL3Outs().values()) {
+      for (AciConfiguration.ExternalEpg extEpg : l3out.getExternalEpgs()) {
+        fabric2Subnets.addAll(extEpg.getSubnets());
+      }
+    }
+
+    // Find overlapping subnets
+    Set<String> sharedSubnets = new HashSet<>(fabric1Subnets);
+    sharedSubnets.retainAll(fabric2Subnets);
+
+    if (!sharedSubnets.isEmpty()) {
+      String connectionId = fabric1 + "-" + fabric2 + "-external";
+      AciConfiguration.InterFabricConnection connection =
+          new AciConfiguration.InterFabricConnection(
+              fabric1, fabric2, "shared-external", "Fabrics share external subnets");
+      connection.getSharedSubnets().addAll(sharedSubnets);
+      connections.put(connectionId, connection);
+    }
+  }
+
+  /**
+   * Detects connections via shared BGP peers.
+   *
+   * @param fabric1 First fabric name
+   * @param config1 First fabric configuration
+   * @param fabric2 Second fabric name
+   * @param config2 Second fabric configuration
+   * @param connections Map to store detected connections
+   */
+  private static void detectSharedBgpConnections(
+      String fabric1,
+      AciConfiguration config1,
+      String fabric2,
+      AciConfiguration config2,
+      Map<String, AciConfiguration.InterFabricConnection> connections) {
+
+    // Collect BGP peers from fabric1
+    Set<String> fabric1BgpPeers = new HashSet<>();
+    for (AciConfiguration.L3Out l3out : config1.getL3Outs().values()) {
+      if (l3out.getBgpPeers() != null) {
+        for (AciConfiguration.BgpPeer peer : l3out.getBgpPeers()) {
+          if (peer.getPeerAddress() != null) {
+            fabric1BgpPeers.add(peer.getPeerAddress());
+          }
+        }
+      }
+    }
+
+    // Collect BGP peers from fabric2
+    Set<String> fabric2BgpPeers = new HashSet<>();
+    for (AciConfiguration.L3Out l3out : config2.getL3Outs().values()) {
+      if (l3out.getBgpPeers() != null) {
+        for (AciConfiguration.BgpPeer peer : l3out.getBgpPeers()) {
+          if (peer.getPeerAddress() != null) {
+            fabric2BgpPeers.add(peer.getPeerAddress());
+          }
+        }
+      }
+    }
+
+    // Find shared BGP peers
+    Set<String> sharedBgpPeers = new HashSet<>(fabric1BgpPeers);
+    sharedBgpPeers.retainAll(fabric2BgpPeers);
+
+    if (!sharedBgpPeers.isEmpty()) {
+      String connectionId = fabric1 + "-" + fabric2 + "-bgp";
+      AciConfiguration.InterFabricConnection connection =
+          new AciConfiguration.InterFabricConnection(
+              fabric1, fabric2, "bgp", "Fabrics share BGP peers");
+      connection.getBgpPeers().addAll(sharedBgpPeers);
+      connections.put(connectionId, connection);
+    }
   }
 
   /**
