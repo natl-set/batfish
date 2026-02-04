@@ -129,6 +129,7 @@ u_word
   | LTM
   | MODE
   | MODULE
+  | NETWORK
   | NTP
   | PATH
   | PORT
