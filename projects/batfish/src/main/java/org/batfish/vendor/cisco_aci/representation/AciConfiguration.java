@@ -232,6 +232,9 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of fabric node IDs to fabric node configurations */
   private Map<String, FabricNode> _fabricNodes;
 
+  /** Map of VPC IDs to VPC pair configurations */
+  private Map<String, VpcPair> _vpcPairs;
+
   /** Map of (nodeId, interfaceName) to path attachment details */
   private Map<String, Map<String, PathAttachment>> _pathAttachmentMap;
 
@@ -255,6 +258,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _contracts = new TreeMap<>();
     _filters = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
+    _vpcPairs = new TreeMap<>();
     _pathAttachmentMap = new TreeMap<>();
     _nodeInterfaces = new TreeMap<>();
     _l3Outs = new TreeMap<>();
@@ -286,7 +290,10 @@ public final class AciConfiguration extends VendorConfiguration {
     // First pass: collect all fabric nodes from fabricInst
     parseFabricNodes(polUni, warnings);
 
-    // Second pass: process tenants and their contents
+    // Second pass: parse VPC pairs
+    parseVpcPairs(polUni, warnings);
+
+    // Third pass: process tenants and their contents
     for (AciPolUniInternal.PolUniChild child : polUni.getChildren()) {
       if (child.getFvTenant() != null) {
         parseTenant(child.getFvTenant(), warnings);
@@ -522,6 +529,77 @@ public final class AciConfiguration extends VendorConfiguration {
                 "Skipping unsupported tenant child object: %s (name: %s) in tenant %s. This"
                     + " configuration will not be analyzed.",
                 unknownType, name, tenantName);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Parses VPC (Virtual Port Channel) pairs from fabricExplicitGEp structures.
+   *
+   * <p>VPC pairs are identified by fabricExplicitGEp with multiple fabricNodePEp children,
+   * indicating two or more nodes that are VPC peers connected via a peer-link.
+   */
+  private void parseVpcPairs(AciPolUniInternal polUni, Warnings warnings) {
+    for (AciPolUniInternal.PolUniChild child : polUni.getChildren()) {
+      if (child.getFabricInst() != null) {
+        AciFabricInst fabricInst = child.getFabricInst();
+        if (fabricInst.getChildren() != null) {
+          for (AciFabricInst.FabricInstChild instChild : fabricInst.getChildren()) {
+            if (instChild.getFabricProtPol() != null) {
+              AciFabricProtPol protPol = instChild.getFabricProtPol();
+              if (protPol.getChildren() != null) {
+                for (AciFabricProtPol.FabricProtPolChild protChild : protPol.getChildren()) {
+                  if (protChild.getFabricExplicitGEp() != null) {
+                    AciFabricExplicitGEp explicitEp = protChild.getFabricExplicitGEp();
+                    // Check if this fabricExplicitGEp has multiple fabricNodePEp children (VPC
+                    // pair)
+                    if (explicitEp.getChildren() != null) {
+                      List<AciFabricExplicitGEp.FabricExplicitGEpChild> children =
+                          explicitEp.getChildren();
+                      List<String> nodeIds = new ArrayList<>();
+                      String vpcId = null;
+                      String vpcName = null;
+
+                      // Get VPC ID and name from fabricExplicitGEp attributes
+                      if (explicitEp.getAttributes() != null) {
+                        AciFabricExplicitGEp.AciFabricExplicitGEpAttributes attrs =
+                            explicitEp.getAttributes();
+                        vpcId = attrs.getId();
+                        vpcName = attrs.getName();
+                      }
+
+                      // Collect all fabricNodePEp node IDs
+                      for (AciFabricExplicitGEp.FabricExplicitGEpChild expChild : children) {
+                        if (expChild.getFabricNodePEp() != null) {
+                          AciFabricNodePEp nodePep = expChild.getFabricNodePEp();
+                          if (nodePep.getAttributes() != null) {
+                            AciFabricNodePEp.AciFabricNodePEpAttributes attrs =
+                                nodePep.getAttributes();
+                            // Prefer nodeId over id field
+                            String nodeId = attrs.getNodeId();
+                            if (nodeId == null || nodeId.isEmpty()) {
+                              nodeId = attrs.getId();
+                            }
+                            if (nodeId != null && !nodeId.isEmpty()) {
+                              nodeIds.add(nodeId);
+                            }
+                          }
+                        }
+                      }
+
+                      // If we have exactly 2 nodes, this is a VPC pair
+                      if (nodeIds.size() == 2 && vpcId != null) {
+                        VpcPair vpcPair =
+                            new VpcPair(vpcId, vpcName, nodeIds.get(0), nodeIds.get(1));
+                        _vpcPairs.put(vpcId, vpcPair);
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1480,6 +1558,20 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Returns the map of VPC pairs in the ACI fabric.
+   *
+   * @return An immutable map of VPC IDs to VPC pair configurations
+   */
+  @Nonnull
+  public Map<String, VpcPair> getVpcPairs() {
+    return _vpcPairs;
+  }
+
+  public void setVpcPairs(Map<String, VpcPair> vpcPairs) {
+    _vpcPairs = new TreeMap<>(vpcPairs);
+  }
+
+  /**
    * Returns the map of path attachments linking EPGs to physical interfaces.
    *
    * @return Map of (nodeId, interfaceName) to PathAttachment details
@@ -2256,6 +2348,59 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * ACI VPC (Virtual Port Channel) pair configuration.
+   *
+   * <p>Represents a VPC pair that consists of two fabric nodes connected via a peer-link.
+   */
+  public static class VpcPair implements Serializable {
+    private String _vpcId;
+    private String _vpcName;
+    private String _peer1NodeId;
+    private String _peer2NodeId;
+
+    public VpcPair() {}
+
+    public VpcPair(String vpcId, String vpcName, String peer1NodeId, String peer2NodeId) {
+      _vpcId = vpcId;
+      _vpcName = vpcName;
+      _peer1NodeId = peer1NodeId;
+      _peer2NodeId = peer2NodeId;
+    }
+
+    public @Nullable String getVpcId() {
+      return _vpcId;
+    }
+
+    public void setVpcId(String vpcId) {
+      _vpcId = vpcId;
+    }
+
+    public @Nullable String getVpcName() {
+      return _vpcName;
+    }
+
+    public void setVpcName(String vpcName) {
+      _vpcName = vpcName;
+    }
+
+    public @Nullable String getPeer1NodeId() {
+      return _peer1NodeId;
+    }
+
+    public void setPeer1NodeId(String peer1NodeId) {
+      _peer1NodeId = peer1NodeId;
+    }
+
+    public @Nullable String getPeer2NodeId() {
+      return _peer2NodeId;
+    }
+
+    public void setPeer2NodeId(String peer2NodeId) {
+      _peer2NodeId = peer2NodeId;
+    }
+  }
+
+  /**
    * ACI Fabric Node configuration.
    *
    * <p>A fabric node represents a physical or virtual switch in the ACI fabric. It contains
@@ -2798,7 +2943,16 @@ public final class AciConfiguration extends VendorConfiguration {
 
   /** Represents the fabricExplicitGEp element containing explicit fabric endpoints. */
   public static class AciFabricExplicitGEp implements Serializable {
+    private AciFabricExplicitGEpAttributes _attributes;
     private List<FabricExplicitGEpChild> _children;
+
+    public @Nullable AciFabricExplicitGEpAttributes getAttributes() {
+      return _attributes;
+    }
+
+    public void setAttributes(@Nullable AciFabricExplicitGEpAttributes attributes) {
+      _attributes = attributes;
+    }
 
     public @Nullable List<FabricExplicitGEpChild> getChildren() {
       return _children;
@@ -2806,6 +2960,76 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setChildren(@Nullable List<FabricExplicitGEpChild> children) {
       _children = children;
+    }
+
+    /** Attributes of fabricExplicitGEp (VPC ID and name). */
+    public static class AciFabricExplicitGEpAttributes implements Serializable {
+      private @Nullable String _annotation;
+      private @Nullable String _description;
+      private @Nullable String _distinguishedName;
+      private @Nullable String _id;
+      private @Nullable String _name;
+      private @Nullable String _userDomain;
+
+      @JsonProperty("annotation")
+      public @Nullable String getAnnotation() {
+        return _annotation;
+      }
+
+      @JsonProperty("annotation")
+      public void setAnnotation(@Nullable String annotation) {
+        _annotation = annotation;
+      }
+
+      @JsonProperty("descr")
+      public @Nullable String getDescription() {
+        return _description;
+      }
+
+      @JsonProperty("descr")
+      public void setDescription(@Nullable String description) {
+        _description = description;
+      }
+
+      @JsonProperty("dn")
+      public @Nullable String getDistinguishedName() {
+        return _distinguishedName;
+      }
+
+      @JsonProperty("dn")
+      public void setDistinguishedName(@Nullable String distinguishedName) {
+        _distinguishedName = distinguishedName;
+      }
+
+      @JsonProperty("id")
+      public @Nullable String getId() {
+        return _id;
+      }
+
+      @JsonProperty("id")
+      public void setId(@Nullable String id) {
+        _id = id;
+      }
+
+      @JsonProperty("name")
+      public @Nullable String getName() {
+        return _name;
+      }
+
+      @JsonProperty("name")
+      public void setName(@Nullable String name) {
+        _name = name;
+      }
+
+      @JsonProperty("userdom")
+      public @Nullable String getUserDomain() {
+        return _userDomain;
+      }
+
+      @JsonProperty("userdom")
+      public void setUserDomain(@Nullable String userDomain) {
+        _userDomain = userDomain;
+      }
     }
 
     /** Child elements of fabricExplicitGEp. */
