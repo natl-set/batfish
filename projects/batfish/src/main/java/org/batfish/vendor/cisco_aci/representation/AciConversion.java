@@ -1159,6 +1159,9 @@ public final class AciConversion {
     // Process EPGs to find their interface associations
     for (AciConfiguration.Epg epg : aciConfig.getEpgs().values()) {
       String bridgeDomainName = epg.getBridgeDomain();
+      String epgDisplayName = epg.getName();
+      String tenantName = epg.getTenant();
+      String appProfileName = epg.getApplicationProfile();
 
       // Find the bridge domain to determine VLAN
       Integer vlanId = null;
@@ -1183,6 +1186,27 @@ public final class AciConversion {
               warnings.redFlagf(
                   "Interface %s not found for EPG %s", iface.getName(), epg.getName());
               continue;
+            }
+
+            // Build EPG metadata description
+            StringBuilder epgMetadata = new StringBuilder();
+            epgMetadata.append("EPG: ").append(epgDisplayName);
+            if (tenantName != null) {
+              epgMetadata.append(" | Tenant: ").append(tenantName);
+            }
+            if (appProfileName != null) {
+              epgMetadata.append(" | AppProfile: ").append(appProfileName);
+            }
+            if (bridgeDomainName != null) {
+              epgMetadata.append(" | BridgeDomain: ").append(bridgeDomainName);
+            }
+
+            // Append EPG info to existing description
+            String existingDesc = batfishIface.getDescription();
+            if (existingDesc != null && !existingDesc.isEmpty()) {
+              batfishIface.setDescription(existingDesc + " | " + epgMetadata.toString());
+            } else {
+              batfishIface.setDescription(epgMetadata.toString());
             }
 
             // Set VLAN based on EPG's bridge domain
