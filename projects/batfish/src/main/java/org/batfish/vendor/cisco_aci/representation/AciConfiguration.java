@@ -313,6 +313,8 @@ public final class AciConfiguration extends VendorConfiguration {
   private void parseFabricNodes(AciPolUniInternal polUni, Warnings warnings) {
     // First pass: collect all fabricNodeIdentP objects to map node IDs to names
     Map<String, String> nodeIdToName = new TreeMap<>();
+
+    // Parse from fabricInst (fabric)
     for (AciPolUniInternal.PolUniChild child : polUni.getChildren()) {
       if (child.getFabricInst() != null) {
         AciFabricInst fabricInst = child.getFabricInst();
@@ -337,6 +339,26 @@ public final class AciConfiguration extends VendorConfiguration {
                         }
                       }
                     }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // ALSO parse from ctrlrInst (controller) - this is where the real node names are!
+      if (child.getCtrlrInst() != null) {
+        AciCtrlrInst ctrlrInst = child.getCtrlrInst();
+        if (ctrlrInst.getChildren() != null) {
+          for (AciCtrlrInst.CtrlrInstChild instChild : ctrlrInst.getChildren()) {
+            if (instChild.getFabricNodeIdentPol() != null) {
+              AciFabricNodeIdentPol identPol = instChild.getFabricNodeIdentPol();
+              if (identPol.getChildren() != null) {
+                for (Object identPObj : identPol.getChildren()) {
+                  if (identPObj instanceof AciFabricNodeIdentP) {
+                    AciFabricNodeIdentP nodeIdentP = (AciFabricNodeIdentP) identPObj;
+                    parseFabricNodeIdentP(nodeIdentP, nodeIdToName);
                   }
                 }
               }
@@ -2826,6 +2848,8 @@ public final class AciConfiguration extends VendorConfiguration {
 
       private @Nullable AciFabricInst _fabricInst;
 
+      private @Nullable AciCtrlrInst _ctrlrInst;
+
       @JsonProperty("fvTenant")
       public @Nullable AciTenant getFvTenant() {
         return _fvTenant;
@@ -2844,6 +2868,16 @@ public final class AciConfiguration extends VendorConfiguration {
       @JsonProperty("fabricInst")
       public void setFabricInst(@Nullable AciFabricInst fabricInst) {
         _fabricInst = fabricInst;
+      }
+
+      @JsonProperty("ctrlrInst")
+      public @Nullable AciCtrlrInst getCtrlrInst() {
+        return _ctrlrInst;
+      }
+
+      @JsonProperty("ctrlrInst")
+      public void setCtrlrInst(@Nullable AciCtrlrInst ctrlrInst) {
+        _ctrlrInst = ctrlrInst;
       }
     }
   }
@@ -4518,6 +4552,47 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setEpgTenant(@Nullable String epgTenant) {
       _epgTenant = epgTenant;
+    }
+  }
+
+  /** Controller instance (ctrlrInst) in ACI fabric. */
+  public static class AciCtrlrInst implements Serializable {
+    private List<CtrlrInstChild> _children;
+
+    public @Nullable List<CtrlrInstChild> getChildren() {
+      return _children;
+    }
+
+    public void setChildren(@Nullable List<CtrlrInstChild> children) {
+      _children = children;
+    }
+
+    /** Child elements of ctrlrInst. */
+    public static class CtrlrInstChild implements Serializable {
+      private @Nullable AciFabricNodeIdentPol _fabricNodeIdentPol;
+
+      @JsonProperty("fabricNodeIdentPol")
+      public @Nullable AciFabricNodeIdentPol getFabricNodeIdentPol() {
+        return _fabricNodeIdentPol;
+      }
+
+      @JsonProperty("fabricNodeIdentPol")
+      public void setFabricNodeIdentPol(@Nullable AciFabricNodeIdentPol fabricNodeIdentPol) {
+        _fabricNodeIdentPol = fabricNodeIdentPol;
+      }
+    }
+  }
+
+  /** Fabric node identity policy (fabricNodeIdentPol) containing node identities. */
+  public static class AciFabricNodeIdentPol implements Serializable {
+    private List<Object> _children;
+
+    public @Nullable List<Object> getChildren() {
+      return _children;
+    }
+
+    public void setChildren(@Nullable List<Object> children) {
+      _children = children;
     }
   }
 }
