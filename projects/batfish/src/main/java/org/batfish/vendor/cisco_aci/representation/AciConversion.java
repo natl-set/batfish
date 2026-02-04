@@ -150,6 +150,7 @@ public final class AciConversion {
     // Example: nodeName = "SW-DC1-Leaf-NSAB07-SET-01" from config
     String nodeId = node.getNodeId();
     String nodeName = node.getName();
+    String fabricHostname = aciConfig.getHostname(); // e.g., "ACI-DC2-ce2.json"
     String hostname;
     String humanName;
 
@@ -160,8 +161,15 @@ public final class AciConversion {
       // Include node ID in humanName for reference
       humanName = nodeId != null ? nodeName + " (ID: " + nodeId + ")" : nodeName;
     } else {
-      // Fallback to nodeId if name is not available
-      hostname = nodeId != null ? nodeId : "aci-node-unknown";
+      // Fallback: use fabric name + nodeId for global uniqueness
+      // This prevents conflicts when multiple fabrics have the same node IDs
+      if (nodeId != null && !nodeId.isEmpty()) {
+        String fabricBase =
+            fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
+        hostname = fabricBase + "-" + nodeId;
+      } else {
+        hostname = "aci-node-unknown";
+      }
       humanName = hostname;
     }
 
