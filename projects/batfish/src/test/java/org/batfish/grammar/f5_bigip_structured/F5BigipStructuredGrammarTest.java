@@ -3731,7 +3731,6 @@ public final class F5BigipStructuredGrammarTest {
   @Test
   public void testDescriptionExtractionWithQuotedAndEscaped() throws IOException {
     String filename = "f5_bigip_structured_keyword_values";
-    String hostname = "f5_bigip_structured_keyword_values";
     F5BigipConfiguration vc = parseVendorConfig(filename);
 
     // Test that descriptions are extracted correctly for:
