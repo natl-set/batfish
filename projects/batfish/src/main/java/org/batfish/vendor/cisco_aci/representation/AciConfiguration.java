@@ -2916,8 +2916,8 @@ public final class AciConfiguration extends VendorConfiguration {
             child.setFabricInst(
                 p.getCodec().treeToValue(childNode.get("fabricInst"), AciFabricInst.class));
           } else if (childNode.has("ctrlrInst")) {
-            child.setCtrlrInst(
-                p.getCodec().treeToValue(childNode.get("ctrlrInst"), AciCtrlrInst.class));
+            // ctrlrInst has mixed-type children, so parse it manually
+            child.setCtrlrInst(parseCtrlrInst(childNode.get("ctrlrInst"), p, ctxt));
           }
           // Ignore other child types (apPluginPolContainer, notifCont, etc.)
 
@@ -2927,6 +2927,32 @@ public final class AciConfiguration extends VendorConfiguration {
       }
 
       return polUni;
+    }
+
+    private AciCtrlrInst parseCtrlrInst(JsonNode node, JsonParser p, DeserializationContext ctxt)
+        throws IOException {
+      AciCtrlrInst ctrlrInst = new AciCtrlrInst();
+
+      JsonNode childrenNode = node.get("children");
+      if (childrenNode != null && childrenNode.isArray()) {
+        com.google.common.collect.ImmutableList.Builder<AciCtrlrInst.CtrlrInstChild> children =
+            com.google.common.collect.ImmutableList.builder();
+        for (JsonNode childNode : childrenNode) {
+          AciCtrlrInst.CtrlrInstChild child = new AciCtrlrInst.CtrlrInstChild();
+
+          // Only care about fabricNodeIdentPol, ignore other child types
+          if (childNode.has("fabricNodeIdentPol")) {
+            child.setFabricNodeIdentPol(
+                p.getCodec()
+                    .treeToValue(childNode.get("fabricNodeIdentPol"), AciFabricNodeIdentPol.class));
+          }
+
+          children.add(child);
+        }
+        ctrlrInst.setChildren(children.build());
+      }
+
+      return ctrlrInst;
     }
   }
 
