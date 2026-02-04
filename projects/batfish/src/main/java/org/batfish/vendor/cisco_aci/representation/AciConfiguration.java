@@ -360,7 +360,12 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     AciFabricNodePEp.AciFabricNodePEpAttributes attrs = nodePep.getAttributes();
-    String nodeId = attrs.getId();
+    // fabricNodePEp can use either "nodeId" or "id" as the identifier field
+    // Prefer "nodeId" as it's the standard field, fallback to "id"
+    String nodeId = attrs.getNodeId();
+    if (nodeId == null || nodeId.isEmpty()) {
+      nodeId = attrs.getId();
+    }
     String podId = attrs.getPodId();
     String role = attrs.getRole();
 
@@ -3096,6 +3101,7 @@ public final class AciConfiguration extends VendorConfiguration {
       private @Nullable String _id;
       private @Nullable String _name;
       private @Nullable String _nameAlias;
+      private @Nullable String _nodeId;
       private @Nullable String _podId;
       private @Nullable String _role;
       private @Nullable String _userDomain;
@@ -3158,6 +3164,16 @@ public final class AciConfiguration extends VendorConfiguration {
       @JsonProperty("nameAlias")
       public void setNameAlias(@Nullable String nameAlias) {
         _nameAlias = nameAlias;
+      }
+
+      @JsonProperty("nodeId")
+      public @Nullable String getNodeId() {
+        return _nodeId;
+      }
+
+      @JsonProperty("nodeId")
+      public void setNodeId(@Nullable String nodeId) {
+        _nodeId = nodeId;
       }
 
       @JsonProperty("podId")
