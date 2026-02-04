@@ -13,8 +13,6 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -2888,39 +2886,39 @@ public final class AciConfiguration extends VendorConfiguration {
     @Override
     public AciPolUniInternal deserialize(JsonParser p, DeserializationContext ctxt)
         throws IOException {
-      AciPolUniInternal polUni = new AciPolUniInternal();
       JsonNode node = p.getCodec().readTree(p);
 
-      // Parse attributes
+      // Use Jackson's treeToValue to deserialize the entire structure
+      // This works for attributes and most nested structures
+      // Only need special handling for the heterogenous children array
+      AciPolUniInternal polUni = new AciPolUniInternal();
+
+      // Parse attributes using treeToValue
       JsonNode attributesNode = node.get("attributes");
       if (attributesNode != null) {
-        AciPolUniInternal.AciPolUniInternalAttributes attributes =
-            new AciPolUniInternal.AciPolUniInternalAttributes();
-        if (attributesNode.has("name")) {
-          attributes.setName(attributesNode.get("name").asText());
-        }
-        polUni.setAttributes(attributes);
+        polUni.setAttributes(
+            p.getCodec().treeToValue(attributesNode, AciPolUniInternalAttributes.class));
       }
 
-      // Parse children
+      // Parse children - each child is a single-key object like {"fvTenant": {...}}
       JsonNode childrenNode = node.get("children");
       if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<AciPolUniInternal.PolUniChild> children =
+        com.google.common.collect.ImmutableList.Builder<PolUniChild> children =
             com.google.common.collect.ImmutableList.builder();
         for (JsonNode childNode : childrenNode) {
-          AciPolUniInternal.PolUniChild child = new AciPolUniInternal.PolUniChild();
+          PolUniChild child = new PolUniChild();
 
-          // Parse fvTenant
-          JsonNode fvTenantNode = childNode.get("fvTenant");
-          if (fvTenantNode != null) {
-            child.setFvTenant(parseFvTenant(fvTenantNode));
+          // Try each known child type and use treeToValue for deserialization
+          if (childNode.has("fvTenant")) {
+            child.setFvTenant(p.getCodec().treeToValue(childNode.get("fvTenant"), AciTenant.class));
+          } else if (childNode.has("fabricInst")) {
+            child.setFabricInst(
+                p.getCodec().treeToValue(childNode.get("fabricInst"), AciFabricInst.class));
+          } else if (childNode.has("ctrlrInst")) {
+            child.setCtrlrInst(
+                p.getCodec().treeToValue(childNode.get("ctrlrInst"), AciCtrlrInst.class));
           }
-
-          // Parse fabricInst
-          JsonNode fabricInstNode = childNode.get("fabricInst");
-          if (fabricInstNode != null) {
-            child.setFabricInst(parseFabricInst(fabricInstNode));
-          }
+          // Ignore other child types (apPluginPolContainer, notifCont, etc.)
 
           children.add(child);
         }
@@ -2928,180 +2926,6 @@ public final class AciConfiguration extends VendorConfiguration {
       }
 
       return polUni;
-    }
-
-    private AciTenant parseFvTenant(JsonNode node) {
-      AciTenant tenant = new AciTenant();
-
-      // Parse attributes
-      JsonNode attrsNode = node.get("attributes");
-      if (attrsNode != null) {
-        AciTenant.AciTenantAttributes attrs = new AciTenant.AciTenantAttributes();
-        if (attrsNode.has("name")) {
-          attrs.setName(attrsNode.get("name").asText());
-        }
-        if (attrsNode.has("descr")) {
-          attrs.setDescription(attrsNode.get("descr").asText());
-        }
-        tenant.setAttributes(attrs);
-      }
-
-      // Parse children as raw list
-      JsonNode childrenNode = node.get("children");
-      if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<Object> children =
-            com.google.common.collect.ImmutableList.builder();
-        for (JsonNode childNode : childrenNode) {
-          // Keep as raw map to preserve structure
-          children.add(convertNodeToMap(childNode));
-        }
-        tenant.setChildren(children.build());
-      }
-
-      return tenant;
-    }
-
-    private AciFabricInst parseFabricInst(JsonNode node) {
-      AciFabricInst fabricInst = new AciFabricInst();
-
-      JsonNode attrsNode = node.get("attributes");
-      if (attrsNode != null) {
-        AciFabricInst.AciFabricInstAttributes attrs = new AciFabricInst.AciFabricInstAttributes();
-        if (attrsNode.has("dn")) {
-          attrs.setDistinguishedName(attrsNode.get("dn").asText());
-        }
-        fabricInst.setAttributes(attrs);
-      }
-
-      JsonNode childrenNode = node.get("children");
-      if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<AciFabricInst.FabricInstChild> children =
-            com.google.common.collect.ImmutableList.builder();
-        for (JsonNode childNode : childrenNode) {
-          AciFabricInst.FabricInstChild child = new AciFabricInst.FabricInstChild();
-
-          JsonNode protPolNode = childNode.get("fabricProtPol");
-          if (protPolNode != null) {
-            child.setFabricProtPol(parseFabricProtPol(protPolNode));
-          }
-
-          children.add(child);
-        }
-        fabricInst.setChildren(children.build());
-      }
-
-      return fabricInst;
-    }
-
-    private AciFabricProtPol parseFabricProtPol(JsonNode node) {
-      AciFabricProtPol protPol = new AciFabricProtPol();
-
-      JsonNode childrenNode = node.get("children");
-      if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<AciFabricProtPol.FabricProtPolChild>
-            children = com.google.common.collect.ImmutableList.builder();
-        for (JsonNode childNode : childrenNode) {
-          AciFabricProtPol.FabricProtPolChild child = new AciFabricProtPol.FabricProtPolChild();
-
-          JsonNode explicitNode = childNode.get("fabricExplicitGEp");
-          if (explicitNode != null) {
-            child.setFabricExplicitGEp(parseFabricExplicitGEp(explicitNode));
-          }
-
-          children.add(child);
-        }
-        protPol.setChildren(children.build());
-      }
-
-      return protPol;
-    }
-
-    private AciFabricExplicitGEp parseFabricExplicitGEp(JsonNode node) {
-      AciFabricExplicitGEp explicitEp = new AciFabricExplicitGEp();
-
-      JsonNode childrenNode = node.get("children");
-      if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<AciFabricExplicitGEp.FabricExplicitGEpChild>
-            children = com.google.common.collect.ImmutableList.builder();
-        for (JsonNode childNode : childrenNode) {
-          AciFabricExplicitGEp.FabricExplicitGEpChild child =
-              new AciFabricExplicitGEp.FabricExplicitGEpChild();
-
-          JsonNode nodePepNode = childNode.get("fabricNodePEp");
-          if (nodePepNode != null) {
-            child.setFabricNodePEp(parseFabricNodePEp(nodePepNode));
-          }
-
-          children.add(child);
-        }
-        explicitEp.setChildren(children.build());
-      }
-
-      return explicitEp;
-    }
-
-    private AciFabricNodePEp parseFabricNodePEp(JsonNode node) {
-      AciFabricNodePEp nodePep = new AciFabricNodePEp();
-
-      JsonNode attrsNode = node.get("attributes");
-      if (attrsNode != null) {
-        AciFabricNodePEp.AciFabricNodePEpAttributes attrs =
-            new AciFabricNodePEp.AciFabricNodePEpAttributes();
-        if (attrsNode.has("id")) {
-          attrs.setId(attrsNode.get("id").asText());
-        }
-        if (attrsNode.has("name")) {
-          attrs.setName(attrsNode.get("name").asText());
-        }
-        if (attrsNode.has("podId")) {
-          attrs.setPodId(attrsNode.get("podId").asText());
-        }
-        if (attrsNode.has("role")) {
-          attrs.setRole(attrsNode.get("role").asText());
-        }
-        if (attrsNode.has("descr")) {
-          attrs.setDescription(attrsNode.get("descr").asText());
-        }
-        nodePep.setAttributes(attrs);
-      }
-
-      return nodePep;
-    }
-
-    private Map<String, Object> convertNodeToMap(JsonNode node) {
-      Map<String, Object> map = new HashMap<>();
-      Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> entry = fields.next();
-        map.put(entry.getKey(), convertJsonNode(entry.getValue()));
-      }
-      return map;
-    }
-
-    private Object convertJsonNode(JsonNode node) {
-      if (node.isObject()) {
-        return convertNodeToMap(node);
-      } else if (node.isArray()) {
-        List<Object> list = new ArrayList<>();
-        for (JsonNode item : node) {
-          list.add(convertJsonNode(item));
-        }
-        return list;
-      } else if (node.isTextual()) {
-        return node.asText();
-      } else if (node.isInt() || node.isShort()) {
-        return node.asInt();
-      } else if (node.isLong()) {
-        return node.asLong();
-      } else if (node.isBoolean()) {
-        return node.asBoolean();
-      } else if (node.isNull()) {
-        return null;
-      } else if (node.isDouble() || node.isFloat()) {
-        return node.asDouble();
-      } else {
-        return node.toString();
-      }
     }
   }
 
