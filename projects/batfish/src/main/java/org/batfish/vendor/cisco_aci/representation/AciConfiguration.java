@@ -238,6 +238,9 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of VPC IDs to VPC pair configurations */
   private Map<String, VpcPair> _vpcPairs;
 
+  /** Map of inter-fabric connection IDs to connection configurations */
+  private Map<String, InterFabricConnection> _interFabricConnections;
+
   /** Map of (nodeId, interfaceName) to path attachment details */
   private Map<String, Map<String, PathAttachment>> _pathAttachmentMap;
 
@@ -263,6 +266,7 @@ public final class AciConfiguration extends VendorConfiguration {
     _filters = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
     _vpcPairs = new TreeMap<>();
+    _interFabricConnections = new TreeMap<>();
     _pathAttachmentMap = new TreeMap<>();
     _nodeInterfaces = new TreeMap<>();
     _l3Outs = new TreeMap<>();
@@ -1611,6 +1615,20 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Returns the map of inter-fabric connections.
+   *
+   * @return Map of connection IDs to inter-fabric connection configurations
+   */
+  @Nonnull
+  public Map<String, InterFabricConnection> getInterFabricConnections() {
+    return _interFabricConnections;
+  }
+
+  public void setInterFabricConnections(Map<String, InterFabricConnection> interFabricConnections) {
+    _interFabricConnections = new TreeMap<>(interFabricConnections);
+  }
+
+  /**
    * Returns the map of path attachments linking EPGs to physical interfaces.
    *
    * @return Map of (nodeId, interfaceName) to PathAttachment details
@@ -2501,6 +2519,109 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setPeer2NodeId(String peer2NodeId) {
       _peer2NodeId = peer2NodeId;
+    }
+  }
+
+  /**
+   * ACI Inter-Fabric Connection configuration.
+   *
+   * <p>Represents detected connections between ACI fabrics (e.g., DC1, DC2) via shared external
+   * networks, BGP peers, or L3Out configurations.
+   */
+  public static class InterFabricConnection implements Serializable {
+    private String _fabric1;
+    private String _fabric2;
+    private String _connectionType; // "l3out", "bgp", "shared-external", "mpls"
+    private String _l3OutName1;
+    private String _l3OutName2;
+    private List<String> _sharedSubnets;
+    private List<String> _bgpPeers;
+    private String _description;
+
+    public InterFabricConnection() {
+      _sharedSubnets = new ArrayList<>();
+      _bgpPeers = new ArrayList<>();
+    }
+
+    public InterFabricConnection(
+        String fabric1, String fabric2, String connectionType, String description) {
+      this();
+      _fabric1 = fabric1;
+      _fabric2 = fabric2;
+      _connectionType = connectionType;
+      _description = description;
+    }
+
+    public @Nullable String getFabric1() {
+      return _fabric1;
+    }
+
+    public void setFabric1(String fabric1) {
+      _fabric1 = fabric1;
+    }
+
+    public @Nullable String getFabric2() {
+      return _fabric2;
+    }
+
+    public void setFabric2(String fabric2) {
+      _fabric2 = fabric2;
+    }
+
+    public @Nullable String getConnectionType() {
+      return _connectionType;
+    }
+
+    public void setConnectionType(String connectionType) {
+      _connectionType = connectionType;
+    }
+
+    public @Nullable String getL3OutName1() {
+      return _l3OutName1;
+    }
+
+    public void setL3OutName1(String l3OutName1) {
+      _l3OutName1 = l3OutName1;
+    }
+
+    public @Nullable String getL3OutName2() {
+      return _l3OutName2;
+    }
+
+    public void setL3OutName2(String l3OutName2) {
+      _l3OutName2 = l3OutName2;
+    }
+
+    public List<String> getSharedSubnets() {
+      return _sharedSubnets;
+    }
+
+    public void setSharedSubnets(List<String> sharedSubnets) {
+      _sharedSubnets = new ArrayList<>(sharedSubnets);
+    }
+
+    public void addSharedSubnet(String subnet) {
+      _sharedSubnets.add(subnet);
+    }
+
+    public List<String> getBgpPeers() {
+      return _bgpPeers;
+    }
+
+    public void setBgpPeers(List<String> bgpPeers) {
+      _bgpPeers = new ArrayList<>(bgpPeers);
+    }
+
+    public void addBgpPeer(String bgpPeer) {
+      _bgpPeers.add(bgpPeer);
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
     }
   }
 
