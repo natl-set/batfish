@@ -2897,16 +2897,17 @@ public final class AciConfiguration extends VendorConfiguration {
       JsonNode attributesNode = node.get("attributes");
       if (attributesNode != null) {
         polUni.setAttributes(
-            p.getCodec().treeToValue(attributesNode, AciPolUniInternalAttributes.class));
+            p.getCodec()
+                .treeToValue(attributesNode, AciPolUniInternal.AciPolUniInternalAttributes.class));
       }
 
       // Parse children - each child is a single-key object like {"fvTenant": {...}}
       JsonNode childrenNode = node.get("children");
       if (childrenNode != null && childrenNode.isArray()) {
-        com.google.common.collect.ImmutableList.Builder<PolUniChild> children =
+        com.google.common.collect.ImmutableList.Builder<AciPolUniInternal.PolUniChild> children =
             com.google.common.collect.ImmutableList.builder();
         for (JsonNode childNode : childrenNode) {
-          PolUniChild child = new PolUniChild();
+          AciPolUniInternal.PolUniChild child = new AciPolUniInternal.PolUniChild();
 
           // Try each known child type and use treeToValue for deserialization
           if (childNode.has("fvTenant")) {
