@@ -355,11 +355,8 @@ public final class AciConfiguration extends VendorConfiguration {
             if (instChild.getFabricNodeIdentPol() != null) {
               AciFabricNodeIdentPol identPol = instChild.getFabricNodeIdentPol();
               if (identPol.getChildren() != null) {
-                for (Object identPObj : identPol.getChildren()) {
-                  if (identPObj instanceof AciFabricNodeIdentP) {
-                    AciFabricNodeIdentP nodeIdentP = (AciFabricNodeIdentP) identPObj;
-                    parseFabricNodeIdentP(nodeIdentP, nodeIdToName);
-                  }
+                for (AciFabricNodeIdentP nodeIdentP : identPol.getChildren()) {
+                  parseFabricNodeIdentP(nodeIdentP, nodeIdToName);
                 }
               }
             }
@@ -4585,13 +4582,13 @@ public final class AciConfiguration extends VendorConfiguration {
 
   /** Fabric node identity policy (fabricNodeIdentPol) containing node identities. */
   public static class AciFabricNodeIdentPol implements Serializable {
-    private List<Object> _children;
+    private List<AciFabricNodeIdentP> _children;
 
-    public @Nullable List<Object> getChildren() {
+    public @Nullable List<AciFabricNodeIdentP> getChildren() {
       return _children;
     }
 
-    public void setChildren(@Nullable List<Object> children) {
+    public void setChildren(@Nullable List<AciFabricNodeIdentP> children) {
       _children = children;
     }
   }
