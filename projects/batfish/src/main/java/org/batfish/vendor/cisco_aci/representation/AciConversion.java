@@ -146,21 +146,21 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    // Prefer human-readable name as hostname, fallback to nodeId for uniqueness
-    String nodeName = node.getName();
+    // Use nodeId as the primary hostname for uniqueness
+    // Human-readable name is used for display purposes only
     String nodeId = node.getNodeId();
+    String nodeName = node.getName();
     String hostname;
     String humanName;
 
+    // nodeId must exist for uniqueness (this is enforced during parsing)
+    hostname = nodeId != null ? nodeId : "aci-node-unknown";
+
+    // Use human-readable name for display, but always include nodeId for reference
     if (nodeName != null && !nodeName.isEmpty()) {
-      // Use human-readable name as primary hostname
-      hostname = nodeName;
-      // Include nodeId in humanName for reference/deduplication
-      humanName = nodeId != null ? nodeName + " (" + nodeId + ")" : nodeName;
+      humanName = nodeName + " (" + hostname + ")";
     } else {
-      // Fallback to nodeId if name is not available
-      hostname = nodeId;
-      humanName = nodeId != null ? nodeId : "aci-node-unknown";
+      humanName = hostname;
     }
 
     Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
