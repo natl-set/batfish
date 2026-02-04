@@ -434,6 +434,10 @@ public final class AciConfiguration extends VendorConfiguration {
     }
     // Don't set a fallback name - let AciConversion generate unique hostname from fabric+nodeId
     fabricNode.setPodId(podId);
+    // Set role: use fabricNodePEp role if specified, otherwise extract from node name
+    if (role == null || role.isEmpty() || "unspecified".equalsIgnoreCase(role)) {
+      role = extractRoleFromNodeName(name);
+    }
     fabricNode.setRole(role);
 
     // Parse children for interface information
@@ -458,6 +462,28 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     _fabricNodes.put(key, fabricNode);
+  }
+
+  /**
+   * Extracts the role from a node name. ACI node names typically follow patterns like:
+   * "SW-DC1-Leaf-NSAB01-SET-01" or "SW-DC1-Spine-NSAA03-SET-01".
+   *
+   * @param nodeName The node name
+   * @return The role ("leaf", "spine", or null if not found)
+   */
+  private @Nullable String extractRoleFromNodeName(String nodeName) {
+    if (nodeName == null || nodeName.isEmpty()) {
+      return null;
+    }
+    // Node names are typically in format: SW-DC1-{Role}-{NodeID}-{Set}
+    // Extract the role part (case-insensitive)
+    String lowerName = nodeName.toLowerCase();
+    if (lowerName.contains("-leaf-")) {
+      return "leaf";
+    } else if (lowerName.contains("-spine-")) {
+      return "spine";
+    }
+    return null;
   }
 
   /** Parses a tenant and all its contained elements. */
