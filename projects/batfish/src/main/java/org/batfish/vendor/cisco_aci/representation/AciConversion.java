@@ -146,19 +146,23 @@ public final class AciConversion {
    */
   private static Configuration convertNode(
       AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
-    // Use nodeId as the primary hostname for uniqueness
+    // Use APIC prefix with nodeId for descriptive, unique hostnames
     // Human-readable name is used for display purposes only
     String nodeId = node.getNodeId();
     String nodeName = node.getName();
     String hostname;
     String humanName;
 
-    // nodeId must exist for uniqueness (this is enforced during parsing)
-    hostname = nodeId != null ? nodeId : "aci-node-unknown";
+    // Generate hostname with "apic-" prefix for clarity
+    if (nodeId != null && !nodeId.isEmpty()) {
+      hostname = "apic-" + nodeId;
+    } else {
+      hostname = "aci-node-unknown";
+    }
 
     // Use human-readable name for display, but always include nodeId for reference
     if (nodeName != null && !nodeName.isEmpty()) {
-      humanName = nodeName + " (" + hostname + ")";
+      humanName = nodeName + " (node " + hostname + ")";
     } else {
       humanName = hostname;
     }
