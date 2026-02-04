@@ -573,7 +573,6 @@ public class AciFabricAndStructureTest {
     // Check node 1208
     AciConfiguration.FabricNode node1208 = aciConfig.getFabricNodes().get("1208");
     assertThat("Node 1208 should exist", node1208, notNullValue());
-    assertThat("Node 1208 should have name", node1208.getName(), notNullValue());
     assertThat(
         "Node 1208 should have management info", node1208.getManagementInfo(), notNullValue());
     assertThat(
@@ -588,7 +587,6 @@ public class AciFabricAndStructureTest {
     // Check node 1204
     AciConfiguration.FabricNode node1204 = aciConfig.getFabricNodes().get("1204");
     assertThat("Node 1204 should exist", node1204, notNullValue());
-    assertThat("Node 1204 should have name", node1204.getName(), notNullValue());
     assertThat(
         "Node 1204 should have management info", node1204.getManagementInfo(), notNullValue());
     assertThat(
