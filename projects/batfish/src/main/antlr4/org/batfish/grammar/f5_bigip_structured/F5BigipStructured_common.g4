@@ -62,7 +62,7 @@ mac_address
 
 structure_name
 :
-  partition = PARTITION? word_id
+  partition = PARTITION? (word | word_id)
 ;
 
 structure_name_or_address
@@ -71,7 +71,8 @@ structure_name_or_address
   (
     address = ip_address
     | address6 = ipv6_address
-    | w = word_id
+    | word_id
+    | word
   )
 ;
 
