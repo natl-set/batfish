@@ -1975,6 +1975,7 @@ public class F5BigipConfiguration extends VendorConfiguration {
     _c.getDefaultVrf()
         .setStaticRoutes(
             _routes.values().stream()
+                .sorted(Comparator.comparing(Route::getLine))
                 .map(this::toStaticRoute)
                 .filter(Objects::nonNull)
                 .collect(ImmutableSortedSet.toImmutableSortedSet(Comparator.naturalOrder())));

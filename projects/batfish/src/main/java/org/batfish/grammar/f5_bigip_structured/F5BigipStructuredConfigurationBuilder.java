@@ -2205,9 +2205,11 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   @Override
   public void enterNet_route(Net_routeContext ctx) {
     String name = ctx.name.getText();
+    int line = ctx.getStart().getLine();
     _c.defineStructure(ROUTE, name, ctx);
-    _c.referenceStructure(ROUTE, name, ROUTE_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _c.referenceStructure(ROUTE, name, ROUTE_SELF_REFERENCE, line);
     _currentRoute = _c.getRoutes().computeIfAbsent(name, Route::new);
+    _currentRoute.setLine(line);
   }
 
   @Override
