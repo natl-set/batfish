@@ -44,8 +44,7 @@ public class AciErrorHandlingTest {
       fail("Expected exception for malformed XML");
     } catch (Exception e) {
       // Expected exception - XML parsing should fail
-      assertTrue(
-          "Expected XML parsing error", e != null); // XML parser exceptions vary by implementation
+      assertNotNull(e); // XML parser exceptions vary by implementation
     }
   }
 
@@ -450,7 +449,7 @@ public class AciErrorHandlingTest {
       fail("Expected exception for whitespace-only input");
     } catch (Exception e) {
       // Expected exception
-      assertTrue(e != null);
+      assertNotNull(e);
     }
   }
 }

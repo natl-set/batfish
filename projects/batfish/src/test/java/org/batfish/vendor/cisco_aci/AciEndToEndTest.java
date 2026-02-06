@@ -598,7 +598,7 @@ public class AciEndToEndTest {
 
     // Real ACI fabrics typically have management IPs configured
     // We don't assert that all nodes must have management IPs, but we expect at least one
-    if (aciConfig.getFabricNodes().size() > 0) {
+    if (!aciConfig.getFabricNodes().isEmpty()) {
       // Log whether management IPs were found
       System.out.println(
           nodesWithMgmt > 0

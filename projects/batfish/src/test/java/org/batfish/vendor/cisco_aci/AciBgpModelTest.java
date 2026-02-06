@@ -206,16 +206,9 @@ public class AciBgpModelTest {
   public void testDeserializeAciBgpRouteTargetProfile_basic() throws IOException {
     // Need to read the actual AciBgpRouteTargetProfile class to understand its structure
     // Assuming it follows similar patterns
-    String json =
-        "{"
-            + "\"attributes\": {"
-            + "  \"name\": \"rt_profile\","
-            + "  \"descr\": \"Route target profile\""
-            + "}"
-            + "}";
-
     // If AciBgpRouteTargetProfile doesn't exist or has a different structure,
     // this test will need adjustment
+    // TODO: Implement this test when AciBgpRouteTargetProfile structure is defined
   }
 
   /** Test deserialization with null attributes for BGP policy. */
