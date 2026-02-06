@@ -15,9 +15,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.SortedMap;
 import org.batfish.common.Warnings;
+import org.batfish.common.topology.Layer1Edge;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
-import org.batfish.datamodel.Edge;
 import org.batfish.datamodel.ExprAclLine;
 import org.batfish.datamodel.Flow;
 import org.batfish.datamodel.Interface;
@@ -333,21 +333,23 @@ public class AciConversionTest {
   public void testCreateEdges_spineLeafTopology() {
     AciConfiguration aciConfig = createTestAciConfiguration();
 
-    var edges = AciConversion.createEdges(aciConfig);
+    var edges = AciConversion.createLayer1Edges(aciConfig);
 
     // Should create edges between spines and leaves
     // 2 spines x 2 leaves = 4 edges
     assertThat(edges.size(), equalTo(4));
 
     // Verify edge structure
-    for (Edge edge : edges) {
+    for (Layer1Edge edge : edges) {
       // Edge should connect a leaf to a spine
       assertTrue(
           "Edge node1 should be leaf or spine",
-          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2").contains(edge.getNode1()));
+          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
+              .contains(edge.getNode1().getHostname()));
       assertTrue(
           "Edge node2 should be leaf or spine",
-          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2").contains(edge.getNode2()));
+          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
+              .contains(edge.getNode2().getHostname()));
     }
   }
 

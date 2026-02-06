@@ -1252,6 +1252,77 @@ public class AciGrammarTest {
     }
   }
 
+  /** Test parsing ACI spine-leaf config with topology edges. */
+  @Test
+  public void testParseRealConfig_spineLeafTopology() throws IOException {
+    // Create a realistic spine-leaf topology config
+    String json =
+        "{"
+            + "\"polUni\": {"
+            + "\"attributes\": {\"dn\": \"uni\", \"name\": \"aci-fabric\"},"
+            + "\"children\": ["
+            + "{\"fabricInst\": {"
+            + "\"attributes\": {\"dn\": \"uni/fabric\"},"
+            + "\"children\": ["
+            + "{\"fabricProtPol\": {"
+            + "\"attributes\": {\"dn\": \"uni/fabric/fabricprotPol\"},"
+            + "\"children\": ["
+            + "{\"fabricExplicitGEp\": {"
+            + "\"attributes\": {\"dn\": \"uni/fabric/fabricprotPol/expgep-1\"},"
+            + "\"children\": ["
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"101\", \"name\": \"spine-1\", "
+            + "\"role\": \"spine\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-101\"}}},"
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"102\", \"name\": \"spine-2\", "
+            + "\"role\": \"spine\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-102\"}}},"
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"201\", \"name\": \"leaf-1\", "
+            + "\"role\": \"leaf\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-201\"}}},"
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"202\", \"name\": \"leaf-2\", "
+            + "\"role\": \"leaf\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-202\"}}},"
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"203\", \"name\": \"leaf-3\", "
+            + "\"role\": \"leaf\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-203\"}}},"
+            + "{\"fabricNodePEp\": {\"attributes\": {\"id\": \"204\", \"name\": \"leaf-4\", "
+            + "\"role\": \"leaf\", \"podId\": \"1\", "
+            + "\"dn\": \"uni/fabric/nodePEp-204\"}}}"
+            + "]}}]}}]}}]}}";
+
+    AciConfiguration config = AciConfiguration.fromJson("spine-leaf.json", json, new Warnings());
+    config.setVendor(org.batfish.datamodel.ConfigurationFormat.CISCO_ACI);
+
+    // Verify fabric nodes were parsed
+    assertThat(config.getFabricNodes().size(), equalTo(6));
+    assertThat(config.getFabricNodes(), hasKey("101"));
+    assertThat(config.getFabricNodes(), hasKey("102"));
+    assertThat(config.getFabricNodes(), hasKey("201"));
+    assertThat(config.getFabricNodes(), hasKey("202"));
+    assertThat(config.getFabricNodes(), hasKey("203"));
+    assertThat(config.getFabricNodes(), hasKey("204"));
+
+    // Verify roles
+    assertThat(config.getFabricNodes().get("101").getRole(), equalTo("spine"));
+    assertThat(config.getFabricNodes().get("201").getRole(), equalTo("leaf"));
+
+    // Verify topology edges are created
+    // Should have 2 spines x 4 leaves = 8 edges
+    assertThat(config.getLayer1Edges().size(), equalTo(8));
+
+    // Verify each edge connects a leaf to a spine
+    for (org.batfish.common.topology.Layer1Edge edge : config.getLayer1Edges()) {
+      String node1 = edge.getNode1().getHostname();
+      String node2 = edge.getNode2().getHostname();
+      // Each edge should connect one of: {spine-1, spine-2} to one of: {leaf-1, leaf-2, leaf-3,
+      // leaf-4}
+      assertTrue(
+          "Edge should connect spine to leaf: " + node1 + " -> " + node2,
+          (node1.startsWith("spine") && node2.startsWith("leaf"))
+              || (node1.startsWith("leaf") && node2.startsWith("spine")));
+    }
+  }
+
   /** Helper method to load test JSON resource files. */
   private String loadTestResource(String filename) throws IOException {
     try (java.io.InputStream is = getClass().getResourceAsStream(filename)) {

@@ -15,12 +15,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.batfish.common.VendorConversionException;
 import org.batfish.common.Warnings;
+import org.batfish.common.topology.Layer1Edge;
 import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
@@ -1658,6 +1660,20 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /**
+   * Returns the Layer 1 topology edges connecting fabric nodes.
+   *
+   * <p>In ACI, fabric nodes are connected via a spine-leaf topology. This method returns the
+   * physical edges representing those connections.
+   *
+   * @return Set of Layer 1 edges between fabric nodes
+   */
+  @Override
+  @Nonnull
+  public Set<Layer1Edge> getLayer1Edges() {
+    return AciConversion.createLayer1Edges(this);
+  }
+
+  /**
    * Returns the map of inter-fabric connections.
    *
    * @return Map of connection IDs to inter-fabric connection configurations
@@ -3048,7 +3064,16 @@ public final class AciConfiguration extends VendorConfiguration {
 
   /** Represents the fabricProtPol element containing fabric protection policies. */
   public static class AciFabricProtPol implements Serializable {
+    private AciFabricProtPolAttributes _attributes;
     private List<FabricProtPolChild> _children;
+
+    public @Nullable AciFabricProtPolAttributes getAttributes() {
+      return _attributes;
+    }
+
+    public void setAttributes(@Nullable AciFabricProtPolAttributes attributes) {
+      _attributes = attributes;
+    }
 
     public @Nullable List<FabricProtPolChild> getChildren() {
       return _children;
@@ -3056,6 +3081,21 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setChildren(@Nullable List<FabricProtPolChild> children) {
       _children = children;
+    }
+
+    /** Attributes of fabricProtPol. */
+    public static class AciFabricProtPolAttributes implements Serializable {
+      private @Nullable String _distinguishedName;
+
+      @JsonProperty("dn")
+      public @Nullable String getDistinguishedName() {
+        return _distinguishedName;
+      }
+
+      @JsonProperty("dn")
+      public void setDistinguishedName(@Nullable String distinguishedName) {
+        _distinguishedName = distinguishedName;
+      }
     }
 
     /** Child elements of fabricProtPol. */
@@ -3344,6 +3384,7 @@ public final class AciConfiguration extends VendorConfiguration {
     /** Child elements of a fabric node. */
     public static class FabricNodePEpChild implements Serializable {
       private AciInterface _fabricInterface;
+      private AciL1PhysIf _l1PhysIf;
 
       @JsonProperty("fabricInterface")
       public @Nullable AciInterface getFabricInterface() {
@@ -3353,6 +3394,16 @@ public final class AciConfiguration extends VendorConfiguration {
       @JsonProperty("fabricInterface")
       public void setFabricInterface(@Nullable AciInterface fabricInterface) {
         _fabricInterface = fabricInterface;
+      }
+
+      @JsonProperty("l1PhysIf")
+      public @Nullable AciL1PhysIf getL1PhysIf() {
+        return _l1PhysIf;
+      }
+
+      @JsonProperty("l1PhysIf")
+      public void setL1PhysIf(@Nullable AciL1PhysIf l1PhysIf) {
+        _l1PhysIf = l1PhysIf;
       }
     }
 
@@ -3446,6 +3497,68 @@ public final class AciConfiguration extends VendorConfiguration {
         @JsonProperty("userdom")
         public void setUserDomain(@Nullable String userDomain) {
           _userDomain = userDomain;
+        }
+      }
+    }
+
+    /** Physical layer 1 interface configuration in ACI. */
+    public static class AciL1PhysIf implements Serializable {
+      private AciL1PhysIfAttributes _attributes;
+
+      public @Nullable AciL1PhysIfAttributes getAttributes() {
+        return _attributes;
+      }
+
+      @JsonProperty("attributes")
+      public void setAttributes(@Nullable AciL1PhysIfAttributes attributes) {
+        _attributes = attributes;
+      }
+
+      /** Attributes of a physical layer 1 interface. */
+      public static class AciL1PhysIfAttributes implements Serializable {
+        private @Nullable String _annotation;
+        private @Nullable String _description;
+        private @Nullable String _distinguishedName;
+        private @Nullable String _id;
+
+        @JsonProperty("annotation")
+        public @Nullable String getAnnotation() {
+          return _annotation;
+        }
+
+        @JsonProperty("annotation")
+        public void setAnnotation(@Nullable String annotation) {
+          _annotation = annotation;
+        }
+
+        @JsonProperty("descr")
+        public @Nullable String getDescription() {
+          return _description;
+        }
+
+        @JsonProperty("descr")
+        public void setDescription(@Nullable String description) {
+          _description = description;
+        }
+
+        @JsonProperty("dn")
+        public @Nullable String getDistinguishedName() {
+          return _distinguishedName;
+        }
+
+        @JsonProperty("dn")
+        public void setDistinguishedName(@Nullable String distinguishedName) {
+          _distinguishedName = distinguishedName;
+        }
+
+        @JsonProperty("id")
+        public @Nullable String getId() {
+          return _id;
+        }
+
+        @JsonProperty("id")
+        public void setId(@Nullable String id) {
+          _id = id;
         }
       }
     }
