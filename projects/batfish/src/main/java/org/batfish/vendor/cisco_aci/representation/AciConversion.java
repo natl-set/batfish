@@ -4,15 +4,14 @@ import static org.batfish.datamodel.Configuration.DEFAULT_VRF_NAME;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.ImmutableSortedSet;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +19,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.batfish.common.Warnings;
+import org.batfish.common.topology.Layer1Edge;
 import org.batfish.datamodel.AclLine;
 import org.batfish.datamodel.BgpActivePeerConfig;
 import org.batfish.datamodel.BgpProcess;
@@ -28,7 +28,6 @@ import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.ConnectedRouteMetadata;
 import org.batfish.datamodel.DeviceModel;
-import org.batfish.datamodel.Edge;
 import org.batfish.datamodel.ExprAclLine;
 import org.batfish.datamodel.IntegerSpace;
 import org.batfish.datamodel.Interface;
@@ -2127,16 +2126,16 @@ public final class AciConversion {
   }
 
   /**
-   * Creates edges between fabric nodes based on fabric topology.
+   * Creates Layer 1 edges between fabric nodes based on fabric topology.
    *
-   * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates Layer 3 edges
-   * representing those connections.
+   * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates physical Layer 1
+   * edges representing those connections.
    *
    * @param aciConfig The ACI configuration
-   * @return Set of edges between nodes
+   * @return Set of Layer 1 edges between nodes
    */
-  public static @Nonnull SortedSet<Edge> createEdges(AciConfiguration aciConfig) {
-    ImmutableSortedSet.Builder<Edge> edges = ImmutableSortedSet.naturalOrder();
+  public static @Nonnull Set<Layer1Edge> createLayer1Edges(AciConfiguration aciConfig) {
+    ImmutableSet.Builder<Layer1Edge> edges = ImmutableSet.builder();
 
     // Create a basic spine-leaf topology
     List<AciConfiguration.FabricNode> spines =
@@ -2166,7 +2165,7 @@ public final class AciConversion {
           spineIface = spine.getInterfaces().keySet().iterator().next();
         }
 
-        edges.add(Edge.of(leafName, leafIface, spineName, spineIface));
+        edges.add(new Layer1Edge(leafName, leafIface, spineName, spineIface));
       }
     }
 
@@ -2187,7 +2186,7 @@ public final class AciConversion {
         String vpcIfaceName = "port-channel1";
 
         // Create edge between VPC peers
-        edges.add(Edge.of(peer1Hostname, vpcIfaceName, peer2Hostname, vpcIfaceName));
+        edges.add(new Layer1Edge(peer1Hostname, vpcIfaceName, peer2Hostname, vpcIfaceName));
       }
     }
 

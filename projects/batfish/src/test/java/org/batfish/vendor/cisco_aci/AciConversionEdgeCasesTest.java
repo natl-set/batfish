@@ -311,9 +311,8 @@ public class AciConversionEdgeCasesTest {
     AciConfiguration.FabricNode node = createFabricNode("101", "leaf1", "1", "leaf");
     config.getFabricNodes().put("101", node);
 
-    // Create empty tenant
-    AciConfiguration.Tenant tenant = config.getOrCreateTenant("empty-tenant");
-    // No VRFs, BDs, EPGs, or contracts
+    // Create empty tenant (no VRFs, BDs, EPGs, or contracts)
+    config.getOrCreateTenant("empty-tenant");
 
     config.finalizeStructures();
 
