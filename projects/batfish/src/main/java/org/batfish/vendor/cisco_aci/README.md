@@ -15,7 +15,8 @@ The Batfish ACI implementation:
 1. Parses ACI JSON/XML exports
 2. Converts ACI objects to Batfish's vendor-independent model
 3. Maps fabric nodes to individual Configuration objects
-4. Transforms contracts to ACLs for analysis
+4. Discovers and creates Layer 1 topology edges (spine-leaf fabric)
+5. Transforms contracts to ACLs for analysis
 
 ## Supported ACI Objects
 
@@ -260,6 +261,75 @@ for (Object childObj : tenant.getChildren()) {
 }
 ```
 
+## Layer 1 Topology Support
+
+ACI fabric topology is automatically discovered and represented as Layer 1 edges between nodes.
+
+### Topology Discovery
+
+The implementation automatically generates physical topology edges:
+
+```java
+// AciConfiguration overrides getLayer1Edges() to provide topology
+@Override
+@Nonnull
+public Set<Layer1Edge> getLayer1Edges() {
+    return AciConversion.createLayer1Edges(this);
+}
+```
+
+### Spine-Leaf Topology
+
+ACI fabrics use a spine-leaf topology where:
+- **Spines** act as the core
+- **Leaves** connect to endpoints and to all spines
+- Each leaf has a full mesh connection to all spines
+
+```java
+// Automatic spine-leaf edge generation
+List<FabricNode> spines = nodes.stream()
+    .filter(n -> "spine".equalsIgnoreCase(n.getRole()))
+    .collect(Collectors.toList());
+
+List<FabricNode> leaves = nodes.stream()
+    .filter(n -> "leaf".equalsIgnoreCase(n.getRole()))
+    .collect(Collectors.toList());
+
+// Create full mesh: each leaf connects to each spine
+for (FabricNode leaf : leaves) {
+    for (FabricNode spine : spines) {
+        edges.add(new Layer1Edge(
+            leaf.getNodeId(), leafInterface,
+            spine.getNodeId(), spineInterface
+        ));
+    }
+}
+```
+
+### VPC Peer-Link Edges
+
+Virtual Port Channel (VPC) pairs are automatically detected and connected:
+
+```java
+// VPC peer-link edges
+for (VpcPair vpcPair : aciConfig.getVpcPairs().values()) {
+    String peer1Id = vpcPair.getPeer1NodeId();
+    String peer2Id = vpcPair.getPeer2NodeId();
+    edges.add(new Layer1Edge(
+        peer1Id, "port-channel1",
+        peer2Id, "port-channel1"
+    ));
+}
+```
+
+### Important: Node Identification
+
+Topology edges use `nodeId` (e.g., "101", "201") rather than node names to ensure proper matching with the configuration map. This is critical for Batfish to correlate topology edges with device configurations.
+
+**Example edge:** `Layer1Edge(201, "ethernet1/1", 101, "ethernet1/1")`
+- Node 201 (leaf) connects to Node 101 (spine)
+- Both identifiers are numeric nodeIds, not hostnames
+
 ## Fabric Node to Configuration Mapping
 
 Each fabric node in the ACI configuration becomes a separate Batfish `Configuration` object:
@@ -268,7 +338,8 @@ Each fabric node in the ACI configuration becomes a separate Batfish `Configurat
 // In AciConversion.toVendorIndependentConfigurations()
 for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
     Configuration c = convertNode(node, aciConfig, warnings);
-    configs.put(node.getName(), c);
+    // Key by nodeId to match topology edge identifiers
+    configs.put(node.getNodeId(), c);
 }
 ```
 
@@ -654,7 +725,7 @@ Based on the code, here are the key areas for future development:
 ### Low Priority
 - [ ] Implement endpoint discovery from active endpoints
 - [ ] Add support for FEX (Fabric Extender) configurations
-- [ ] Model vPC (Virtual Port Channel) relationships
+- ~~[ ] Model vPC (Virtual Port Channel) relationships~~ COMPLETED - VPC peer-link edges automatically created
 - [ ] Add support for vzSubjGraph (service graphs)
 
 ## Adding Support for Additional ACI Objects
