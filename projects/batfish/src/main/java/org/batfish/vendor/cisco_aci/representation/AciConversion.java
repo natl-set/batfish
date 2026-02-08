@@ -2154,23 +2154,31 @@ public final class AciConversion {
 
     // Connect each leaf to each spine
     // Important: Use nodeId as the hostname in edges to match the configs map key
+    int spineIndex = 0;
     for (AciConfiguration.FabricNode leaf : leaves) {
       String leafNodeId = leaf.getNodeId();
+
+      // Get available interfaces from leaf (prefer fabric-facing ports)
+      List<String> leafInterfaces = new ArrayList<>();
+      if (leaf.getInterfaces() != null) {
+        leafInterfaces.addAll(leaf.getInterfaces().keySet());
+      }
+
+      // For each spine, use a different leaf interface to model realistic fabric connectivity
+      spineIndex = 0;
       for (AciConfiguration.FabricNode spine : spines) {
         String spineNodeId = spine.getNodeId();
 
-        // Use first available interface from each node
-        String leafIface = "ethernet1/1";
-        if (leaf.getInterfaces() != null && !leaf.getInterfaces().isEmpty()) {
-          leafIface = leaf.getInterfaces().keySet().iterator().next();
-        }
+        // Select leaf interface - use indexed interface if available, otherwise default
+        String leafIface = spineIndex < leafInterfaces.size()
+            ? leafInterfaces.get(spineIndex)
+            : "ethernet1/" + (spineIndex + 1);
 
-        String spineIface = "ethernet1/1";
-        if (spine.getInterfaces() != null && !spine.getInterfaces().isEmpty()) {
-          spineIface = spine.getInterfaces().keySet().iterator().next();
-        }
+        // For spine, use different interface per leaf to model fabric ports
+        String spineIface = "ethernet1/" + (spineIndex + 1);
 
         edges.add(new Layer1Edge(leafNodeId, leafIface, spineNodeId, spineIface));
+        spineIndex++;
       }
     }
 
