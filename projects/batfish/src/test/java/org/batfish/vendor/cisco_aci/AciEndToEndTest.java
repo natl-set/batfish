@@ -10,8 +10,10 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import org.batfish.common.Warnings;
+import org.batfish.common.topology.Layer1Edge;
 import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
@@ -628,5 +630,87 @@ public class AciEndToEndTest {
           mgmtInterfaces,
           greaterThan(0));
     }
+  }
+
+  /** Test that verifies Layer 1 topology edges are correctly generated from real config. */
+  @Test
+  public void testTopologyGeneration() throws IOException {
+    String configText = loadRealAciConfig();
+    Warnings warnings = new Warnings();
+
+    AciConfiguration aciConfig =
+        AciConfiguration.fromJson("real-aci-config.json", configText, warnings);
+    aciConfig.setVendor(ConfigurationFormat.CISCO_ACI);
+
+    // Count spines and leaves
+    int spineCount = 0;
+    int leafCount = 0;
+    for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+      String role = node.getRole();
+      if ("spine".equalsIgnoreCase(role)) {
+        spineCount++;
+      } else if ("leaf".equalsIgnoreCase(role)) {
+        leafCount++;
+      }
+    }
+
+    System.out.println("Topology generation test:");
+    System.out.println("  Spines: " + spineCount);
+    System.out.println("  Leaves: " + leafCount);
+    System.out.println("  Expected edges: " + (spineCount * leafCount));
+
+    // Get topology edges
+    Set<Layer1Edge> edges = aciConfig.getLayer1Edges();
+
+    System.out.println("  Actual edges: " + edges.size());
+
+    // Should have spineCount x leafCount edges
+    assertThat(
+        "Should create correct number of topology edges",
+        edges.size(),
+        equalTo(spineCount * leafCount));
+
+    // Verify each edge connects a spine to a leaf using nodeIds
+    for (Layer1Edge edge : edges) {
+      String node1 = edge.getNode1().getHostname();
+      String node2 = edge.getNode2().getHostname();
+
+      // Both endpoints should be numeric nodeIds (e.g., "101", "201")
+      assertTrue(
+          "Edge node1 should be numeric nodeId: " + node1,
+          node1.matches("\\d+"));
+      assertTrue(
+          "Edge node2 should be numeric nodeId: " + node2,
+          node2.matches("\\d+"));
+
+      // Verify nodes exist in config
+      assertTrue(
+          "Edge node1 should exist in fabric nodes: " + node1,
+          aciConfig.getFabricNodes().containsKey(node1));
+      assertTrue(
+          "Edge node2 should exist in fabric nodes: " + node2,
+          aciConfig.getFabricNodes().containsKey(node2));
+
+      // Verify edge connects different nodes
+      assertTrue(
+          "Edge should connect two different nodes",
+          !node1.equals(node2));
+
+      // Verify spine-leaf connection (one spine, one leaf)
+      String role1 = aciConfig.getFabricNodes().get(node1).getRole();
+      String role2 = aciConfig.getFabricNodes().get(node2).getRole();
+
+      boolean isSpineLeaf =
+          ("spine".equalsIgnoreCase(role1) && "leaf".equalsIgnoreCase(role2))
+              || ("leaf".equalsIgnoreCase(role1) && "spine".equalsIgnoreCase(role2));
+
+      assertTrue(
+          "Edge should connect spine to leaf: " + node1 + " (" + role1 + ") -> " + node2 + " ("
+              + role2 + ")",
+          isSpineLeaf);
+    }
+
+    System.out.println("  ✓ All edges valid spine-leaf connections");
+    System.out.println("  ✓ All edges use numeric nodeIds");
   }
 }
