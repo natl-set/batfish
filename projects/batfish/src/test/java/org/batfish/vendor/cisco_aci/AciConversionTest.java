@@ -340,16 +340,15 @@ public class AciConversionTest {
     assertThat(edges.size(), equalTo(4));
 
     // Verify edge structure
+    // Edges use nodeId to match configs map keys
     for (Layer1Edge edge : edges) {
-      // Edge should connect a leaf to a spine
+      // Edge should connect a leaf to a spine using nodeIds
       assertTrue(
-          "Edge node1 should be leaf or spine",
-          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
-              .contains(edge.getNode1().getHostname()));
+          "Edge node1 should be leaf or spine (by nodeId)",
+          ImmutableList.of("201", "202", "101", "102").contains(edge.getNode1().getHostname()));
       assertTrue(
-          "Edge node2 should be leaf or spine",
-          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
-              .contains(edge.getNode2().getHostname()));
+          "Edge node2 should be leaf or spine (by nodeId)",
+          ImmutableList.of("201", "202", "101", "102").contains(edge.getNode2().getHostname()));
     }
   }
 
