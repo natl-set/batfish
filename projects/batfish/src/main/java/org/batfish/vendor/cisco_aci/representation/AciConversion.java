@@ -2131,6 +2131,10 @@ public final class AciConversion {
    * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates physical Layer 1
    * edges representing those connections.
    *
+   * <p>Important: Edge hostnames use {@code nodeId} (e.g., "101", "201") to match the keys in the
+   * configuration map returned by {@link #toVendorIndependentConfigurations}. This ensures that
+   * Batfish can properly match topology edges to device configurations.
+   *
    * @param aciConfig The ACI configuration
    * @return Set of Layer 1 edges between nodes
    */
