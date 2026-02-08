@@ -2149,10 +2149,11 @@ public final class AciConversion {
             .collect(Collectors.toList());
 
     // Connect each leaf to each spine
+    // Important: Use nodeId as the hostname in edges to match the configs map key
     for (AciConfiguration.FabricNode leaf : leaves) {
-      String leafName = leaf.getName() != null ? leaf.getName() : leaf.getNodeId();
+      String leafNodeId = leaf.getNodeId();
       for (AciConfiguration.FabricNode spine : spines) {
-        String spineName = spine.getName() != null ? spine.getName() : spine.getNodeId();
+        String spineNodeId = spine.getNodeId();
 
         // Use first available interface from each node
         String leafIface = "ethernet1/1";
@@ -2165,7 +2166,7 @@ public final class AciConversion {
           spineIface = spine.getInterfaces().keySet().iterator().next();
         }
 
-        edges.add(new Layer1Edge(leafName, leafIface, spineName, spineIface));
+        edges.add(new Layer1Edge(leafNodeId, leafIface, spineNodeId, spineIface));
       }
     }
 
@@ -2178,46 +2179,15 @@ public final class AciConversion {
       AciConfiguration.FabricNode peer2 = aciConfig.getFabricNodes().get(peer2NodeId);
 
       if (peer1 != null && peer2 != null) {
-        // Get the hostname for each peer
-        String peer1Hostname = getHostnameForNode(peer1, aciConfig);
-        String peer2Hostname = getHostnameForNode(peer2, aciConfig);
-
         // VPC peer-link interface name
         String vpcIfaceName = "port-channel1";
 
-        // Create edge between VPC peers
-        edges.add(new Layer1Edge(peer1Hostname, vpcIfaceName, peer2Hostname, vpcIfaceName));
+        // Create edge between VPC peers using nodeId to match configs map
+        edges.add(new Layer1Edge(peer1NodeId, vpcIfaceName, peer2NodeId, vpcIfaceName));
       }
     }
 
     return edges.build();
-  }
-
-  /**
-   * Gets the hostname for a fabric node, considering whether it has a real name or uses a generated
-   * one.
-   *
-   * @param node The fabric node
-   * @param aciConfig The ACI configuration
-   * @return The hostname for the node
-   */
-  private static String getHostnameForNode(
-      AciConfiguration.FabricNode node, AciConfiguration aciConfig) {
-    // Prefer the real name from the node
-    if (node.getName() != null && !node.getName().isEmpty()) {
-      return node.getName();
-    }
-
-    // Fallback to fabric name + nodeId
-    String nodeId = node.getNodeId();
-    String fabricHostname = aciConfig.getHostname();
-    if (nodeId != null && !nodeId.isEmpty()) {
-      String fabricBase =
-          fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
-      return fabricBase + "-" + nodeId;
-    }
-
-    return "aci-node-unknown";
   }
 
   /**

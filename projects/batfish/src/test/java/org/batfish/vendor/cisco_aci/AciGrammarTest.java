@@ -1314,12 +1314,20 @@ public class AciGrammarTest {
     for (org.batfish.common.topology.Layer1Edge edge : config.getLayer1Edges()) {
       String node1 = edge.getNode1().getHostname();
       String node2 = edge.getNode2().getHostname();
-      // Each edge should connect one of: {spine-1, spine-2} to one of: {leaf-1, leaf-2, leaf-3,
-      // leaf-4}
+      // Edges use nodeId to match configs map keys
+      // Spines: 101, 102; Leaves: 201, 202, 203, 204
       assertTrue(
           "Edge should connect spine to leaf: " + node1 + " -> " + node2,
-          (node1.startsWith("spine") && node2.startsWith("leaf"))
-              || (node1.startsWith("leaf") && node2.startsWith("spine")));
+          ((node1.equals("101") || node1.equals("102"))
+                  && (node2.equals("201")
+                      || node2.equals("202")
+                      || node2.equals("203")
+                      || node2.equals("204")))
+              || ((node2.equals("101") || node2.equals("102"))
+                  && (node1.equals("201")
+                      || node1.equals("202")
+                      || node1.equals("203")
+                      || node1.equals("204"))));
     }
   }
 
