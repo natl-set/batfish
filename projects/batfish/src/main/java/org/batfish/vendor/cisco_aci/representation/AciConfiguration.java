@@ -2,6 +2,8 @@ package org.batfish.vendor.cisco_aci.representation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -1868,6 +1870,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A tenant is a logical container for application policies in ACI. It contains bridge domains,
    * VRFs, EPGs, and contracts.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Tenant implements Serializable {
     private final String _name;
     private Map<String, BridgeDomain> _bridgeDomains;
@@ -1936,6 +1940,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A bridge domain is a Layer 2 forwarding domain within a tenant. It contains subnets and can
    * be associated with a VRF.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class BridgeDomain implements Serializable {
     private final String _name;
     private String _vrf;
@@ -2000,6 +2006,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>An Application Profile is a logical container for EPGs that belong to the same application
    * tier or application.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ApplicationProfile implements Serializable {
     private final String _name;
     private String _tenant;
@@ -2046,6 +2054,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>An EPG is a collection of endpoints that share similar policy requirements. EPGs are the
    * fundamental building blocks for ACI policy application.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Epg implements Serializable {
     private final String _name;
     private String _tenant;
@@ -2120,6 +2130,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A contract defines the allowed communication between EPGs. It contains subjects and filters
    * that specify the protocols and ports for communication.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Contract implements Serializable {
     private final String _name;
     private String _tenant;
@@ -2169,6 +2181,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** A contract subject contains filters that define specific traffic rules. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Subject implements Serializable {
       private String _name;
       private List<Filter> _filters;
@@ -2195,6 +2209,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** A contract filter defines specific traffic matching criteria (protocols, ports). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Filter implements Serializable {
       private String _name;
       private String _etherType;
@@ -2311,6 +2327,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * ICMP types. Filters are referenced by contract subjects to define allowed traffic patterns
    * between endpoint groups.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Filter implements Serializable {
     private final String _name;
     private String _tenant;
@@ -2351,6 +2369,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** A filter entry defines specific traffic matching criteria (protocols, ports, etc.). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Entry implements Serializable {
       private String _name;
       private String _etherType;
@@ -2533,6 +2553,8 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Represents a VPC pair that consists of two fabric nodes connected via a peer-link.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class VpcPair implements Serializable {
     private String _vpcId;
     private String _vpcName;
@@ -2587,6 +2609,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Represents detected connections between ACI fabrics (e.g., DC1, DC2) via shared external
    * networks, BGP peers, or L3Out configurations.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class InterFabricConnection implements Serializable {
     private String _fabric1;
     private String _fabric2;
@@ -2690,6 +2714,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>A fabric node represents a physical or virtual switch in the ACI fabric. It contains
    * interface and connectivity information.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class FabricNode implements Serializable {
     private String _nodeId;
     private String _name;
@@ -2742,6 +2768,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Interface configuration on a fabric node. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Interface implements Serializable {
       private String _name;
       private String _type;
@@ -2832,6 +2860,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>This is an internal version with PolUniChild for deserialization. The standalone {@link
    * AciPolUni} uses AciChild for a more generic structure.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(using = AciPolUniDeserializer.class)
   public static class AciPolUniInternal implements Serializable {
     private AciPolUniInternalAttributes _attributes;
@@ -2854,6 +2884,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of the polUni root element. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciPolUniInternalAttributes implements Serializable {
       @JsonProperty("annotation")
       private @Nullable String _annotation;
@@ -2880,6 +2912,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements at the polUni level. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PolUniChild implements Serializable {
       private @Nullable AciTenant _fvTenant;
 
@@ -2923,6 +2957,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * Custom deserializer for AciPolUniInternal that handles the heterogenous children array
    * structure.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciPolUniDeserializer extends JsonDeserializer<AciPolUniInternal>
       implements Serializable {
     @Override
@@ -2999,6 +3035,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricInst element containing fabric-wide configuration. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricInst implements Serializable {
     private AciFabricInstAttributes _attributes;
     private List<FabricInstChild> _children;
@@ -3020,10 +3058,26 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of fabricInst. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciFabricInstAttributes implements Serializable {
+      private @Nullable String _annotation;
+
       private @Nullable String _distinguishedName;
 
       private @Nullable String _name;
+
+      private @Nullable String _nameAlias;
+
+      @JsonProperty("annotation")
+      public @Nullable String getAnnotation() {
+        return _annotation;
+      }
+
+      @JsonProperty("annotation")
+      public void setAnnotation(@Nullable String annotation) {
+        _annotation = annotation;
+      }
 
       @JsonProperty("dn")
       public @Nullable String getDistinguishedName() {
@@ -3044,9 +3098,21 @@ public final class AciConfiguration extends VendorConfiguration {
       public void setName(@Nullable String name) {
         _name = name;
       }
+
+      @JsonProperty("nameAlias")
+      public @Nullable String getNameAlias() {
+        return _nameAlias;
+      }
+
+      @JsonProperty("nameAlias")
+      public void setNameAlias(@Nullable String nameAlias) {
+        _nameAlias = nameAlias;
+      }
     }
 
     /** Child elements of fabricInst. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FabricInstChild implements Serializable {
       private @Nullable AciFabricProtPol _fabricProtPol;
 
@@ -3063,6 +3129,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricProtPol element containing fabric protection policies. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricProtPol implements Serializable {
     private AciFabricProtPolAttributes _attributes;
     private List<FabricProtPolChild> _children;
@@ -3084,8 +3152,23 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of fabricProtPol. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciFabricProtPolAttributes implements Serializable {
+      private @Nullable String _annotation;
       private @Nullable String _distinguishedName;
+      private @Nullable String _nameAlias;
+      private @Nullable String _userDomain;
+
+      @JsonProperty("annotation")
+      public @Nullable String getAnnotation() {
+        return _annotation;
+      }
+
+      @JsonProperty("annotation")
+      public void setAnnotation(@Nullable String annotation) {
+        _annotation = annotation;
+      }
 
       @JsonProperty("dn")
       public @Nullable String getDistinguishedName() {
@@ -3096,9 +3179,31 @@ public final class AciConfiguration extends VendorConfiguration {
       public void setDistinguishedName(@Nullable String distinguishedName) {
         _distinguishedName = distinguishedName;
       }
+
+      @JsonProperty("nameAlias")
+      public @Nullable String getNameAlias() {
+        return _nameAlias;
+      }
+
+      @JsonProperty("nameAlias")
+      public void setNameAlias(@Nullable String nameAlias) {
+        _nameAlias = nameAlias;
+      }
+
+      @JsonProperty("userdom")
+      public @Nullable String getUserDomain() {
+        return _userDomain;
+      }
+
+      @JsonProperty("userdom")
+      public void setUserDomain(@Nullable String userDomain) {
+        _userDomain = userDomain;
+      }
     }
 
     /** Child elements of fabricProtPol. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FabricProtPolChild implements Serializable {
       private @Nullable AciFabricExplicitGEp _fabricExplicitGEp;
 
@@ -3115,6 +3220,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricExplicitGEp element containing explicit fabric endpoints. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricExplicitGEp implements Serializable {
     private AciFabricExplicitGEpAttributes _attributes;
     private List<FabricExplicitGEpChild> _children;
@@ -3136,6 +3243,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of fabricExplicitGEp (VPC ID and name). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciFabricExplicitGEpAttributes implements Serializable {
       private @Nullable String _annotation;
       private @Nullable String _description;
@@ -3206,6 +3315,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of fabricExplicitGEp. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FabricExplicitGEpChild implements Serializable {
       private @Nullable AciFabricNodePEp _fabricNodePEp;
       private @Nullable AciFabricNodeIdentP _fabricNodeIdentP;
@@ -3233,6 +3344,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents the fabricNodeIdentP element containing fabric node identification. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricNodeIdentP implements Serializable {
     private AciFabricNodeIdentPAttributes _attributes;
 
@@ -3245,6 +3358,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of fabric node identification. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciFabricNodeIdentPAttributes implements Serializable {
       private @Nullable String _annotation;
       private @Nullable String _description;
@@ -3360,6 +3475,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Represents a fabric node endpoint (fabricNodePEp). */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricNodePEp implements Serializable {
     private AciFabricNodePEpAttributes _attributes;
     private List<FabricNodePEpChild> _children;
@@ -3382,6 +3499,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of a fabric node. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FabricNodePEpChild implements Serializable {
       private AciInterface _fabricInterface;
       private AciL1PhysIf _l1PhysIf;
@@ -3408,6 +3527,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Interface configuration in ACI. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciInterface implements Serializable {
       private AciInterfaceAttributes _attributes;
 
@@ -3420,6 +3541,8 @@ public final class AciConfiguration extends VendorConfiguration {
         _attributes = attributes;
       }
 
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+      @JsonIgnoreProperties(ignoreUnknown = true)
       public static class AciInterfaceAttributes implements Serializable {
         private @Nullable String _annotation;
         private @Nullable String _description;
@@ -3502,6 +3625,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Physical layer 1 interface configuration in ACI. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciL1PhysIf implements Serializable {
       private AciL1PhysIfAttributes _attributes;
 
@@ -3515,6 +3640,8 @@ public final class AciConfiguration extends VendorConfiguration {
       }
 
       /** Attributes of a physical layer 1 interface. */
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+      @JsonIgnoreProperties(ignoreUnknown = true)
       public static class AciL1PhysIfAttributes implements Serializable {
         private @Nullable String _annotation;
         private @Nullable String _description;
@@ -3564,6 +3691,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Attributes of a fabric node. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AciFabricNodePEpAttributes implements Serializable {
       private @Nullable String _annotation;
       private @Nullable String _description;
@@ -3684,6 +3813,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>An L2Out defines Layer 2 external connectivity through a bridge domain, using encapsulation
    * like VLAN or VXLAN rather than IP routing.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class L2Out implements Serializable {
     private final String _name;
     private String _tenant;
@@ -3738,6 +3869,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>An L3Out defines external connectivity for a tenant, including BGP peering, static routes,
    * OSPF configuration, and external EPGs (L3ExtEpg).
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class L3Out implements Serializable {
     private final String _name;
     private String _tenant;
@@ -3858,6 +3991,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines BGP process-level settings for an L3Out including AS number, router ID,
    * administrative distances, and BGP timers.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class BgpProcess implements Serializable {
     private Long _as;
     private String _routerId;
@@ -3930,6 +4065,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines a BGP peer within an L3Out including peer address, AS numbers, policies, and route
    * target (route-map) configurations.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class BgpPeer implements Serializable {
     private String _peerAddress;
     private String _remoteAs;
@@ -4118,6 +4255,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines a static route within an L3Out including prefix, next hop, and associated
    * parameters.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class StaticRoute implements Serializable {
     private String _prefix;
     private String _nextHop;
@@ -4180,6 +4319,8 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Defines OSPF process settings, areas, and interfaces for an L3Out.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class OspfConfig implements Serializable {
     private String _name;
     private String _description;
@@ -4247,6 +4388,8 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Defines an OSPF area within an L3Out OSPF configuration.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class OspfArea implements Serializable {
     private String _areaId;
     private List<String> _networks;
@@ -4286,6 +4429,8 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * <p>Defines OSPF interface-specific settings for an L3Out OSPF configuration.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class OspfInterface implements Serializable {
     private String _name;
     private String _description;
@@ -4360,6 +4505,8 @@ public final class AciConfiguration extends VendorConfiguration {
    * <p>Defines an external endpoint group for external connectivity, including subnets and
    * associated interfaces.
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ExternalEpg implements Serializable {
     private final String _name;
     private List<String> _subnets;
@@ -4410,6 +4557,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Management information for out-of-band management. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ManagementInfo implements Serializable {
     private String _address;
     private String _gateway;
@@ -4460,6 +4609,8 @@ public final class AciConfiguration extends VendorConfiguration {
    *   <li>descr: Description of the attachment
    * </ul>
    */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class PathAttachment implements Serializable {
     private final String _tdn;
     private String _podId;
@@ -4543,6 +4694,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Controller instance (ctrlrInst) in ACI fabric. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciCtrlrInst implements Serializable {
     private List<CtrlrInstChild> _children;
 
@@ -4555,6 +4708,8 @@ public final class AciConfiguration extends VendorConfiguration {
     }
 
     /** Child elements of ctrlrInst. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CtrlrInstChild implements Serializable {
       private @Nullable AciFabricNodeIdentPol _fabricNodeIdentPol;
 
@@ -4571,6 +4726,8 @@ public final class AciConfiguration extends VendorConfiguration {
   }
 
   /** Fabric node identity policy (fabricNodeIdentPol) containing node identities. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class AciFabricNodeIdentPol implements Serializable {
     private List<AciFabricNodeIdentP> _children;
 
