@@ -571,4 +571,316 @@ public class AciConversionTest {
             .count();
     assertThat(permitCount, equalTo(3L));
   }
+
+  @Test
+  public void testArpOpcodeUnspecifiedDoesNotWarn() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("arp-unspecified-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+    config.getFabricNodes().put("201", createFabricNode("201", "leaf1", "2", "leaf"));
+
+    AciConfiguration.Contract contract = new AciConfiguration.Contract("tenant1:arp_contract");
+    contract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filter = new AciConfiguration.Contract.Filter();
+    filter.setName("arp_filter");
+    filter.setIpProtocol("tcp");
+    filter.setDestinationPorts(ImmutableList.of("22"));
+    filter.setArpOpcode("unspecified");
+    subject.setFilters(ImmutableList.of(filter));
+    contract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:arp_contract", contract);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    assertFalse(
+        warnings.getRedFlagWarnings().stream()
+            .anyMatch(w -> w.getText().contains("ARP opcode specified in contract")));
+  }
+
+  @Test
+  public void testArpOpcodeSpecificStillWarns() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("arp-specific-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+    config.getFabricNodes().put("201", createFabricNode("201", "leaf1", "2", "leaf"));
+
+    AciConfiguration.Contract contract = new AciConfiguration.Contract("tenant1:arp_contract");
+    contract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filter = new AciConfiguration.Contract.Filter();
+    filter.setName("arp_filter");
+    filter.setIpProtocol("tcp");
+    filter.setDestinationPorts(ImmutableList.of("22"));
+    filter.setArpOpcode("request");
+    subject.setFilters(ImmutableList.of(filter));
+    contract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:arp_contract", contract);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    assertTrue(
+        warnings.getRedFlagWarnings().stream()
+            .anyMatch(w -> w.getText().contains("ARP opcode specified in contract")));
+  }
+
+  @Test
+  public void testUnspecifiedRangeEndpointsDoNotProduceInvalidPortWarnings() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("port-range-unspecified-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+    config.getFabricNodes().put("201", createFabricNode("201", "leaf1", "2", "leaf"));
+
+    AciConfiguration.Filter filterModel = new AciConfiguration.Filter("tenant1:port_filter");
+    filterModel.setTenant("tenant1");
+    AciConfiguration.Filter.Entry entry = new AciConfiguration.Filter.Entry();
+    entry.setName("entry1");
+    entry.setProtocol("tcp");
+    entry.setDestinationFromPort("unspecified");
+    entry.setDestinationToPort("unspecified");
+    entry.setSourceFromPort("0");
+    entry.setSourceToPort("0");
+    filterModel.setEntries(ImmutableList.of(entry));
+    config.getFilters().put("tenant1:port_filter", filterModel);
+
+    AciConfiguration.Contract contract = new AciConfiguration.Contract("tenant1:test_contract");
+    contract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filterRef = new AciConfiguration.Contract.Filter();
+    filterRef.setName("port_filter");
+    subject.setFilters(ImmutableList.of(filterRef));
+    contract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:test_contract", contract);
+
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    assertFalse(
+        warnings.getRedFlagWarnings().stream()
+            .anyMatch(w -> w.getText().contains("Invalid destination port")));
+    assertFalse(
+        warnings.getRedFlagWarnings().stream()
+            .anyMatch(w -> w.getText().contains("Invalid source port")));
+  }
+
+  @Test
+  public void testUnspecifiedSinglePortZeroDoesNotConstrainAcl() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("port-single-unspecified-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+    config.getFabricNodes().put("201", createFabricNode("201", "leaf1", "2", "leaf"));
+
+    AciConfiguration.Contract contract = new AciConfiguration.Contract("tenant1:test_contract");
+    contract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filter = new AciConfiguration.Contract.Filter();
+    filter.setName("tcp_any_dst");
+    filter.setIpProtocol("tcp");
+    // Placeholder value from upstream "unspecified" mapping.
+    filter.setDestinationPorts(ImmutableList.of("0"));
+    subject.setFilters(ImmutableList.of(filter));
+    contract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:test_contract", contract);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    SortedMap<String, Configuration> configs =
+        AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    Configuration viConfig = configs.get("201");
+    String aclName = AciConversion.getContractAclName("tenant1:test_contract");
+    IpAccessList acl = viConfig.getIpAccessLists().get(aclName);
+    assertNotNull(acl);
+
+    Flow tcp80 =
+        Flow.builder()
+            .setIngressNode("leaf1")
+            .setIngressInterface("ethernet1/1")
+            .setIpProtocol(IpProtocol.TCP)
+            .setSrcIp(Ip.parse("10.0.0.1"))
+            .setDstIp(Ip.parse("10.0.0.2"))
+            .setSrcPort(12345)
+            .setDstPort(80)
+            .build();
+
+    assertThat(acl, accepts(tcp80, "ethernet1/1", ImmutableMap.of(), ImmutableMap.of()));
+  }
+
+  @Test
+  public void testPlaceholderRangeTokenZeroZeroDoesNotConstrainAclOrWarn() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("port-range-zero-zero-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+    config.getFabricNodes().put("201", createFabricNode("201", "leaf1", "2", "leaf"));
+
+    AciConfiguration.Contract contract = new AciConfiguration.Contract("tenant1:test_contract");
+    contract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filter = new AciConfiguration.Contract.Filter();
+    filter.setName("tcp_any_dst");
+    filter.setIpProtocol("tcp");
+    filter.setDestinationPorts(ImmutableList.of("0-0"));
+    subject.setFilters(ImmutableList.of(filter));
+    contract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:test_contract", contract);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    SortedMap<String, Configuration> configs =
+        AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    Configuration viConfig = configs.get("201");
+    String aclName = AciConversion.getContractAclName("tenant1:test_contract");
+    IpAccessList acl = viConfig.getIpAccessLists().get(aclName);
+    assertNotNull(acl);
+
+    Flow tcp80 =
+        Flow.builder()
+            .setIngressNode("leaf1")
+            .setIngressInterface("ethernet1/1")
+            .setIpProtocol(IpProtocol.TCP)
+            .setSrcIp(Ip.parse("10.0.0.1"))
+            .setDstIp(Ip.parse("10.0.0.2"))
+            .setSrcPort(12345)
+            .setDstPort(80)
+            .build();
+    assertThat(acl, accepts(tcp80, "ethernet1/1", ImmutableMap.of(), ImmutableMap.of()));
+
+    assertFalse(
+        warnings.getRedFlagWarnings().stream()
+            .anyMatch(w -> w.getText().contains("Invalid destination port range")));
+  }
+
+  @Test
+  public void testEpgPoliciesAttachedToInterfaceFilters() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("epg-policy-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+
+    AciConfiguration.FabricNode node = new AciConfiguration.FabricNode();
+    node.setNodeId("201");
+    node.setName("leaf1");
+    node.setRole("leaf");
+
+    AciConfiguration.FabricNode.Interface iface = new AciConfiguration.FabricNode.Interface();
+    iface.setName("ethernet1/10");
+    iface.setType("ethernet");
+    iface.setEnabled(true);
+    iface.setEpg("app_epg");
+    node.getInterfaces().put("ethernet1/10", iface);
+    config.getFabricNodes().put("201", node);
+
+    AciConfiguration.Contract allowContract = new AciConfiguration.Contract("tenant1:web");
+    allowContract.setTenant("tenant1");
+    AciConfiguration.Contract.Subject subject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter filter = new AciConfiguration.Contract.Filter();
+    filter.setName("allow_http");
+    filter.setIpProtocol("tcp");
+    filter.setDestinationPorts(ImmutableList.of("80"));
+    subject.setFilters(ImmutableList.of(filter));
+    allowContract.setSubjects(ImmutableList.of(subject));
+    config.getContracts().put("tenant1:web", allowContract);
+
+    AciConfiguration.Epg epg = new AciConfiguration.Epg("app_epg");
+    epg.setTenant("tenant1");
+    epg.setConsumedContracts(ImmutableList.of("tenant1:web"));
+    epg.setProvidedContracts(ImmutableList.of("tenant1:web"));
+    config.getEpgs().put("app_epg", epg);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    SortedMap<String, Configuration> configs =
+        AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    Configuration viConfig = configs.get("201");
+    Interface viIface = viConfig.getAllInterfaces().get("ethernet1/10");
+    assertNotNull(viIface);
+    assertNotNull(viIface.getIncomingFilter());
+    assertNotNull(viIface.getOutgoingFilter());
+  }
+
+  @Test
+  public void testTabooPolicyTakesPrecedenceOverPermittedContract() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("taboo-precedence-test");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+
+    AciConfiguration.FabricNode node = new AciConfiguration.FabricNode();
+    node.setNodeId("201");
+    node.setName("leaf1");
+    node.setRole("leaf");
+
+    AciConfiguration.FabricNode.Interface iface = new AciConfiguration.FabricNode.Interface();
+    iface.setName("ethernet1/20");
+    iface.setType("ethernet");
+    iface.setEnabled(true);
+    iface.setEpg("web_epg");
+    node.getInterfaces().put("ethernet1/20", iface);
+    config.getFabricNodes().put("201", node);
+
+    AciConfiguration.Contract allow443 = new AciConfiguration.Contract("tenant1:allow443");
+    allow443.setTenant("tenant1");
+    AciConfiguration.Contract.Subject allowSubject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter allowFilter = new AciConfiguration.Contract.Filter();
+    allowFilter.setName("allow443");
+    allowFilter.setIpProtocol("tcp");
+    allowFilter.setDestinationPorts(ImmutableList.of("443"));
+    allowSubject.setFilters(ImmutableList.of(allowFilter));
+    allow443.setSubjects(ImmutableList.of(allowSubject));
+    config.getContracts().put("tenant1:allow443", allow443);
+
+    AciConfiguration.TabooContract taboo443 =
+        new AciConfiguration.TabooContract("tenant1:taboo443");
+    taboo443.setTenant("tenant1");
+    AciConfiguration.Contract.Subject tabooSubject = new AciConfiguration.Contract.Subject();
+    AciConfiguration.Contract.Filter tabooFilter = new AciConfiguration.Contract.Filter();
+    tabooFilter.setName("taboo443");
+    tabooFilter.setIpProtocol("tcp");
+    tabooFilter.setDestinationPorts(ImmutableList.of("443"));
+    tabooSubject.setFilters(ImmutableList.of(tabooFilter));
+    taboo443.setSubjects(ImmutableList.of(tabooSubject));
+    config.getTabooContracts().put("tenant1:taboo443", taboo443);
+
+    AciConfiguration.Epg epg = new AciConfiguration.Epg("web_epg");
+    epg.setTenant("tenant1");
+    epg.setProvidedContracts(ImmutableList.of("tenant1:allow443"));
+    epg.setProtectedByTaboos(ImmutableList.of("tenant1:taboo443"));
+    config.getEpgs().put("web_epg", epg);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    SortedMap<String, Configuration> configs =
+        AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    Configuration viConfig = configs.get("201");
+    Interface viIface = viConfig.getAllInterfaces().get("ethernet1/20");
+    assertNotNull(viIface);
+    assertNotNull(viIface.getOutgoingFilter());
+    assertThat(
+        viConfig.getIpAccessLists(), hasKey(AciConversion.getTabooAclName("tenant1:taboo443")));
+
+    Flow httpsFlow =
+        Flow.builder()
+            .setIngressNode("leaf1")
+            .setIngressInterface("ethernet1/20")
+            .setIpProtocol(IpProtocol.TCP)
+            .setSrcIp(Ip.parse("10.0.0.1"))
+            .setDstIp(Ip.parse("10.0.0.2"))
+            .setSrcPort(12345)
+            .setDstPort(443)
+            .build();
+
+    assertThat(
+        viIface
+            .getOutgoingFilter()
+            .filter(httpsFlow, "ethernet1/20", viConfig.getIpAccessLists(), ImmutableMap.of())
+            .getAction(),
+        equalTo(LineAction.DENY));
+  }
 }
