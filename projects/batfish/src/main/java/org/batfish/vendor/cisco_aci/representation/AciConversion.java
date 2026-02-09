@@ -47,6 +47,7 @@ import org.batfish.datamodel.SwitchportMode;
 import org.batfish.datamodel.Vrf;
 import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.AclLineMatchExprs;
+import org.batfish.datamodel.acl.PermittedByAcl;
 import org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.CallExpr;
@@ -92,6 +93,9 @@ public final class AciConversion {
 
   /** Prefix used for generated ACL names for contracts */
   private static final String CONTRACT_ACL_PREFIX = "~CONTRACT~";
+
+  /** Prefix used for generated ACL names for taboo contracts */
+  private static final String TABOO_ACL_PREFIX = "~TABOO~";
 
   /** Maximum prefix length for host routes */
   private static final int MAX_PREFIX_LENGTH = Prefix.MAX_PREFIX_LENGTH;
@@ -204,6 +208,7 @@ public final class AciConversion {
 
     // Convert contracts to ACLs
     convertContracts(aciConfig, c, warnings);
+    convertTabooContracts(aciConfig, c, warnings);
 
     // Convert path attachments (EPG to interface mappings)
     convertPathAttachments(aciConfig, interfaces, c, warnings);
@@ -265,6 +270,7 @@ public final class AciConversion {
 
     // Convert contracts to ACLs
     convertContracts(aciConfig, c, warnings);
+    convertTabooContracts(aciConfig, c, warnings);
 
     return c;
   }
@@ -684,7 +690,7 @@ public final class AciConversion {
                 .setVlan(vlanId);
 
         // Set addresses: primary is first subnet, rest are secondary
-        if (!subnets.isEmpty()) {
+        if (subnets != null && !subnets.isEmpty()) {
           ConcreteInterfaceAddress primaryAddr = subnets.get(0);
           if (subnets.size() > 1) {
             List<InterfaceAddress> secondaryAddrs =
@@ -747,7 +753,6 @@ public final class AciConversion {
    */
   private static void convertContracts(
       AciConfiguration aciConfig, Configuration c, Warnings warnings) {
-
     for (Map.Entry<String, AciConfiguration.Contract> entry : aciConfig.getContracts().entrySet()) {
       // Use the map key which contains the fully-qualified name (tenant:contract)
       String contractName = entry.getKey();
@@ -755,71 +760,91 @@ public final class AciConversion {
       if (contractName == null || contractName.isEmpty()) {
         continue;
       }
-
-      // Extract tenant name from fully-qualified contract name (tenant:contract)
-      String tenantName = null;
-      int colonIdx = contractName.indexOf(':');
-      if (colonIdx > 0) {
-        tenantName = contractName.substring(0, colonIdx);
-      }
-
       String aclName = getContractAclName(contractName);
-      ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
+      List<ExprAclLine> aclLines =
+          buildAclLinesFromSubjects(contractName, contract.getSubjects(), aciConfig, c, warnings);
+      installAclIfNonEmpty(c, aclName, aclLines);
+    }
+  }
 
-      // Process each subject in the contract
-      if (contract.getSubjects() != null) {
-        for (AciConfiguration.Contract.Subject subject : contract.getSubjects()) {
-          if (subject.getFilters() != null) {
-            for (AciConfiguration.Contract.Filter filterRef : subject.getFilters()) {
-              // Try to resolve the filter reference to a full filter with entries
-              String filterName = filterRef.getName();
-              if (filterName == null || filterName.isEmpty()) {
-                // Fall back to basic filter conversion
-                lines.addAll(toAclLines(filterRef, contractName, c, warnings));
-                continue;
+  private static void convertTabooContracts(
+      AciConfiguration aciConfig, Configuration c, Warnings warnings) {
+    for (Map.Entry<String, AciConfiguration.TabooContract> entry :
+        aciConfig.getTabooContracts().entrySet()) {
+      String tabooName = entry.getKey();
+      AciConfiguration.TabooContract taboo = entry.getValue();
+      if (tabooName == null || tabooName.isEmpty()) {
+        continue;
+      }
+      String aclName = getTabooAclName(tabooName);
+      List<ExprAclLine> aclLines =
+          buildAclLinesFromSubjects(tabooName, taboo.getSubjects(), aciConfig, c, warnings);
+      installAclIfNonEmpty(c, aclName, aclLines);
+    }
+  }
+
+  private static @Nonnull List<ExprAclLine> buildAclLinesFromSubjects(
+      String contractName,
+      @Nullable List<AciConfiguration.Contract.Subject> subjects,
+      AciConfiguration aciConfig,
+      Configuration c,
+      Warnings warnings) {
+    ImmutableList.Builder<ExprAclLine> lines = ImmutableList.builder();
+
+    // Extract tenant name from fully-qualified contract name (tenant:contract)
+    String tenantName = null;
+    int colonIdx = contractName.indexOf(':');
+    if (colonIdx > 0) {
+      tenantName = contractName.substring(0, colonIdx);
+    }
+
+    if (subjects != null) {
+      for (AciConfiguration.Contract.Subject subject : subjects) {
+        if (subject.getFilters() != null) {
+          for (AciConfiguration.Contract.Filter filterRef : subject.getFilters()) {
+            String filterName = filterRef.getName();
+            if (filterName == null || filterName.isEmpty()) {
+              lines.addAll(toAclLines(filterRef, contractName, c, warnings));
+              continue;
+            }
+
+            String fqFilterName =
+                (tenantName != null) ? (tenantName + ":" + filterName) : filterName;
+            AciConfiguration.Filter fullFilter = aciConfig.getFilters().get(fqFilterName);
+
+            if (fullFilter != null
+                && fullFilter.getEntries() != null
+                && !fullFilter.getEntries().isEmpty()) {
+              for (AciConfiguration.Filter.Entry filterEntry : fullFilter.getEntries()) {
+                List<ExprAclLine> entryLines =
+                    toAclEntryLines(filterEntry, contractName, filterName, c, warnings);
+                lines.addAll(entryLines);
               }
-
-              // Build fully-qualified filter name
-              String fqFilterName =
-                  (tenantName != null) ? (tenantName + ":" + filterName) : filterName;
-
-              AciConfiguration.Filter fullFilter = aciConfig.getFilters().get(fqFilterName);
-
-              if (fullFilter != null
-                  && fullFilter.getEntries() != null
-                  && !fullFilter.getEntries().isEmpty()) {
-                // Convert each entry in the filter to ACL lines
-                for (AciConfiguration.Filter.Entry filterEntry : fullFilter.getEntries()) {
-                  List<ExprAclLine> entryLines =
-                      toAclEntryLines(filterEntry, contractName, filterName, c, warnings);
-                  lines.addAll(entryLines);
-                }
-              } else {
-                // Filter not found or has no entries, fall back to basic filter conversion
-                lines.addAll(toAclLines(filterRef, contractName, c, warnings));
-              }
+            } else {
+              lines.addAll(toAclLines(filterRef, contractName, c, warnings));
             }
           }
         }
       }
+    }
 
-      // Default deny at the end if we have any rules
-      if (!lines.build().isEmpty()) {
-        lines.add(
-            new ExprAclLine(
-                LineAction.DENY,
-                AclLineMatchExprs.TRUE,
-                "Default deny for contract " + contractName));
-      }
+    if (!lines.build().isEmpty()) {
+      lines.add(
+          new ExprAclLine(
+              LineAction.DENY,
+              AclLineMatchExprs.TRUE,
+              "Default deny for contract " + contractName));
+    }
+    return lines.build();
+  }
 
-      // Build and add the ACL to the configuration
-      List<ExprAclLine> aclLines = lines.build();
-      if (!aclLines.isEmpty()) {
-        List<AclLine> aclLinesCasted = new ArrayList<>(aclLines);
-        IpAccessList acl =
-            IpAccessList.builder().setOwner(c).setName(aclName).setLines(aclLinesCasted).build();
-        c.getIpAccessLists().put(aclName, acl);
-      }
+  private static void installAclIfNonEmpty(
+      Configuration c, String aclName, List<ExprAclLine> aclLines) {
+    if (!aclLines.isEmpty()) {
+      List<AclLine> aclLinesCasted = new ArrayList<>(aclLines);
+      IpAccessList acl =
+          IpAccessList.builder().setOwner(c).setName(aclName).setLines(aclLinesCasted).build();
+      c.getIpAccessLists().put(aclName, acl);
     }
   }
 
@@ -915,7 +940,7 @@ public final class AciConversion {
     }
 
     // Handle ARP opcode if specified
-    if (filter.getArpOpcode() != null && !filter.getArpOpcode().isEmpty()) {
+    if (isMeaningfulArpOpcode(filter.getArpOpcode())) {
       // ARP is handled at L2, so we emit a warning that this filter may have limited effect
       warnings.redFlagf(
           "ARP opcode specified in contract %s filter %s: %s. ARP filtering has limited effect in"
@@ -1015,9 +1040,9 @@ public final class AciConversion {
     }
 
     // Match on destination ports - handle both single port and port range
-    String dstPort = entry.getDestinationPort();
-    String dstFromPort = entry.getDestinationFromPort();
-    String dstToPort = entry.getDestinationToPort();
+    String dstPort = normalizeSinglePort(entry.getDestinationPort());
+    String dstFromPort = normalizeRangeEndpoint(entry.getDestinationFromPort());
+    String dstToPort = normalizeRangeEndpoint(entry.getDestinationToPort());
 
     if (dstPort != null || (dstFromPort != null && dstToPort != null)) {
       List<String> dstPorts = new ArrayList<>();
@@ -1033,9 +1058,9 @@ public final class AciConversion {
     }
 
     // Match on source ports - handle both single port and port range
-    String srcPort = entry.getSourcePort();
-    String srcFromPort = entry.getSourceFromPort();
-    String srcToPort = entry.getSourceToPort();
+    String srcPort = normalizeSinglePort(entry.getSourcePort());
+    String srcFromPort = normalizeRangeEndpoint(entry.getSourceFromPort());
+    String srcToPort = normalizeRangeEndpoint(entry.getSourceToPort());
 
     if (srcPort != null || (srcFromPort != null && srcToPort != null)) {
       List<String> srcPorts = new ArrayList<>();
@@ -1052,7 +1077,7 @@ public final class AciConversion {
     }
 
     // Handle ARP opcode if specified
-    if (entry.getArpOpcode() != null && !entry.getArpOpcode().isEmpty()) {
+    if (isMeaningfulArpOpcode(entry.getArpOpcode())) {
       warnings.redFlagf(
           "ARP opcode specified in contract %s filter %s entry %s: %s. ARP filtering has limited"
               + " effect in IP ACLs.",
@@ -1139,6 +1164,32 @@ public final class AciConversion {
           return null;
         }
     }
+  }
+
+  private static boolean isMeaningfulArpOpcode(@Nullable String arpOpcode) {
+    if (arpOpcode == null) {
+      return false;
+    }
+    String normalized = arpOpcode.trim().toLowerCase();
+    return !normalized.isEmpty() && !normalized.equals("unspecified") && !normalized.equals("any");
+  }
+
+  private static @Nullable String normalizeRangeEndpoint(@Nullable String value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty()
+        || normalized.equals("unspecified")
+        || normalized.equals("any")
+        || normalized.equals("0")) {
+      return null;
+    }
+    return value.trim();
+  }
+
+  private static @Nullable String normalizeSinglePort(@Nullable String value) {
+    return normalizeRangeEndpoint(value);
   }
 
   /**
@@ -1241,10 +1292,170 @@ public final class AciConversion {
                     "Invalid VLAN for interface %s: %s", iface.getName(), iface.getVlan());
               }
             }
+
+            // Apply EPG contract policy relationships as interface ACLs.
+            applyEpgPolicies(epg, batfishIface, c, warnings);
           }
         }
       }
     }
+  }
+
+  private static void applyEpgPolicies(
+      AciConfiguration.Epg epg, Interface iface, Configuration c, Warnings warnings) {
+    List<String> incomingAclRefs =
+        resolveContractAclRefs(
+            epg.getConsumedContracts(),
+            epg.getConsumedContractInterfaces(),
+            epg.getTenant(),
+            c,
+            warnings,
+            epg.getName(),
+            "incoming",
+            AclKind.CONTRACT);
+    List<String> outgoingAclRefs =
+        resolveContractAclRefs(
+            epg.getProvidedContracts(),
+            epg.getProvidedContractInterfaces(),
+            epg.getTenant(),
+            c,
+            warnings,
+            epg.getName(),
+            "outgoing",
+            AclKind.CONTRACT);
+    List<String> tabooAclRefs =
+        resolveContractAclRefs(
+            epg.getProtectedByTaboos(),
+            ImmutableList.of(),
+            epg.getTenant(),
+            c,
+            warnings,
+            epg.getName(),
+            "taboo",
+            AclKind.TABOO);
+
+    if (!incomingAclRefs.isEmpty() || !tabooAclRefs.isEmpty()) {
+      IpAccessList incomingFilter =
+          buildEpgPolicyAcl(
+              c, epg.getName(), "IN", incomingAclRefs, tabooAclRefs, /* defaultPermit= */ true);
+      iface.setIncomingFilter(incomingFilter);
+    }
+    if (!outgoingAclRefs.isEmpty() || !tabooAclRefs.isEmpty()) {
+      IpAccessList outgoingFilter =
+          buildEpgPolicyAcl(
+              c, epg.getName(), "OUT", outgoingAclRefs, tabooAclRefs, /* defaultPermit= */ true);
+      iface.setOutgoingFilter(outgoingFilter);
+    }
+  }
+
+  private static @Nonnull List<String> resolveContractAclRefs(
+      @Nullable List<String> contractNames,
+      @Nullable List<String> contractInterfaceNames,
+      @Nullable String tenantName,
+      Configuration c,
+      Warnings warnings,
+      String epgName,
+      String direction,
+      AclKind aclKind) {
+    Set<String> aclRefs = new HashSet<>();
+    if (contractNames != null) {
+      for (String name : contractNames) {
+        resolveContractAclRef(
+            name, tenantName, c, aclRefs, warnings, epgName, direction, "contract", aclKind);
+      }
+    }
+    if (contractInterfaceNames != null) {
+      for (String name : contractInterfaceNames) {
+        resolveContractAclRef(
+            name,
+            tenantName,
+            c,
+            aclRefs,
+            warnings,
+            epgName,
+            direction,
+            "contract-interface",
+            aclKind);
+      }
+    }
+    return ImmutableList.copyOf(aclRefs);
+  }
+
+  private static void resolveContractAclRef(
+      @Nullable String rawName,
+      @Nullable String tenantName,
+      Configuration c,
+      Set<String> aclRefs,
+      Warnings warnings,
+      String epgName,
+      String direction,
+      String refType,
+      AclKind aclKind) {
+    if (rawName == null || rawName.isEmpty()) {
+      return;
+    }
+    List<String> candidateContractNames = new ArrayList<>();
+    candidateContractNames.add(rawName);
+    if (tenantName != null && !rawName.contains(":")) {
+      candidateContractNames.add(tenantName + ":" + rawName);
+    }
+    for (String contractName : candidateContractNames) {
+      String aclName =
+          aclKind == AclKind.TABOO
+              ? getTabooAclName(contractName)
+              : getContractAclName(contractName);
+      if (c.getIpAccessLists().containsKey(aclName)) {
+        aclRefs.add(aclName);
+        return;
+      }
+    }
+    warnings.redFlagf(
+        "Could not resolve %s reference '%s' for EPG %s (%s direction) to a known contract ACL",
+        refType, rawName, epgName, direction);
+  }
+
+  private static @Nonnull IpAccessList buildEpgPolicyAcl(
+      Configuration c,
+      String epgName,
+      String direction,
+      List<String> permitAclRefs,
+      List<String> denyAclRefs,
+      boolean defaultPermit) {
+    String aclName =
+        String.format("~EPG_POLICY~%s~%s", epgName.replaceAll("[^A-Za-z0-9:_-]", "_"), direction);
+
+    ImmutableList.Builder<AclLine> lines = ImmutableList.builder();
+    for (String denyAclRef : denyAclRefs) {
+      lines.add(
+          new ExprAclLine(
+              LineAction.DENY,
+              new PermittedByAcl(denyAclRef),
+              String.format("Denied by taboo policy ACL %s", denyAclRef)));
+    }
+    for (String permitAclRef : permitAclRefs) {
+      lines.add(
+          new ExprAclLine(
+              LineAction.PERMIT,
+              new PermittedByAcl(permitAclRef),
+              String.format("Permitted by contract policy ACL %s", permitAclRef)));
+    }
+    lines.add(
+        new ExprAclLine(
+            defaultPermit ? LineAction.PERMIT : LineAction.DENY,
+            AclLineMatchExprs.TRUE,
+            defaultPermit
+                ? String.format("Default permit for EPG %s %s policy", epgName, direction)
+                : String.format("Default deny for EPG %s %s policy", epgName, direction)));
+
+    IpAccessList acl =
+        IpAccessList.builder().setOwner(c).setName(aclName).setLines(lines.build()).build();
+    c.getIpAccessLists().put(aclName, acl);
+    return acl;
+  }
+
+  private enum AclKind {
+    CONTRACT,
+    TABOO
   }
 
   /**
@@ -1386,13 +1597,15 @@ public final class AciConversion {
 
     // Get the local AS from the BGP process or from the first peer
     Long localAs = bgpProcessConfig.getAs();
-    if (localAs == null && !l3Out.getBgpPeers().isEmpty()) {
+    if (localAs == null && l3Out.getBgpPeers() != null && !l3Out.getBgpPeers().isEmpty()) {
       String firstPeerLocalAs = l3Out.getBgpPeers().get(0).getLocalAs();
       if (firstPeerLocalAs != null) {
         try {
           localAs = Long.parseLong(firstPeerLocalAs);
         } catch (NumberFormatException e) {
-          // Ignore and use default
+          warnings.redFlagf(
+              "Invalid local AS '%s' in BGP peer for L3Out %s, ignoring",
+              firstPeerLocalAs, l3Out.getName());
         }
       }
     }
@@ -2059,6 +2272,10 @@ public final class AciConversion {
     return CONTRACT_ACL_PREFIX + contractName;
   }
 
+  public static @Nonnull String getTabooAclName(String tabooName) {
+    return TABOO_ACL_PREFIX + tabooName;
+  }
+
   /**
    * Creates a VPC peer-link interface on a node if it's part of a VPC pair.
    *
@@ -2170,9 +2387,10 @@ public final class AciConversion {
         String spineNodeId = spine.getNodeId();
 
         // Select leaf interface - use indexed interface if available, otherwise default
-        String leafIface = spineIndex < leafInterfaces.size()
-            ? leafInterfaces.get(spineIndex)
-            : "ethernet1/" + (spineIndex + 1);
+        String leafIface =
+            spineIndex < leafInterfaces.size()
+                ? leafInterfaces.get(spineIndex)
+                : "ethernet1/" + (spineIndex + 1);
 
         // For spine, use different interface per leaf to model fabric ports
         String spineIface = "ethernet1/" + (spineIndex + 1);
@@ -2391,13 +2609,29 @@ public final class AciConversion {
       String contractName,
       AciConfiguration.Contract.Filter filter,
       Warnings warnings) {
+    if (etherType == null) {
+      warnings.redFlagf("Null etherType in contract %s filter %s", contractName, filter.getName());
+      return null;
+    }
     String et = etherType.toLowerCase().trim();
 
     // Handle hex format (0x prefix or just hex digits)
     int etherTypeValue;
     if (et.startsWith("0x") || et.startsWith("0X")) {
+      if (et.length() <= 2) {
+        warnings.redFlagf(
+            "Invalid etherType (empty hex value) in contract %s filter %s: %s",
+            contractName, filter.getName(), etherType);
+        return null;
+      }
       try {
         etherTypeValue = Integer.parseInt(et.substring(2), 16);
+        if (etherTypeValue < 0 || etherTypeValue > 0xFFFF) {
+          warnings.redFlagf(
+              "EtherType out of range (0x0000-0xFFFF) in contract %s filter %s: 0x%x",
+              contractName, filter.getName(), etherTypeValue);
+          return null;
+        }
       } catch (NumberFormatException e) {
         warnings.redFlagf(
             "Invalid etherType in contract %s filter %s: %s",
@@ -2726,8 +2960,8 @@ public final class AciConversion {
     String portType = isDestination ? "destination" : "source";
 
     for (String portStr : ports) {
-      String ps = portStr.trim();
-      if (ps.isEmpty()) {
+      String ps = normalizePortSpecToken(portStr);
+      if (ps == null) {
         continue;
       }
 
@@ -2803,8 +3037,8 @@ public final class AciConversion {
     String portType = isDestination ? "destination" : "source";
 
     for (String portStr : ports) {
-      String ps = portStr.trim();
-      if (ps.isEmpty()) {
+      String ps = normalizePortSpecToken(portStr);
+      if (ps == null) {
         continue;
       }
 
@@ -2856,6 +3090,33 @@ public final class AciConversion {
     }
 
     return portSpace.build();
+  }
+
+  private static boolean isPlaceholderPortToken(String token) {
+    String normalized = token.trim().toLowerCase();
+    return normalized.equals("unspecified") || normalized.equals("any") || normalized.equals("0");
+  }
+
+  private static @Nullable String normalizePortSpecToken(@Nullable String token) {
+    if (token == null) {
+      return null;
+    }
+    String trimmed = token.trim();
+    if (trimmed.isEmpty()) {
+      return null;
+    }
+    if (!trimmed.contains("-")) {
+      return isPlaceholderPortToken(trimmed) ? null : trimmed;
+    }
+    String[] parts = trimmed.split("-", 2);
+    if (parts.length != 2) {
+      return trimmed;
+    }
+    // Treat placeholder endpoints as unset range metadata.
+    if (isPlaceholderPortToken(parts[0]) || isPlaceholderPortToken(parts[1])) {
+      return null;
+    }
+    return trimmed;
   }
 
   /**
