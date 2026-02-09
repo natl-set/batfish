@@ -72,7 +72,9 @@ public final class AciConfiguration extends VendorConfiguration {
   private static final String PROP_VRFS = "vrfs";
   private static final String PROP_EPGS = "epgs";
   private static final String PROP_CONTRACTS = "contracts";
+  private static final String PROP_CONTRACT_INTERFACES = "contractInterfaces";
   private static final String PROP_FILTERS = "filters";
+  private static final String PROP_TABOO_CONTRACTS = "tabooContracts";
   private static final String PROP_FABRIC_NODES = "fabricNodes";
   private static final String PROP_L3_OUTS = "l3Outs";
   private static final String PROP_L2_OUTS = "l2Outs";
@@ -231,8 +233,14 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Map of contract names to contract configurations */
   private Map<String, Contract> _contracts;
 
+  /** Map of contract interface names to contract interface configurations */
+  private Map<String, ContractInterface> _contractInterfaces;
+
   /** Map of filter names to filter configurations */
   private Map<String, Filter> _filters;
+
+  /** Map of taboo contract names to taboo contract configurations */
+  private Map<String, TabooContract> _tabooContracts;
 
   /** Map of fabric node IDs to fabric node configurations */
   private Map<String, FabricNode> _fabricNodes;
@@ -265,7 +273,9 @@ public final class AciConfiguration extends VendorConfiguration {
     _epgs = new TreeMap<>();
     _applicationProfiles = new TreeMap<>();
     _contracts = new TreeMap<>();
+    _contractInterfaces = new TreeMap<>();
     _filters = new TreeMap<>();
+    _tabooContracts = new TreeMap<>();
     _fabricNodes = new TreeMap<>();
     _vpcPairs = new TreeMap<>();
     _interFabricConnections = new TreeMap<>();
@@ -549,16 +559,30 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> contractMap = (Map<String, Object>) childMap.get("vzBrCP");
           parseContractFromMap(contractMap, tenantName, warnings);
         }
-        // Check for l3extOut (L3 Outside - routed external connectivity)
-        else if (childMap.containsKey("l3extOut")) {
+        // Check for vzCPIf (Contract Interface)
+        else if (childMap.containsKey("vzCPIf")) {
           @SuppressWarnings("unchecked")
-          Map<String, Object> l3outMap = (Map<String, Object>) childMap.get("l3extOut");
+          Map<String, Object> contractInterfaceMap = (Map<String, Object>) childMap.get("vzCPIf");
+          parseContractInterfaceFromMap(contractInterfaceMap, tenantName, warnings);
+        }
+        // Check for l3extOut (L3 Outside - routed external connectivity)
+        else if (childMap.containsKey("l3extOut") || childMap.containsKey("l3ExtOut")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> l3outMap =
+              (Map<String, Object>)
+                  (childMap.containsKey("l3extOut")
+                      ? childMap.get("l3extOut")
+                      : childMap.get("l3ExtOut"));
           parseL3OutFromMap(l3outMap, tenantName, warnings);
         }
         // Check for l2extOut (L2 Outside - bridged external connectivity)
-        else if (childMap.containsKey("l2extOut")) {
+        else if (childMap.containsKey("l2extOut") || childMap.containsKey("l2ExtOut")) {
           @SuppressWarnings("unchecked")
-          Map<String, Object> l2outMap = (Map<String, Object>) childMap.get("l2extOut");
+          Map<String, Object> l2outMap =
+              (Map<String, Object>)
+                  (childMap.containsKey("l2extOut")
+                      ? childMap.get("l2extOut")
+                      : childMap.get("l2ExtOut"));
           parseL2OutFromMap(l2outMap, tenantName, warnings);
         }
         // Check for fvAEPg directly under tenant (uncommon but possible)
@@ -573,11 +597,17 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> mgmtMgmtMap = (Map<String, Object>) childMap.get("mgmtMgmtP");
           parseManagementPolicyFromMap(mgmtMgmtMap, warnings);
         }
+        // Check for vzTaboo (taboo contracts)
+        else if (childMap.containsKey("vzTaboo")) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> tabooMap = (Map<String, Object>) childMap.get("vzTaboo");
+          parseTabooContractFromMap(tabooMap, tenantName, warnings);
+        }
         // Log warning for unrecognized tenant child types
         else {
           @SuppressWarnings("unchecked")
           Map<String, Object> childAttrs = (Map<String, Object>) childMap.get("attributes");
-          if (childAttrs != null) {
+          if (childAttrs != null && !childMap.isEmpty()) {
             String name = (String) childAttrs.get("name");
             String unknownType = childMap.keySet().iterator().next();
             warnings.redFlagf(
@@ -1002,6 +1032,42 @@ public final class AciConfiguration extends VendorConfiguration {
               }
             }
           }
+
+          // Provided contract interfaces (ContractInterface references)
+          if (childMap.containsKey("fvRsProvIf")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvIfMap = (Map<String, Object>) childMap.get("fvRsProvIf");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvIfAttrs = (Map<String, Object>) rsProvIfMap.get("attributes");
+            String contractInterfaceName = firstNonEmptyValue(rsProvIfAttrs, "tnVzCPIfName");
+            if (contractInterfaceName != null) {
+              epg.getProvidedContractInterfaces().add(tenantName + ":" + contractInterfaceName);
+            }
+          }
+
+          // Consumed contract interfaces (ContractInterface references)
+          if (childMap.containsKey("fvRsConsIf")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsIfMap = (Map<String, Object>) childMap.get("fvRsConsIf");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsIfAttrs = (Map<String, Object>) rsConsIfMap.get("attributes");
+            String contractInterfaceName = firstNonEmptyValue(rsConsIfAttrs, "tnVzCPIfName");
+            if (contractInterfaceName != null) {
+              epg.getConsumedContractInterfaces().add(tenantName + ":" + contractInterfaceName);
+            }
+          }
+
+          // Taboo contracts protecting this EPG
+          if (childMap.containsKey("fvRsProtBy")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProtByMap = (Map<String, Object>) childMap.get("fvRsProtBy");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProtByAttrs = (Map<String, Object>) rsProtByMap.get("attributes");
+            String tabooName = firstNonEmptyValue(rsProtByAttrs, "tnVzTabooName");
+            if (tabooName != null) {
+              epg.getProtectedByTaboos().add(tenantName + ":" + tabooName);
+            }
+          }
         }
       }
     }
@@ -1099,6 +1165,70 @@ public final class AciConfiguration extends VendorConfiguration {
     _l2Outs.put(fqL2OutName, l2out);
   }
 
+  /** Parses a contract interface (vzCPIf) from a raw map structure. */
+  private void parseContractInterfaceFromMap(
+      Map<String, Object> contractInterfaceMap, String tenantName, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) contractInterfaceMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+    String name = (String) attrs.get("name");
+    if (name == null || name.isEmpty()) {
+      return;
+    }
+
+    String fqName = tenantName + ":" + name;
+    ContractInterface contractInterface = getOrCreateContractInterface(fqName);
+    contractInterface.setTenant(tenantName);
+    contractInterface.setDescription((String) attrs.get("descr"));
+
+    Tenant tenant = getOrCreateTenant(tenantName);
+    tenant.getContractInterfaces().put(fqName, contractInterface);
+  }
+
+  /** Parses a taboo contract (vzTaboo) from a raw map structure. */
+  private void parseTabooContractFromMap(
+      Map<String, Object> tabooMap, String tenantName, Warnings warnings) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> attrs = (Map<String, Object>) tabooMap.get("attributes");
+    if (attrs == null) {
+      return;
+    }
+    String name = (String) attrs.get("name");
+    if (name == null || name.isEmpty()) {
+      return;
+    }
+
+    String fqName = tenantName + ":" + name;
+    TabooContract taboo = getOrCreateTabooContract(fqName);
+    taboo.setTenant(tenantName);
+    taboo.setDescription((String) attrs.get("descr"));
+    taboo.setScope((String) attrs.get("scope"));
+
+    if (tabooMap.containsKey("children")) {
+      @SuppressWarnings("unchecked")
+      List<Object> children = (List<Object>) tabooMap.get("children");
+      for (Object childObj : children) {
+        if (childObj instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> childMap = (Map<String, Object>) childObj;
+          if (childMap.containsKey("vzSubj")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subjMap = (Map<String, Object>) childMap.get("vzSubj");
+            Contract.Subject subject = parseContractSubject(subjMap);
+            if (subject != null) {
+              taboo.getSubjects().add(subject);
+            }
+          }
+        }
+      }
+    }
+
+    Tenant tenant = getOrCreateTenant(tenantName);
+    tenant.getTabooContracts().put(fqName, taboo);
+  }
+
   /** Parses an L3Out (Layer 3 Outside) from a raw map structure. */
   private void parseL3OutFromMap(
       Map<String, Object> l3outMap, String tenantName, Warnings warnings) {
@@ -1146,9 +1276,13 @@ public final class AciConfiguration extends VendorConfiguration {
           }
 
           // External EPG (l3extInstP) - contains subnets and static routes
-          else if (childMap.containsKey("l3extInstP")) {
+          else if (childMap.containsKey("l3extInstP") || childMap.containsKey("l3ExtInstP")) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> epgMap = (Map<String, Object>) childMap.get("l3extInstP");
+            Map<String, Object> epgMap =
+                (Map<String, Object>)
+                    (childMap.containsKey("l3extInstP")
+                        ? childMap.get("l3extInstP")
+                        : childMap.get("l3ExtInstP"));
             parseExternalEpgFromMap(epgMap, l3out, warnings);
           }
 
@@ -1197,9 +1331,13 @@ public final class AciConfiguration extends VendorConfiguration {
           Map<String, Object> childMap = (Map<String, Object>) childObj;
 
           // External subnet (l3extSubnet)
-          if (childMap.containsKey("l3extSubnet")) {
+          if (childMap.containsKey("l3extSubnet") || childMap.containsKey("l3ExtSubnet")) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> subnetMap = (Map<String, Object>) childMap.get("l3extSubnet");
+            Map<String, Object> subnetMap =
+                (Map<String, Object>)
+                    (childMap.containsKey("l3extSubnet")
+                        ? childMap.get("l3extSubnet")
+                        : childMap.get("l3ExtSubnet"));
             @SuppressWarnings("unchecked")
             Map<String, Object> subnetAttrs = (Map<String, Object>) subnetMap.get("attributes");
             if (subnetAttrs != null) {
@@ -1225,11 +1363,87 @@ public final class AciConfiguration extends VendorConfiguration {
               l3out.getStaticRoutes().add(route);
             }
           }
+
+          // Provided contracts
+          if (childMap.containsKey("fvRsProv")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvMap = (Map<String, Object>) childMap.get("fvRsProv");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvAttrs = (Map<String, Object>) rsProvMap.get("attributes");
+            String contractName = firstNonEmptyValue(rsProvAttrs, "tnVzBrCPName");
+            if (contractName != null) {
+              epg.getProvidedContracts().add(l3out.getTenant() + ":" + contractName);
+            }
+          }
+
+          // Consumed contracts
+          if (childMap.containsKey("fvRsCons")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsMap = (Map<String, Object>) childMap.get("fvRsCons");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsAttrs = (Map<String, Object>) rsConsMap.get("attributes");
+            String contractName = firstNonEmptyValue(rsConsAttrs, "tnVzBrCPName");
+            if (contractName != null) {
+              epg.getConsumedContracts().add(l3out.getTenant() + ":" + contractName);
+            }
+          }
+
+          // Provided contract interfaces
+          if (childMap.containsKey("fvRsProvIf")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvIfMap = (Map<String, Object>) childMap.get("fvRsProvIf");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProvIfAttrs = (Map<String, Object>) rsProvIfMap.get("attributes");
+            String contractInterfaceName = firstNonEmptyValue(rsProvIfAttrs, "tnVzCPIfName");
+            if (contractInterfaceName != null) {
+              epg.getProvidedContractInterfaces()
+                  .add(l3out.getTenant() + ":" + contractInterfaceName);
+            }
+          }
+
+          // Consumed contract interfaces
+          if (childMap.containsKey("fvRsConsIf")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsIfMap = (Map<String, Object>) childMap.get("fvRsConsIf");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsConsIfAttrs = (Map<String, Object>) rsConsIfMap.get("attributes");
+            String contractInterfaceName = firstNonEmptyValue(rsConsIfAttrs, "tnVzCPIfName");
+            if (contractInterfaceName != null) {
+              epg.getConsumedContractInterfaces()
+                  .add(l3out.getTenant() + ":" + contractInterfaceName);
+            }
+          }
+
+          // Taboo contracts protecting this external EPG
+          if (childMap.containsKey("fvRsProtBy")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProtByMap = (Map<String, Object>) childMap.get("fvRsProtBy");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rsProtByAttrs = (Map<String, Object>) rsProtByMap.get("attributes");
+            String tabooName = firstNonEmptyValue(rsProtByAttrs, "tnVzTabooName");
+            if (tabooName != null) {
+              epg.getProtectedByTaboos().add(l3out.getTenant() + ":" + tabooName);
+            }
+          }
         }
       }
     }
 
     l3out.getExternalEpgs().add(epg);
+  }
+
+  private static @Nullable String firstNonEmptyValue(
+      @Nullable Map<String, Object> attributes, String... keys) {
+    if (attributes == null) {
+      return null;
+    }
+    for (String key : keys) {
+      Object value = attributes.get(key);
+      if (value instanceof String && !((String) value).isEmpty()) {
+        return (String) value;
+      }
+    }
+    return null;
   }
 
   /** Parses a BGP external policy (bgpExtP) from a raw map structure. */
@@ -1258,7 +1472,8 @@ public final class AciConfiguration extends VendorConfiguration {
       try {
         bgpProcess.setAs(Long.parseLong(asStr));
       } catch (NumberFormatException e) {
-        // Ignore invalid AS
+        warnings.redFlagf(
+            "Invalid AS number '%s' in BGP process, ignoring: %s", asStr, e.getMessage());
       }
     }
 
@@ -1339,7 +1554,8 @@ public final class AciConfiguration extends VendorConfiguration {
                 try {
                   ospfInterface.setCost(Integer.parseInt(ospfCost));
                 } catch (NumberFormatException e) {
-                  // Use default
+                  warnings.redFlagf(
+                      "Invalid OSPF cost '%s', using default: %s", ospfCost, e.getMessage());
                 }
               }
 
@@ -1348,7 +1564,9 @@ public final class AciConfiguration extends VendorConfiguration {
                 try {
                   ospfInterface.setHelloInterval(Integer.parseInt(helloInterval));
                 } catch (NumberFormatException e) {
-                  // Use default
+                  warnings.redFlagf(
+                      "Invalid OSPF hello interval '%s', using default: %s",
+                      helloInterval, e.getMessage());
                 }
               }
 
@@ -1357,7 +1575,9 @@ public final class AciConfiguration extends VendorConfiguration {
                 try {
                   ospfInterface.setDeadInterval(Integer.parseInt(deadInterval));
                 } catch (NumberFormatException e) {
-                  // Use default
+                  warnings.redFlagf(
+                      "Invalid OSPF dead interval '%s', using default: %s",
+                      deadInterval, e.getMessage());
                 }
               }
 
@@ -1376,10 +1596,17 @@ public final class AciConfiguration extends VendorConfiguration {
   /** Parses a contract subject from a raw map structure. */
   private void parseContractSubjectFromMap(
       Map<String, Object> subjMap, Contract contract, Warnings warnings) {
+    Contract.Subject subject = parseContractSubject(subjMap);
+    if (subject != null) {
+      contract.getSubjects().add(subject);
+    }
+  }
+
+  private @Nullable Contract.Subject parseContractSubject(Map<String, Object> subjMap) {
     @SuppressWarnings("unchecked")
     Map<String, Object> attrs = (Map<String, Object>) subjMap.get("attributes");
     if (attrs == null) {
-      return;
+      return null;
     }
 
     String subjName = (String) attrs.get("name");
@@ -1417,7 +1644,7 @@ public final class AciConfiguration extends VendorConfiguration {
       }
     }
 
-    contract.getSubjects().add(subject);
+    return subject;
   }
 
   /** Parses a Filter (vzFilter) from a raw map structure. */
@@ -1619,6 +1846,16 @@ public final class AciConfiguration extends VendorConfiguration {
     _contracts = new TreeMap<>(contracts);
   }
 
+  /** Returns the map of contract interface configurations. */
+  public @Nonnull Map<String, ContractInterface> getContractInterfaces() {
+    return _contractInterfaces;
+  }
+
+  @JsonProperty(PROP_CONTRACT_INTERFACES)
+  public void setContractInterfaces(Map<String, ContractInterface> contractInterfaces) {
+    _contractInterfaces = new TreeMap<>(contractInterfaces);
+  }
+
   /**
    * Returns the map of filter configurations.
    *
@@ -1631,6 +1868,16 @@ public final class AciConfiguration extends VendorConfiguration {
   @JsonProperty(PROP_FILTERS)
   public void setFilters(Map<String, Filter> filters) {
     _filters = new TreeMap<>(filters);
+  }
+
+  /** Returns the map of taboo contract configurations. */
+  public @Nonnull Map<String, TabooContract> getTabooContracts() {
+    return _tabooContracts;
+  }
+
+  @JsonProperty(PROP_TABOO_CONTRACTS)
+  public void setTabooContracts(Map<String, TabooContract> tabooContracts) {
+    _tabooContracts = new TreeMap<>(tabooContracts);
   }
 
   /**
@@ -1797,6 +2044,11 @@ public final class AciConfiguration extends VendorConfiguration {
     return _contracts.computeIfAbsent(name, Contract::new);
   }
 
+  /** Gets or creates a contract interface with the given name. */
+  public @Nonnull ContractInterface getOrCreateContractInterface(String name) {
+    return _contractInterfaces.computeIfAbsent(name, ContractInterface::new);
+  }
+
   /**
    * Gets or creates a filter with the given name.
    *
@@ -1805,6 +2057,11 @@ public final class AciConfiguration extends VendorConfiguration {
    */
   public @Nonnull Filter getOrCreateFilter(String name) {
     return _filters.computeIfAbsent(name, Filter::new);
+  }
+
+  /** Gets or creates a taboo contract with the given name. */
+  public @Nonnull TabooContract getOrCreateTabooContract(String name) {
+    return _tabooContracts.computeIfAbsent(name, TabooContract::new);
   }
 
   /**
@@ -1859,7 +2116,9 @@ public final class AciConfiguration extends VendorConfiguration {
     _vrfs = ImmutableMap.copyOf(_vrfs);
     _epgs = ImmutableMap.copyOf(_epgs);
     _contracts = ImmutableMap.copyOf(_contracts);
+    _contractInterfaces = ImmutableMap.copyOf(_contractInterfaces);
     _filters = ImmutableMap.copyOf(_filters);
+    _tabooContracts = ImmutableMap.copyOf(_tabooContracts);
     _fabricNodes = ImmutableMap.copyOf(_fabricNodes);
     _l3Outs = ImmutableMap.copyOf(_l3Outs);
   }
@@ -1878,7 +2137,9 @@ public final class AciConfiguration extends VendorConfiguration {
     private Map<String, AciVrfModel> _vrfs;
     private Map<String, Epg> _epgs;
     private Map<String, Contract> _contracts;
+    private Map<String, ContractInterface> _contractInterfaces;
     private Map<String, Filter> _filters;
+    private Map<String, TabooContract> _tabooContracts;
 
     public Tenant(String name) {
       _name = name;
@@ -1886,7 +2147,9 @@ public final class AciConfiguration extends VendorConfiguration {
       _vrfs = new TreeMap<>();
       _epgs = new TreeMap<>();
       _contracts = new TreeMap<>();
+      _contractInterfaces = new TreeMap<>();
       _filters = new TreeMap<>();
+      _tabooContracts = new TreeMap<>();
     }
 
     public String getName() {
@@ -1925,12 +2188,28 @@ public final class AciConfiguration extends VendorConfiguration {
       _contracts = new TreeMap<>(contracts);
     }
 
+    public Map<String, ContractInterface> getContractInterfaces() {
+      return _contractInterfaces;
+    }
+
+    public void setContractInterfaces(Map<String, ContractInterface> contractInterfaces) {
+      _contractInterfaces = new TreeMap<>(contractInterfaces);
+    }
+
     public Map<String, Filter> getFilters() {
       return _filters;
     }
 
     public void setFilters(Map<String, Filter> filters) {
       _filters = new TreeMap<>(filters);
+    }
+
+    public Map<String, TabooContract> getTabooContracts() {
+      return _tabooContracts;
+    }
+
+    public void setTabooContracts(Map<String, TabooContract> tabooContracts) {
+      _tabooContracts = new TreeMap<>(tabooContracts);
     }
   }
 
@@ -2064,11 +2343,17 @@ public final class AciConfiguration extends VendorConfiguration {
     private String _description;
     private List<String> _providedContracts;
     private List<String> _consumedContracts;
+    private List<String> _providedContractInterfaces;
+    private List<String> _consumedContractInterfaces;
+    private List<String> _protectedByTaboos;
 
     public Epg(String name) {
       _name = name;
       _providedContracts = new ArrayList<>();
       _consumedContracts = new ArrayList<>();
+      _providedContractInterfaces = new ArrayList<>();
+      _consumedContractInterfaces = new ArrayList<>();
+      _protectedByTaboos = new ArrayList<>();
     }
 
     public String getName() {
@@ -2121,6 +2406,30 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setConsumedContracts(List<String> consumedContracts) {
       _consumedContracts = new ArrayList<>(consumedContracts);
+    }
+
+    public List<String> getProvidedContractInterfaces() {
+      return _providedContractInterfaces;
+    }
+
+    public void setProvidedContractInterfaces(List<String> providedContractInterfaces) {
+      _providedContractInterfaces = new ArrayList<>(providedContractInterfaces);
+    }
+
+    public List<String> getConsumedContractInterfaces() {
+      return _consumedContractInterfaces;
+    }
+
+    public void setConsumedContractInterfaces(List<String> consumedContractInterfaces) {
+      _consumedContractInterfaces = new ArrayList<>(consumedContractInterfaces);
+    }
+
+    public List<String> getProtectedByTaboos() {
+      return _protectedByTaboos;
+    }
+
+    public void setProtectedByTaboos(List<String> protectedByTaboos) {
+      _protectedByTaboos = new ArrayList<>(protectedByTaboos);
     }
   }
 
@@ -2316,6 +2625,91 @@ public final class AciConfiguration extends VendorConfiguration {
       public void setStateful(Boolean stateful) {
         _stateful = stateful;
       }
+    }
+  }
+
+  /** ACI Contract Interface (vzCPIf) configuration. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class ContractInterface implements Serializable {
+    private final String _name;
+    private String _tenant;
+    private String _description;
+
+    public ContractInterface(String name) {
+      _name = name;
+    }
+
+    public String getName() {
+      return _name;
+    }
+
+    public @Nullable String getTenant() {
+      return _tenant;
+    }
+
+    public void setTenant(String tenant) {
+      _tenant = tenant;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+  }
+
+  /** ACI Taboo Contract (vzTaboo) configuration. */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TabooContract implements Serializable {
+    private final String _name;
+    private String _tenant;
+    private String _description;
+    private String _scope;
+    private List<Contract.Subject> _subjects;
+
+    public TabooContract(String name) {
+      _name = name;
+      _subjects = new ArrayList<>();
+    }
+
+    public String getName() {
+      return _name;
+    }
+
+    public @Nullable String getTenant() {
+      return _tenant;
+    }
+
+    public void setTenant(String tenant) {
+      _tenant = tenant;
+    }
+
+    public @Nullable String getDescription() {
+      return _description;
+    }
+
+    public void setDescription(String description) {
+      _description = description;
+    }
+
+    public @Nullable String getScope() {
+      return _scope;
+    }
+
+    public void setScope(String scope) {
+      _scope = scope;
+    }
+
+    public List<Contract.Subject> getSubjects() {
+      return _subjects;
+    }
+
+    public void setSubjects(List<Contract.Subject> subjects) {
+      _subjects = new ArrayList<>(subjects);
     }
   }
 
@@ -4510,6 +4904,11 @@ public final class AciConfiguration extends VendorConfiguration {
   public static class ExternalEpg implements Serializable {
     private final String _name;
     private List<String> _subnets;
+    private List<String> _providedContracts;
+    private List<String> _consumedContracts;
+    private List<String> _providedContractInterfaces;
+    private List<String> _consumedContractInterfaces;
+    private List<String> _protectedByTaboos;
     private String _nextHop;
     private String _interface;
     private String _description;
@@ -4517,6 +4916,11 @@ public final class AciConfiguration extends VendorConfiguration {
     public ExternalEpg(String name) {
       _name = name;
       _subnets = new ArrayList<>();
+      _providedContracts = new ArrayList<>();
+      _consumedContracts = new ArrayList<>();
+      _providedContractInterfaces = new ArrayList<>();
+      _consumedContractInterfaces = new ArrayList<>();
+      _protectedByTaboos = new ArrayList<>();
     }
 
     public String getName() {
@@ -4529,6 +4933,46 @@ public final class AciConfiguration extends VendorConfiguration {
 
     public void setSubnets(List<String> subnets) {
       _subnets = new ArrayList<>(subnets);
+    }
+
+    public List<String> getProvidedContracts() {
+      return _providedContracts;
+    }
+
+    public void setProvidedContracts(List<String> providedContracts) {
+      _providedContracts = new ArrayList<>(providedContracts);
+    }
+
+    public List<String> getConsumedContracts() {
+      return _consumedContracts;
+    }
+
+    public void setConsumedContracts(List<String> consumedContracts) {
+      _consumedContracts = new ArrayList<>(consumedContracts);
+    }
+
+    public List<String> getProvidedContractInterfaces() {
+      return _providedContractInterfaces;
+    }
+
+    public void setProvidedContractInterfaces(List<String> providedContractInterfaces) {
+      _providedContractInterfaces = new ArrayList<>(providedContractInterfaces);
+    }
+
+    public List<String> getConsumedContractInterfaces() {
+      return _consumedContractInterfaces;
+    }
+
+    public void setConsumedContractInterfaces(List<String> consumedContractInterfaces) {
+      _consumedContractInterfaces = new ArrayList<>(consumedContractInterfaces);
+    }
+
+    public List<String> getProtectedByTaboos() {
+      return _protectedByTaboos;
+    }
+
+    public void setProtectedByTaboos(List<String> protectedByTaboos) {
+      _protectedByTaboos = new ArrayList<>(protectedByTaboos);
     }
 
     public @Nullable String getNextHop() {
@@ -4638,7 +5082,7 @@ public final class AciConfiguration extends VendorConfiguration {
           _podId = part.substring(4);
         } else if (part.startsWith("paths-")) {
           _nodeId = part.substring(6);
-        } else if (part.startsWith("pathep-[")) {
+        } else if (part.startsWith("pathep-[") && part.endsWith("]") && part.length() > 10) {
           _interface = part.substring(8, part.length() - 1);
         }
       }

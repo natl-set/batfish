@@ -3,6 +3,7 @@ package org.batfish.vendor.cisco_aci;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertNotNull;
@@ -466,5 +467,167 @@ public class AciConfigurationDeserializationTest {
     // XML parsing may have limited support
     // Just verify no crash occurs
     assertNotNull(config);
+  }
+
+  /** Test parsing EPG relationship objects documented by ACI Toolkit. */
+  @Test
+  public void testEpgContractInterfaceAndTabooRelationships() throws Exception {
+    String json =
+        "{"
+            + "\"polUni\": {"
+            + "\"attributes\": {\"name\": \"test-fabric\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvTenant\": {"
+            + "\"attributes\": {\"name\": \"tenant1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvAp\": {"
+            + "\"attributes\": {\"name\": \"app1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvAEPg\": {"
+            + "\"attributes\": {\"name\": \"epg1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvRsProv\": {\"attributes\": {\"tnVzBrCPName\": \"contract-provided\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsCons\": {\"attributes\": {\"tnVzBrCPName\": \"contract-consumed\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsProvIf\": {\"attributes\": {\"tnVzCPIfName\": \"cif-provided\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsConsIf\": {\"attributes\": {\"tnVzCPIfName\": \"cif-consumed\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsProtBy\": {\"attributes\": {\"tnVzTabooName\": \"taboo1\"}}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}";
+
+    AciConfiguration config =
+        AciConfiguration.fromJson("epg-relationships.json", json, new Warnings());
+
+    AciConfiguration.Epg epg = config.getEpgs().get("tenant1:app1:epg1");
+    assertNotNull(epg);
+    assertThat(epg.getProvidedContracts(), hasItems("tenant1:contract-provided"));
+    assertThat(epg.getConsumedContracts(), hasItems("tenant1:contract-consumed"));
+    assertThat(epg.getProvidedContractInterfaces(), hasItems("tenant1:cif-provided"));
+    assertThat(epg.getConsumedContractInterfaces(), hasItems("tenant1:cif-consumed"));
+    assertThat(epg.getProtectedByTaboos(), hasItems("tenant1:taboo1"));
+  }
+
+  /** Test parsing external EPG relationship objects documented by ACI Toolkit. */
+  @Test
+  public void testExternalEpgContractInterfaceAndTabooRelationships() throws Exception {
+    String json =
+        "{"
+            + "\"polUni\": {"
+            + "\"attributes\": {\"name\": \"test-fabric\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvTenant\": {"
+            + "\"attributes\": {\"name\": \"infra\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvCtx\": {\"attributes\": {\"name\": \"overlay\"}}"
+            + "},"
+            + "{"
+            + "\"l3ExtOut\": {"
+            + "\"attributes\": {\"name\": \"out1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"l3extRsEctx\": {\"attributes\": {\"tnFvCtxName\": \"overlay\"}}"
+            + "},"
+            + "{"
+            + "\"l3ExtInstP\": {"
+            + "\"attributes\": {\"name\": \"ext1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvRsProv\": {\"attributes\": {\"tnVzBrCPName\": \"ext-provided\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsCons\": {\"attributes\": {\"tnVzBrCPName\": \"ext-consumed\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsProvIf\": {\"attributes\": {\"tnVzCPIfName\": \"ext-cif-provided\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsConsIf\": {\"attributes\": {\"tnVzCPIfName\": \"ext-cif-consumed\"}}"
+            + "},"
+            + "{"
+            + "\"fvRsProtBy\": {\"attributes\": {\"tnVzTabooName\": \"ext-taboo\"}}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}";
+
+    AciConfiguration config =
+        AciConfiguration.fromJson("external-epg-relationships.json", json, new Warnings());
+
+    AciConfiguration.L3Out l3Out = config.getL3Outs().get("infra:out1");
+    assertNotNull(l3Out);
+    assertThat(l3Out.getExternalEpgs(), hasSize(1));
+    AciConfiguration.ExternalEpg extEpg = l3Out.getExternalEpgs().get(0);
+    assertThat(extEpg.getProvidedContracts(), hasItems("infra:ext-provided"));
+    assertThat(extEpg.getConsumedContracts(), hasItems("infra:ext-consumed"));
+    assertThat(extEpg.getProvidedContractInterfaces(), hasItems("infra:ext-cif-provided"));
+    assertThat(extEpg.getConsumedContractInterfaces(), hasItems("infra:ext-cif-consumed"));
+    assertThat(extEpg.getProtectedByTaboos(), hasItems("infra:ext-taboo"));
+  }
+
+  /** Test parsing tenant-level contract interfaces and taboo contracts. */
+  @Test
+  public void testTenantContractInterfacesAndTaboos() throws Exception {
+    String json =
+        "{"
+            + "\"polUni\": {"
+            + "\"attributes\": {\"name\": \"test-fabric\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"fvTenant\": {"
+            + "\"attributes\": {\"name\": \"tenant1\"},"
+            + "\"children\": ["
+            + "{"
+            + "\"vzCPIf\": {\"attributes\": {\"name\": \"cif1\", \"descr\": \"interface\"}}"
+            + "},"
+            + "{"
+            + "\"vzTaboo\": {\"attributes\": {\"name\": \"taboo1\", \"scope\": \"context\"}}"
+            + "}"
+            + "]"
+            + "}"
+            + "}"
+            + "]"
+            + "}"
+            + "}";
+
+    AciConfiguration config =
+        AciConfiguration.fromJson("tenant-cif-taboo.json", json, new Warnings());
+
+    assertThat(config.getContractInterfaces(), hasKey("tenant1:cif1"));
+    assertThat(config.getTabooContracts(), hasKey("tenant1:taboo1"));
+    assertThat(config.getTenants().get("tenant1").getContractInterfaces(), hasKey("tenant1:cif1"));
+    assertThat(config.getTenants().get("tenant1").getTabooContracts(), hasKey("tenant1:taboo1"));
   }
 }
