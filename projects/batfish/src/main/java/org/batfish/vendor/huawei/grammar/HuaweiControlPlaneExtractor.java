@@ -1212,8 +1212,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     }
 
     if (aclName != null) {
-      _currentAcl = new HuaweiAcl(aclName, aclType);
-      _currentAcl.setIpv6(false);
+      _currentAcl = new HuaweiAcl(aclName, aclType, false);
       _configuration.addAcl(aclName, _currentAcl);
     }
   }
@@ -1362,8 +1361,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     }
 
     if (aclName != null) {
-      _currentAcl = new HuaweiAcl(aclName, AclType.ADVANCED); // IPv6 ACLs are always advanced
-      _currentAcl.setIpv6(true);
+      _currentAcl = new HuaweiAcl(aclName, AclType.ADVANCED, true); // IPv6 ACLs are always advanced
       _configuration.addAcl(aclName, _currentAcl);
     }
   }
