@@ -420,10 +420,12 @@ public class F5BigipConfiguration extends VendorConfiguration {
         headerSpace.setIpProtocols(ImmutableSortedSet.of(ipProtocol));
       } catch (IllegalArgumentException e) {
         // If protocol is not recognized, log a warning and leave it empty
-        _w.redFlag(
-            String.format(
-                "Unrecognized IP protocol '%s' in firewall rule '%s'",
-                rule.getIpProtocol(), rule.getName()));
+        if (_w != null) {
+          _w.redFlag(
+              String.format(
+                  "Unrecognized IP protocol '%s' in firewall rule '%s'",
+                  rule.getIpProtocol(), rule.getName()));
+        }
       }
     }
 
