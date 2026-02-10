@@ -2171,7 +2171,7 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitLv_profiles(Lv_profilesContext ctx) {
-    todo(ctx);
+    // Profile references are recorded in enterLv_profiles_profile.
   }
 
   @Override
@@ -2789,7 +2789,7 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitLv_persist(Lv_persistContext ctx) {
-    todo(ctx);
+    // Persistence profile references are recorded in exitLvp_persistence.
   }
 
   @Override
