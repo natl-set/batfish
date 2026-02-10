@@ -321,6 +321,36 @@ public class F5BigipConfigurationTest {
     assertThat(headerSpace.getIpProtocols(), equalTo(ImmutableSortedSet.of()));
   }
 
+  @Test
+  public void testFirewallRuleListInvalidProtocolEmitsWarningWhenAvailable() {
+    F5BigipConfiguration f5Config = new F5BigipConfiguration();
+    f5Config.setHostname("node");
+    f5Config.setVendor(ConfigurationFormat.F5_BIGIP_STRUCTURED);
+    Warnings warnings = new Warnings(false, true, false);
+    f5Config.setWarnings(warnings);
+
+    FirewallRule rule =
+        FirewallRule.builder().setName("r1").setAction("accept").setIpProtocol("bogus").build();
+    FirewallRuleList ruleList = FirewallRuleList.builder().setName("rl1").addRule(rule).build();
+    f5Config.getFirewallRuleLists().put(ruleList.getName(), ruleList);
+
+    var unused = Iterables.getOnlyElement(f5Config.toVendorIndependentConfigurations());
+
+    assertThat(warnings.getRedFlagWarnings().size(), equalTo(1));
+    assertThat(
+        Iterables.getOnlyElement(warnings.getRedFlagWarnings()).getText(),
+        equalTo("Unrecognized IP protocol 'bogus' in firewall rule 'r1'"));
+  }
+
+  @Test
+  public void testSnmpAndFirewallCollectionsInitialized() {
+    F5BigipConfiguration f5Config = new F5BigipConfiguration();
+    assertThat(f5Config.getSnmpCommunities().isEmpty(), equalTo(true));
+    assertThat(f5Config.getSnmpDiskMonitors().isEmpty(), equalTo(true));
+    assertThat(f5Config.getSnmpProcessMonitors().isEmpty(), equalTo(true));
+    assertThat(f5Config.getFirewallRuleLists().isEmpty(), equalTo(true));
+  }
+
   /** Tests for {@link SnmpCommunity} */
   @Test
   public void testSnmpCommunityBuilder() {

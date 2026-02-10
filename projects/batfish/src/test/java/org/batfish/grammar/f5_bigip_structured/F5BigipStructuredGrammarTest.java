@@ -3705,6 +3705,32 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testSnmpExtendedSectionsParse() throws IOException {
+    String hostname = "f5_bigip_structured_sys_new";
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    batfish.getSettings().setDisableUnrecognized(false);
+    batfish.getSettings().setThrowOnLexerError(false);
+    batfish.getSettings().setThrowOnParserError(false);
+
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PARTIALLY_UNRECOGNIZED));
+  }
+
+  @Test
+  public void testSysDnsAndManagementRouteParse() throws IOException {
+    String hostname = "f5_bigip_structured_sys_dns_management";
+    F5BigipConfiguration vc = parseVendorConfig(hostname);
+
+    assertThat(vc.getHostname(), equalTo("f5_bigip_structured_sys_dns_management"));
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
   public void testHaGroupConversion() throws IOException {
     String hostname = "f5_bigip_structured_sys_ha_group";
     F5BigipConfiguration vc = parseVendorConfig(hostname);
