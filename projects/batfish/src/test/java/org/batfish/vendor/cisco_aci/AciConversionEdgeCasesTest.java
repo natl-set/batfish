@@ -5,6 +5,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -78,7 +79,32 @@ public class AciConversionEdgeCasesTest {
 
     // Should still create a configuration, using node ID as fallback
     assertThat(viConfigs, aMapWithSize(1));
-    assertNotNull(viConfigs.get("101"));
+    Configuration nodeConfig = viConfigs.get("101");
+    assertNotNull(nodeConfig);
+    assertEquals("test-fabric-101", nodeConfig.getHostname());
+  }
+
+  /** Test conversion with duplicate aci prefix in fabric hostname. */
+  @Test
+  public void testFabricNodeFallbackCollapsesDuplicateAciPrefix() {
+    AciConfiguration config = new AciConfiguration();
+    config.setHostname("aci-aci-dc2-ce2.json");
+    config.setVendor(ConfigurationFormat.CISCO_ACI);
+
+    AciConfiguration.FabricNode node = new AciConfiguration.FabricNode();
+    node.setNodeId("1204");
+    node.setPodId("1");
+    node.setRole("leaf");
+    config.getFabricNodes().put("1204", node);
+    config.finalizeStructures();
+
+    Warnings warnings = new Warnings(false, true, true);
+    SortedMap<String, Configuration> viConfigs =
+        AciConversion.toVendorIndependentConfigurations(config, warnings);
+
+    Configuration nodeConfig = viConfigs.get("1204");
+    assertNotNull(nodeConfig);
+    assertEquals("aci-dc2-ce2-1204", nodeConfig.getHostname());
   }
 
   /** Test conversion with EPG without bridge domain. */
