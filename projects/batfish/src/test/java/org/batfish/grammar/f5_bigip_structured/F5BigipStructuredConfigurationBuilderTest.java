@@ -29,6 +29,7 @@ public class F5BigipStructuredConfigurationBuilderTest {
         new SilentSyntaxCollection());
   }
 
+  @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
   private static RuntimeException invokeStaticExpectRuntime(
       String methodName, Class<?> argType, Object arg) {
     try {
@@ -224,6 +225,7 @@ public class F5BigipStructuredConfigurationBuilderTest {
   }
 
   @Test
+  @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
   public void testDetailedUnrecognizedMessageByLeadText() throws Exception {
     Method method =
         F5BigipStructuredConfigurationBuilder.class.getDeclaredMethod(
@@ -244,6 +246,7 @@ public class F5BigipStructuredConfigurationBuilderTest {
   }
 
   @Test
+  @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
   public void testDetailedErrorMessageByLeadText() throws Exception {
     Method method =
         F5BigipStructuredConfigurationBuilder.class.getDeclaredMethod(
