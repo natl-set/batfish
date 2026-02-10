@@ -213,7 +213,6 @@ public class HuaweiConversions {
             .setName(name)
             .setType(getInterfaceType(name))
             .setVrf(vrf)
-            .setVrf(vrf)
             .setOwner(c)
             .setAdminUp(!huaweiIface.getShutdown())
             .setMtu(huaweiIface.getMtu());
@@ -267,7 +266,6 @@ public class HuaweiConversions {
     }
 
     return builder.build();
-    // Set DHCP relay client flag
   }
 
   /**
@@ -540,16 +538,12 @@ public class HuaweiConversions {
     }
     Map<Long, OspfArea> areas = areasBuilder.build();
 
-    // Convert OSPF virtual links
-    // Virtual links are extracted but Batfish OspfProcess doesn't have a direct virtual link model
-    // Virtual links would need to be converted to area-specific configuration
+    // Convert OSPF virtual links (tracked but not yet converted to Batfish model)
+    // Batfish OspfProcess doesn't currently support virtual links.
+    // Virtual links are extracted and stored in HuaweiOspfProcess but not converted.
+    // TODO: Implement conversion when Batfish model adds virtual link support
     if (!huaweiOspf.getVirtualLinks().isEmpty()) {
-      for (HuaweiOspfProcess.HuaweiOspfVirtualLink vlink : huaweiOspf.getVirtualLinks()) {
-        // Virtual link data: areaId, remoteRouterId, transitAreaId
-        // To fully implement:
-        // 1. Determine which area the virtual link modifies (transit area)
-        // 2. Batfish may need OspfVirtualLink model or area-level configuration
-      }
+      // Virtual links tracked for future implementation
     }
 
     // Convert OSPF interface settings

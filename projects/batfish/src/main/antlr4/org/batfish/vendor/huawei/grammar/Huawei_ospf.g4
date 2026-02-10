@@ -34,6 +34,9 @@ ospf_substanza
 ospf_area
 :
    AREA area_id = uint32
+   (
+      area_substanza
+   )*
 ;
 
 // Area sub-stanza
@@ -169,10 +172,14 @@ ospf_import_route_policy
 ;
 
 // Null area configuration (parse but ignore)
+// Must NOT match "area <id>" declarations or known area keywords
+// Uses negative lookahead to ensure we don't match AREA token
 area_null
 :
    NO?
    (
+      // Match any token except AREA at the start
+      ~(AREA)
       null_rest_of_line
    )
 ;

@@ -624,10 +624,15 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    */
   @Override
   public void exitV_name(V_nameContext ctx) {
-    // We need to find which VLAN we're currently configuring
-    // This is tricky because the grammar doesn't give us direct context
-    // We'll need to track the current VLAN similar to how we track current interface
-    // For now, this is a stub that will be enhanced when we add full VLAN tracking
+    if (_currentVlanId == null) {
+      return;
+    }
+
+    HuaweiVlan vlan = _configuration.getVlan(_currentVlanId);
+    if (vlan != null && ctx.name != null) {
+      String vlanName = ctx.name.getText();
+      vlan.setName(vlanName);
+    }
   }
 
   /**
@@ -1337,9 +1342,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
     try {
       // Handle nat server (port forwarding) - check first since it's the first alternative
       if (ctx.SERVER() != null) {
-        // Create NAT rule for NAT server
-        String ruleName = "server_" + System.currentTimeMillis();
-        HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.NAT_SERVER);
+        HuaweiNatRule natRule = new HuaweiNatRule("temp_nat_server", NatType.NAT_SERVER);
 
         // Check if protocol specified
         if (ctx.PROTOCOL() != null) {
@@ -1399,6 +1402,13 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         if (ctx.VPN_INSTANCE() != null && ctx.VARIABLE() != null) {
           natRule.setVrfName(ctx.VARIABLE().getText());
         }
+
+        // Generate deterministic rule name after extracting all values
+        String ruleName =
+            String.format(
+                "nat_server_%s_%d_%d",
+                natRule.getGlobalIp(), natRule.getGlobalPort(), natRule.getInsideLocalPort());
+        natRule.setName(ruleName);
 
         _configuration.addNatRule(natRule);
       }
@@ -1463,9 +1473,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
 
       // Handle nat outbound (dynamic NAT / Easy IP)
       else if (ctx.OUTBOUND() != null) {
-        // Create NAT rule for outbound
-        String ruleName = "outbound_" + System.currentTimeMillis();
-        HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.DYNAMIC);
+        HuaweiNatRule natRule = new HuaweiNatRule("temp_nat_outbound", NatType.DYNAMIC);
 
         // Extract ACL number/name
         if (ctx.acl_num != null) {
@@ -1488,14 +1496,18 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
           natRule.setVrfName(ctx.vrf_name.getText());
         }
 
+        // Generate deterministic rule name after extracting all values
+        String aclIdentifier = natRule.getAclName() != null ? natRule.getAclName() : "unknown";
+        String poolIdentifier = natRule.getPoolName() != null ? natRule.getPoolName() : "interface";
+        String ruleName = String.format("nat_outbound_%s_%s", aclIdentifier, poolIdentifier);
+        natRule.setName(ruleName);
+
         _configuration.addNatRule(natRule);
       }
 
       // Handle nat static (static one-to-one NAT)
       else if (ctx.STATIC() != null) {
-        // Create NAT rule for static NAT
-        String ruleName = "static_" + System.currentTimeMillis();
-        HuaweiNatRule natRule = new HuaweiNatRule(ruleName, NatType.STATIC);
+        HuaweiNatRule natRule = new HuaweiNatRule("temp_nat_static", NatType.STATIC);
 
         // Extract global IP (first IP address)
         if (ctx.ip_address() != null && !ctx.ip_address().isEmpty()) {
@@ -1513,6 +1525,11 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
         if (ctx.VPN_INSTANCE() != null && ctx.VARIABLE() != null) {
           natRule.setVrfName(ctx.VARIABLE().getText());
         }
+
+        // Generate deterministic rule name after extracting all values
+        String ruleName =
+            String.format("nat_static_%s_%s", natRule.getGlobalIp(), natRule.getInsideLocalIp());
+        natRule.setName(ruleName);
 
         _configuration.addNatRule(natRule);
       }
