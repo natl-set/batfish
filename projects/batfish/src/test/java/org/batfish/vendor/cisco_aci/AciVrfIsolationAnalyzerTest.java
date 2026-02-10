@@ -2,6 +2,7 @@ package org.batfish.vendor.cisco_aci;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -84,5 +85,57 @@ public final class AciVrfIsolationAnalyzerTest {
 
     assertThat(categories, hasItem(VrfIsolationFinding.Category.CROSS_VRF_CONTRACT));
     assertThat(categories, hasItem(VrfIsolationFinding.Category.UNUSED_VRF));
+  }
+
+  @Test
+  public void testAnalyzeVrfIsolationFindsL3OutScopeIssues() {
+    AciConfiguration config = new AciConfiguration();
+
+    AciConfiguration.BridgeDomain bd = new AciConfiguration.BridgeDomain("bd1");
+    bd.setTenant("tenant1");
+    bd.setVrf("tenant1:vrf1");
+    bd.setSubnets(ImmutableList.of("10.10.10.0/24"));
+    config.getBridgeDomains().put("tenant1:bd1", bd);
+
+    AciConfiguration.L3Out noVrf = new AciConfiguration.L3Out("l3out-no-vrf");
+    noVrf.setTenant("tenant1");
+    config.getL3Outs().put("tenant1:l3out-no-vrf", noVrf);
+
+    AciConfiguration.L3Out overlap = new AciConfiguration.L3Out("l3out-overlap");
+    overlap.setTenant("tenant1");
+    overlap.setVrf("tenant1:vrf1");
+    AciConfiguration.ExternalEpg extEpg = new AciConfiguration.ExternalEpg("ext");
+    extEpg.setSubnets(ImmutableList.of("10.10.10.0/24"));
+    overlap.setExternalEpgs(ImmutableList.of(extEpg));
+    config.getL3Outs().put("tenant1:l3out-overlap", overlap);
+
+    List<VrfIsolationFinding> findings = AciVrfIsolationAnalyzer.analyzeVrfIsolation(config);
+    List<VrfIsolationFinding.Category> categories =
+        findings.stream().map(VrfIsolationFinding::getCategory).collect(Collectors.toList());
+
+    assertThat(categories, hasItem(VrfIsolationFinding.Category.L3OUT_SCOPE));
+  }
+
+  @Test
+  public void testAnalyzeVrfIsolationNoFindingForSingleVrfSubnetReuse() {
+    AciConfiguration config = new AciConfiguration();
+
+    AciConfiguration.BridgeDomain bd1 = new AciConfiguration.BridgeDomain("bd1");
+    bd1.setTenant("tenant1");
+    bd1.setVrf("tenant1:vrf1");
+    bd1.setSubnets(ImmutableList.of("10.10.10.0/24"));
+    config.getBridgeDomains().put("tenant1:bd1", bd1);
+
+    AciConfiguration.BridgeDomain bd2 = new AciConfiguration.BridgeDomain("bd2");
+    bd2.setTenant("tenant1");
+    bd2.setVrf("tenant1:vrf1");
+    bd2.setSubnets(ImmutableList.of("10.10.10.0/24"));
+    config.getBridgeDomains().put("tenant1:bd2", bd2);
+
+    List<VrfIsolationFinding> findings = AciVrfIsolationAnalyzer.analyzeVrfIsolation(config);
+    List<VrfIsolationFinding.Category> categories =
+        findings.stream().map(VrfIsolationFinding::getCategory).collect(Collectors.toList());
+
+    assertThat(categories, not(hasItem(VrfIsolationFinding.Category.SUBNET_OVERLAP)));
   }
 }

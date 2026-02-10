@@ -2,6 +2,7 @@ package org.batfish.vendor.cisco_aci;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -57,5 +58,35 @@ public final class AciReachabilityAnalyzerTest {
 
     assertThat(categories, hasItem(ReachabilityFinding.Category.INVALID_CONTRACT_REFERENCE));
     assertThat(categories, hasItem(ReachabilityFinding.Category.MISSING_PATH));
+  }
+
+  @Test
+  public void testAnalyzeEpgReachabilityFindsSameBdAndEmptyContract() {
+    AciConfiguration config = new AciConfiguration();
+    AciConfiguration.Tenant tenant = new AciConfiguration.Tenant("tenant1");
+
+    AciConfiguration.Epg epg1 = new AciConfiguration.Epg("epg1");
+    epg1.setTenant("tenant1");
+    epg1.setBridgeDomain("tenant1:bd1");
+    tenant.getEpgs().put("tenant1:epg1", epg1);
+
+    AciConfiguration.Epg epg2 = new AciConfiguration.Epg("epg2");
+    epg2.setTenant("tenant1");
+    epg2.setBridgeDomain("tenant1:bd1");
+    tenant.getEpgs().put("tenant1:epg2", epg2);
+
+    AciConfiguration.Contract empty = new AciConfiguration.Contract("tenant1:empty");
+    empty.setTenant("tenant1");
+    tenant.getContracts().put("tenant1:empty", empty);
+
+    config.getTenants().put("tenant1", tenant);
+
+    List<ReachabilityFinding> findings = AciReachabilityAnalyzer.analyzeEpgReachability(config);
+    List<ReachabilityFinding.Category> categories =
+        findings.stream().map(ReachabilityFinding::getCategory).collect(Collectors.toList());
+
+    assertThat(categories, hasItem(ReachabilityFinding.Category.SAME_BD_COMMUNICATION));
+    assertThat(categories, hasItem(ReachabilityFinding.Category.EMPTY_CONTRACT));
+    assertThat(categories, not(hasItem(ReachabilityFinding.Category.ORPHANED)));
   }
 }
