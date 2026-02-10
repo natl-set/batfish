@@ -169,9 +169,7 @@ public final class AciConversion {
       // Fallback: use fabric name + nodeId for global uniqueness
       // This prevents conflicts when multiple fabrics have the same node IDs
       if (nodeId != null && !nodeId.isEmpty()) {
-        String fabricBase =
-            fabricHostname != null ? fabricHostname.replaceAll("\\.json$", "") : "aci";
-        hostname = fabricBase + "-" + nodeId;
+        hostname = computeFallbackNodeHostname(fabricHostname, nodeId);
       } else {
         hostname = "aci-node-unknown";
       }
@@ -217,6 +215,19 @@ public final class AciConversion {
     convertL3Outs(node, aciConfig, interfaces, defaultVrf, c, warnings);
 
     return c;
+  }
+
+  private static @Nonnull String computeFallbackNodeHostname(
+      @Nullable String fabricHostname, @Nonnull String nodeId) {
+    String fabricBase = fabricHostname != null ? fabricHostname.trim() : "aci";
+    if (fabricBase.isEmpty()) {
+      fabricBase = "aci";
+    }
+    // Handle both JSON and XML filenames and collapse duplicate ACI prefixes.
+    fabricBase = fabricBase.replaceAll("\\.(json|xml)$", "");
+    fabricBase = fabricBase.replaceFirst("(?i)^(aci-)+", "aci-");
+    fabricBase = fabricBase.replaceAll("-+$", "");
+    return fabricBase + "-" + nodeId;
   }
 
   /**
