@@ -512,6 +512,7 @@ public class HuaweiBgpProcess implements Serializable {
 
     private final Prefix _network;
     private final Ip _mask;
+    private String _routePolicy;
 
     public HuaweiBgpNetwork(Prefix network, Ip mask) {
       _network = network;
@@ -525,6 +526,14 @@ public class HuaweiBgpProcess implements Serializable {
     public Ip getMask() {
       return _mask;
     }
+
+    public @Nullable String getRoutePolicy() {
+      return _routePolicy;
+    }
+
+    public void setRoutePolicy(@Nullable String routePolicy) {
+      _routePolicy = routePolicy;
+    }
   }
 
   /** Represents a BGP import-route (redistribution) configuration. */
@@ -534,12 +543,22 @@ public class HuaweiBgpProcess implements Serializable {
     /** The protocol to redistribute from */
     private final String _protocol;
 
+    private String _routePolicy;
+
     public HuaweiBgpImportRoute(String protocol) {
       _protocol = protocol;
     }
 
     public String getProtocol() {
       return _protocol;
+    }
+
+    public @Nullable String getRoutePolicy() {
+      return _routePolicy;
+    }
+
+    public void setRoutePolicy(@Nullable String routePolicy) {
+      _routePolicy = routePolicy;
     }
   }
 }
