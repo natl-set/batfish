@@ -281,6 +281,46 @@ public class F5BigipConfigurationTest {
     assertThat(headerSpace.getIpProtocols(), equalTo(ImmutableSortedSet.of(IpProtocol.TCP)));
   }
 
+  @Test
+  public void testFirewallRuleListNonAcceptActionDenied() {
+    F5BigipConfiguration f5Config = new F5BigipConfiguration();
+    f5Config.setHostname("node");
+    f5Config.setVendor(ConfigurationFormat.F5_BIGIP_STRUCTURED);
+
+    FirewallRule rule =
+        FirewallRule.builder().setName("r1").setAction("drop").setIpProtocol("17").build();
+    FirewallRuleList ruleList = FirewallRuleList.builder().setName("rl1").addRule(rule).build();
+    f5Config.getFirewallRuleLists().put(ruleList.getName(), ruleList);
+
+    Configuration c = Iterables.getOnlyElement(f5Config.toVendorIndependentConfigurations());
+    IpAccessList acl = c.getIpAccessLists().get("rl1");
+    ExprAclLine line = (ExprAclLine) Iterables.getOnlyElement(acl.getLines());
+    HeaderSpace headerSpace = ((MatchHeaderSpace) line.getMatchCondition()).getHeaderspace();
+
+    assertThat(line.getAction(), equalTo(LineAction.DENY));
+    assertThat(headerSpace.getIpProtocols(), equalTo(ImmutableSortedSet.of(IpProtocol.UDP)));
+  }
+
+  @Test
+  public void testFirewallRuleListInvalidProtocolIgnored() {
+    F5BigipConfiguration f5Config = new F5BigipConfiguration();
+    f5Config.setHostname("node");
+    f5Config.setVendor(ConfigurationFormat.F5_BIGIP_STRUCTURED);
+
+    FirewallRule rule =
+        FirewallRule.builder().setName("r1").setAction("accept").setIpProtocol("bogus").build();
+    FirewallRuleList ruleList = FirewallRuleList.builder().setName("rl1").addRule(rule).build();
+    f5Config.getFirewallRuleLists().put(ruleList.getName(), ruleList);
+
+    Configuration c = Iterables.getOnlyElement(f5Config.toVendorIndependentConfigurations());
+    IpAccessList acl = c.getIpAccessLists().get("rl1");
+    ExprAclLine line = (ExprAclLine) Iterables.getOnlyElement(acl.getLines());
+    HeaderSpace headerSpace = ((MatchHeaderSpace) line.getMatchCondition()).getHeaderspace();
+
+    assertThat(line.getAction(), equalTo(LineAction.PERMIT));
+    assertThat(headerSpace.getIpProtocols(), equalTo(ImmutableSortedSet.of()));
+  }
+
   /** Tests for {@link SnmpCommunity} */
   @Test
   public void testSnmpCommunityBuilder() {
@@ -1564,6 +1604,14 @@ public class F5BigipConfigurationTest {
     Route route = new Route("route1");
     route.setGw(Ip.parse("192.168.1.1"));
     assertThat(route.getGw(), equalTo(Ip.parse("192.168.1.1")));
+  }
+
+  @Test
+  public void testRouteLine_defaultAndSet() {
+    Route route = new Route("route1");
+    assertThat(route.getLine(), equalTo(-1));
+    route.setLine(123);
+    assertThat(route.getLine(), equalTo(123));
   }
 
   /** Tests for {@link SnatPool} */
