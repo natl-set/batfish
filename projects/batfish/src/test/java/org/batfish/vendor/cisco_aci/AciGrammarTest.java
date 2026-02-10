@@ -1314,20 +1314,20 @@ public class AciGrammarTest {
     for (org.batfish.common.topology.Layer1Edge edge : config.getLayer1Edges()) {
       String node1 = edge.getNode1().getHostname();
       String node2 = edge.getNode2().getHostname();
-      // Edges use nodeId to match configs map keys
-      // Spines: 101, 102; Leaves: 201, 202, 203, 204
+      // Edges use node hostnames.
+      // Spines: spine-1, spine-2; Leaves: leaf-1, leaf-2, leaf-3, leaf-4
       assertTrue(
           "Edge should connect spine to leaf: " + node1 + " -> " + node2,
-          ((node1.equals("101") || node1.equals("102"))
-                  && (node2.equals("201")
-                      || node2.equals("202")
-                      || node2.equals("203")
-                      || node2.equals("204")))
-              || ((node2.equals("101") || node2.equals("102"))
-                  && (node1.equals("201")
-                      || node1.equals("202")
-                      || node1.equals("203")
-                      || node1.equals("204"))));
+          ((node1.equals("spine-1") || node1.equals("spine-2"))
+                  && (node2.equals("leaf-1")
+                      || node2.equals("leaf-2")
+                      || node2.equals("leaf-3")
+                      || node2.equals("leaf-4")))
+              || ((node2.equals("spine-1") || node2.equals("spine-2"))
+                  && (node1.equals("leaf-1")
+                      || node1.equals("leaf-2")
+                      || node1.equals("leaf-3")
+                      || node1.equals("leaf-4"))));
     }
   }
 

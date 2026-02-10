@@ -111,7 +111,7 @@ public final class AciConversion {
    *
    * @param aciConfig The ACI configuration to convert
    * @param warnings Warnings container for conversion issues
-   * @return Map of node IDs to Batfish Configurations
+   * @return Map of node hostnames to Batfish Configurations
    */
   public static @Nonnull SortedMap<String, Configuration> toVendorIndependentConfigurations(
       AciConfiguration aciConfig, Warnings warnings) {
@@ -128,14 +128,22 @@ public final class AciConversion {
       return configs.build();
     }
 
+    Map<String, String> nodeIdToHostname = computeNodeIdToHostnameMap(aciConfig, warnings);
+
     // Process each fabric node as a separate configuration
     for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
-      Configuration c = convertNode(node, aciConfig, warnings);
-      // Always use nodeId as key to ensure uniqueness
-      String key = node.getNodeId();
-      if (key != null) {
-        configs.put(key, c);
+      String nodeId = node.getNodeId();
+      if (nodeId == null || nodeId.isEmpty()) {
+        warnings.redFlag("Skipping fabric node without nodeId during conversion.");
+        continue;
       }
+      String hostname = nodeIdToHostname.get(nodeId);
+      if (hostname == null) {
+        warnings.redFlagf("Skipping fabric node %s due to unresolved hostname.", nodeId);
+        continue;
+      }
+      Configuration c = convertNode(node, aciConfig, hostname, warnings);
+      configs.put(hostname, c);
     }
 
     return configs.build();
@@ -150,29 +158,21 @@ public final class AciConversion {
    * @return A Batfish Configuration for the node
    */
   private static Configuration convertNode(
-      AciConfiguration.FabricNode node, AciConfiguration aciConfig, Warnings warnings) {
+      AciConfiguration.FabricNode node,
+      AciConfiguration aciConfig,
+      String hostname,
+      Warnings warnings) {
     // Use the actual node name from fabricNodeIdentP if available
     // Example: nodeName = "SW-DC1-Leaf-NSAB07-SET-01" from config
     String nodeId = node.getNodeId();
     String nodeName = node.getName();
-    String fabricHostname = aciConfig.getHostname(); // e.g., "ACI-DC2-ce2.json"
-    String hostname;
     String humanName;
 
     // Prefer the actual node name from ACI config (fabricNodeIdentP.attributes.name)
     if (nodeName != null && !nodeName.isEmpty()) {
-      // Use the real hostname from the ACI configuration
-      hostname = nodeName; // e.g., "SW-DC1-Leaf-NSAB07-SET-01"
       // Include node ID in humanName for reference
       humanName = nodeId != null ? nodeName + " (ID: " + nodeId + ")" : nodeName;
     } else {
-      // Fallback: use fabric name + nodeId for global uniqueness
-      // This prevents conflicts when multiple fabrics have the same node IDs
-      if (nodeId != null && !nodeId.isEmpty()) {
-        hostname = computeFallbackNodeHostname(fabricHostname, nodeId);
-      } else {
-        hostname = "aci-node-unknown";
-      }
       humanName = hostname;
     }
 
@@ -215,6 +215,45 @@ public final class AciConversion {
     convertL3Outs(node, aciConfig, interfaces, defaultVrf, c, warnings);
 
     return c;
+  }
+
+  private static @Nonnull Map<String, String> computeNodeIdToHostnameMap(
+      AciConfiguration aciConfig, @Nullable Warnings warnings) {
+    Map<String, String> nodeIdToHostname = new TreeMap<>();
+    Set<String> usedHostnames = new HashSet<>();
+    for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+      String nodeId = node.getNodeId();
+      if (nodeId == null || nodeId.isEmpty()) {
+        continue;
+      }
+      String baseHostname = computeNodeHostname(node, aciConfig.getHostname());
+      String hostname = baseHostname;
+      int suffix = 2;
+      while (usedHostnames.contains(hostname)) {
+        hostname = String.format("%s-%s-%d", baseHostname, nodeId, suffix++);
+      }
+      if (!hostname.equals(baseHostname) && warnings != null) {
+        warnings.redFlagf(
+            "Duplicate ACI node hostname '%s' detected; using '%s' for nodeId %s.",
+            baseHostname, hostname, nodeId);
+      }
+      usedHostnames.add(hostname);
+      nodeIdToHostname.put(nodeId, hostname);
+    }
+    return nodeIdToHostname;
+  }
+
+  private static @Nonnull String computeNodeHostname(
+      AciConfiguration.FabricNode node, @Nullable String fabricHostname) {
+    String nodeName = node.getName();
+    if (nodeName != null && !nodeName.isEmpty()) {
+      return nodeName;
+    }
+    String nodeId = node.getNodeId();
+    if (nodeId != null && !nodeId.isEmpty()) {
+      return computeFallbackNodeHostname(fabricHostname, nodeId);
+    }
+    return "aci-node-unknown";
   }
 
   private static @Nonnull String computeFallbackNodeHostname(
@@ -2359,15 +2398,15 @@ public final class AciConversion {
    * <p>In ACI, nodes are connected via a spine-leaf topology. This method creates physical Layer 1
    * edges representing those connections.
    *
-   * <p>Important: Edge hostnames use {@code nodeId} (e.g., "101", "201") to match the keys in the
-   * configuration map returned by {@link #toVendorIndependentConfigurations}. This ensures that
-   * Batfish can properly match topology edges to device configurations.
+   * <p>Edge hostnames use resolved node hostnames to match {@link
+   * #toVendorIndependentConfigurations}.
    *
    * @param aciConfig The ACI configuration
    * @return Set of Layer 1 edges between nodes
    */
   public static @Nonnull Set<Layer1Edge> createLayer1Edges(AciConfiguration aciConfig) {
     ImmutableSet.Builder<Layer1Edge> edges = ImmutableSet.builder();
+    Map<String, String> nodeIdToHostname = computeNodeIdToHostnameMap(aciConfig, null);
 
     // Create a basic spine-leaf topology
     List<AciConfiguration.FabricNode> spines =
@@ -2381,10 +2420,13 @@ public final class AciConversion {
             .collect(Collectors.toList());
 
     // Connect each leaf to each spine
-    // Important: Use nodeId as the hostname in edges to match the configs map key
     int spineIndex = 0;
     for (AciConfiguration.FabricNode leaf : leaves) {
       String leafNodeId = leaf.getNodeId();
+      String leafHostname = leafNodeId != null ? nodeIdToHostname.get(leafNodeId) : null;
+      if (leafHostname == null) {
+        continue;
+      }
 
       // Get available interfaces from leaf (prefer fabric-facing ports)
       List<String> leafInterfaces = new ArrayList<>();
@@ -2396,6 +2438,11 @@ public final class AciConversion {
       spineIndex = 0;
       for (AciConfiguration.FabricNode spine : spines) {
         String spineNodeId = spine.getNodeId();
+        String spineHostname = spineNodeId != null ? nodeIdToHostname.get(spineNodeId) : null;
+        if (spineHostname == null) {
+          spineIndex++;
+          continue;
+        }
 
         // Select leaf interface - use indexed interface if available, otherwise default
         String leafIface =
@@ -2406,7 +2453,7 @@ public final class AciConversion {
         // For spine, use different interface per leaf to model fabric ports
         String spineIface = "ethernet1/" + (spineIndex + 1);
 
-        edges.add(new Layer1Edge(leafNodeId, leafIface, spineNodeId, spineIface));
+        edges.add(new Layer1Edge(leafHostname, leafIface, spineHostname, spineIface));
         spineIndex++;
       }
     }
@@ -2423,8 +2470,11 @@ public final class AciConversion {
         // VPC peer-link interface name
         String vpcIfaceName = "port-channel1";
 
-        // Create edge between VPC peers using nodeId to match configs map
-        edges.add(new Layer1Edge(peer1NodeId, vpcIfaceName, peer2NodeId, vpcIfaceName));
+        String peer1Hostname = nodeIdToHostname.get(peer1NodeId);
+        String peer2Hostname = nodeIdToHostname.get(peer2NodeId);
+        if (peer1Hostname != null && peer2Hostname != null) {
+          edges.add(new Layer1Edge(peer1Hostname, vpcIfaceName, peer2Hostname, vpcIfaceName));
+        }
       }
     }
 

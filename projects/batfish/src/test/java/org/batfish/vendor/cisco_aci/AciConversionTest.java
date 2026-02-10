@@ -163,12 +163,12 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Should have 4 configurations (4 fabric nodes)
-    // Keys are now nodeIds to ensure uniqueness
+    // Keys are now resolved hostnames.
     assertThat(configs.size(), equalTo(4));
-    assertThat(configs, hasKey("101"));
-    assertThat(configs, hasKey("102"));
-    assertThat(configs, hasKey("201"));
-    assertThat(configs, hasKey("202"));
+    assertThat(configs, hasKey("spine1"));
+    assertThat(configs, hasKey("spine2"));
+    assertThat(configs, hasKey("leaf1"));
+    assertThat(configs, hasKey("leaf2"));
   }
 
   @Test
@@ -204,7 +204,7 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Check that VLAN interfaces are created for bridge domains
-    Configuration leaf1Config = configs.get("201");
+    Configuration leaf1Config = configs.get("leaf1");
     assertNotNull(leaf1Config);
 
     // Bridge domains should create VLAN interfaces with subnet addresses
@@ -229,7 +229,7 @@ public class AciConversionTest {
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
     // Check that ACLs are created for contracts
-    Configuration leaf1Config = configs.get("201");
+    Configuration leaf1Config = configs.get("leaf1");
     assertNotNull(leaf1Config);
 
     String aclName = AciConversion.getContractAclName("web_contract");
@@ -282,7 +282,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
-    Configuration config = configs.get("201");
+    Configuration config = configs.get("leaf1");
     assertNotNull(config);
 
     // Verify interface types are correct
@@ -340,15 +340,16 @@ public class AciConversionTest {
     assertThat(edges.size(), equalTo(4));
 
     // Verify edge structure
-    // Edges use nodeId to match configs map keys
     for (Layer1Edge edge : edges) {
-      // Edge should connect a leaf to a spine using nodeIds
+      // Edge should connect a leaf to a spine using hostnames.
       assertTrue(
-          "Edge node1 should be leaf or spine (by nodeId)",
-          ImmutableList.of("201", "202", "101", "102").contains(edge.getNode1().getHostname()));
+          "Edge node1 should be leaf or spine (by hostname)",
+          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
+              .contains(edge.getNode1().getHostname()));
       assertTrue(
-          "Edge node2 should be leaf or spine (by nodeId)",
-          ImmutableList.of("201", "202", "101", "102").contains(edge.getNode2().getHostname()));
+          "Edge node2 should be leaf or spine (by hostname)",
+          ImmutableList.of("leaf1", "leaf2", "spine1", "spine2")
+              .contains(edge.getNode2().getHostname()));
     }
   }
 
@@ -360,7 +361,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(aciConfig, warnings);
 
-    Configuration config = configs.get("201");
+    Configuration config = configs.get("leaf1");
     String aclName = AciConversion.getContractAclName("web_contract");
     IpAccessList acl = config.getIpAccessLists().get(aclName);
     assertNotNull(acl);
@@ -498,7 +499,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = configs.get("201");
+    Configuration leafConfig = configs.get("leaf1");
     assertNotNull(leafConfig);
 
     // All bridge domain subnets should be accessible via interfaces
@@ -556,7 +557,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = configs.get("201");
+    Configuration leafConfig = configs.get("leaf1");
     String aclName = AciConversion.getContractAclName("multi_filter_contract");
     IpAccessList acl = leafConfig.getIpAccessLists().get(aclName);
     assertNotNull(acl);
@@ -693,7 +694,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration viConfig = configs.get("201");
+    Configuration viConfig = configs.get("leaf1");
     String aclName = AciConversion.getContractAclName("tenant1:test_contract");
     IpAccessList acl = viConfig.getIpAccessLists().get(aclName);
     assertNotNull(acl);
@@ -735,7 +736,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration viConfig = configs.get("201");
+    Configuration viConfig = configs.get("leaf1");
     String aclName = AciConversion.getContractAclName("tenant1:test_contract");
     IpAccessList acl = viConfig.getIpAccessLists().get(aclName);
     assertNotNull(acl);
@@ -798,7 +799,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration viConfig = configs.get("201");
+    Configuration viConfig = configs.get("leaf1");
     Interface viIface = viConfig.getAllInterfaces().get("ethernet1/10");
     assertNotNull(viIface);
     assertNotNull(viIface.getIncomingFilter());
@@ -858,7 +859,7 @@ public class AciConversionTest {
     SortedMap<String, Configuration> configs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration viConfig = configs.get("201");
+    Configuration viConfig = configs.get("leaf1");
     Interface viIface = viConfig.getAllInterfaces().get("ethernet1/20");
     assertNotNull(viIface);
     assertNotNull(viIface.getOutgoingFilter());

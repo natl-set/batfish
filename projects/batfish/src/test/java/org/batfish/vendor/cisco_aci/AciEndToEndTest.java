@@ -398,10 +398,10 @@ public class AciEndToEndTest {
     }
 
     // Verify all fabric nodes have corresponding configurations
-    // Keys are now nodeIds to ensure uniqueness
     for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
-      String nodeId = node.getNodeId();
-      assertThat("Configuration should exist for node " + nodeId, configs, hasKey(nodeId));
+      String hostname = node.getName();
+      assertNotNull("Fabric node should have a name", hostname);
+      assertThat("Configuration should exist for node " + hostname, configs, hasKey(hostname));
     }
   }
 
@@ -670,47 +670,52 @@ public class AciEndToEndTest {
         edges.size(),
         equalTo(spineCount * leafCount));
 
-    // Verify each edge connects a spine to a leaf using nodeIds
+    // Build hostname-to-role lookup for parsed fabric nodes.
+    Map<String, String> roleByHostname = new java.util.HashMap<>();
+    for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
+      if (node.getName() != null && node.getRole() != null) {
+        roleByHostname.put(node.getName(), node.getRole());
+      }
+    }
+
+    // Verify each edge connects a spine to a leaf using hostnames
     for (Layer1Edge edge : edges) {
       String node1 = edge.getNode1().getHostname();
       String node2 = edge.getNode2().getHostname();
 
-      // Both endpoints should be numeric nodeIds (e.g., "101", "201")
-      assertTrue(
-          "Edge node1 should be numeric nodeId: " + node1,
-          node1.matches("\\d+"));
-      assertTrue(
-          "Edge node2 should be numeric nodeId: " + node2,
-          node2.matches("\\d+"));
-
       // Verify nodes exist in config
       assertTrue(
-          "Edge node1 should exist in fabric nodes: " + node1,
-          aciConfig.getFabricNodes().containsKey(node1));
+          "Edge node1 should exist in fabric node hostnames: " + node1,
+          roleByHostname.containsKey(node1));
       assertTrue(
-          "Edge node2 should exist in fabric nodes: " + node2,
-          aciConfig.getFabricNodes().containsKey(node2));
+          "Edge node2 should exist in fabric node hostnames: " + node2,
+          roleByHostname.containsKey(node2));
 
       // Verify edge connects different nodes
-      assertTrue(
-          "Edge should connect two different nodes",
-          !node1.equals(node2));
+      assertTrue("Edge should connect two different nodes", !node1.equals(node2));
 
       // Verify spine-leaf connection (one spine, one leaf)
-      String role1 = aciConfig.getFabricNodes().get(node1).getRole();
-      String role2 = aciConfig.getFabricNodes().get(node2).getRole();
+      String role1 = roleByHostname.get(node1);
+      String role2 = roleByHostname.get(node2);
 
       boolean isSpineLeaf =
           ("spine".equalsIgnoreCase(role1) && "leaf".equalsIgnoreCase(role2))
               || ("leaf".equalsIgnoreCase(role1) && "spine".equalsIgnoreCase(role2));
 
       assertTrue(
-          "Edge should connect spine to leaf: " + node1 + " (" + role1 + ") -> " + node2 + " ("
-              + role2 + ")",
+          "Edge should connect spine to leaf: "
+              + node1
+              + " ("
+              + role1
+              + ") -> "
+              + node2
+              + " ("
+              + role2
+              + ")",
           isSpineLeaf);
     }
 
     System.out.println("  ✓ All edges valid spine-leaf connections");
-    System.out.println("  ✓ All edges use numeric nodeIds");
+    System.out.println("  ✓ All edges use node hostnames");
   }
 }
