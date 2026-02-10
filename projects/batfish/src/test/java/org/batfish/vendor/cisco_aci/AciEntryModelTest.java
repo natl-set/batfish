@@ -795,7 +795,6 @@ public final class AciEntryModelTest {
   /** Test edge case: setting all fields to null. */
   @Test
   public void testEdgeCase_allNulls() {
-    AciEntry entry = new AciEntry();
     AciEntry.AciEntryAttributes attrs = new AciEntry.AciEntryAttributes();
 
     attrs.setAnnotation(null);

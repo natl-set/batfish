@@ -530,7 +530,6 @@ public final class AciBgpContextPolicyModelTest {
   /** Test edge case: setting all fields to null. */
   @Test
   public void testEdgeCase_allNulls() {
-    AciBgpContextPolicy policy = new AciBgpContextPolicy();
     AciBgpContextPolicy.AciBgpContextPolicyAttributes attrs =
         new AciBgpContextPolicy.AciBgpContextPolicyAttributes();
 

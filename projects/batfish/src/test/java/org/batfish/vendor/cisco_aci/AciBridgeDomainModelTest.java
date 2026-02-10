@@ -713,7 +713,6 @@ public final class AciBridgeDomainModelTest {
   /** Test edge case: setting all fields to null. */
   @Test
   public void testEdgeCase_allNulls() {
-    AciBridgeDomain bd = new AciBridgeDomain();
     AciBridgeDomain.AciBridgeDomainAttributes attrs =
         new AciBridgeDomain.AciBridgeDomainAttributes();
 
