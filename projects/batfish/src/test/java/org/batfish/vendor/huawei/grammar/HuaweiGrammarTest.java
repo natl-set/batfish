@@ -22,6 +22,8 @@ import org.batfish.vendor.huawei.representation.HuaweiConversions;
 import org.batfish.vendor.huawei.representation.HuaweiInterface;
 import org.batfish.vendor.huawei.representation.HuaweiNatAddressGroup;
 import org.batfish.vendor.huawei.representation.HuaweiNatRule;
+import org.batfish.vendor.huawei.representation.HuaweiOspfProcess;
+import org.batfish.vendor.huawei.representation.HuaweiRoutePolicy;
 import org.batfish.vendor.huawei.representation.HuaweiStaticRoute;
 import org.batfish.vendor.huawei.representation.HuaweiVlan;
 import org.batfish.vendor.huawei.representation.HuaweiVrf;
@@ -6109,5 +6111,153 @@ public class HuaweiGrammarTest {
     HuaweiAclLine line2 = acl.getLines().get(1);
     assertThat(line2.getAction(), equalTo("deny"));
     assertThat(line2.getProtocol(), equalTo("ip"));
+  }
+
+  @Test
+  public void testRoutePolicyAndCommunityFilterParsing() {
+    String configText =
+        "sysname Router1\n"
+            + "ip community-filter 10 permit internet no-export no-advertise\n"
+            + "route-policy IMPORT_POLICY permit node 10\n"
+            + " if-match ip-prefix PREFIX_LIST_1\n"
+            + " if-match community-filter 10\n"
+            + " if-match community no-advertise no-export\n"
+            + " apply local-preference 250\n"
+            + " apply community internet no-export-subconfed\n"
+            + " apply cost 20\n"
+            + " apply preference 120\n"
+            + " apply tag 999\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config.getCommunityFilters().size(), equalTo(1));
+    assertThat(config.getCommunityFilter(10), notNullValue());
+    assertThat(config.getCommunityFilter(10).getCommunities().size(), equalTo(3));
+
+    HuaweiRoutePolicy policy = config.getRoutePolicy("IMPORT_POLICY");
+    assertThat(policy, notNullValue());
+    assertThat(policy.getNodes().size(), equalTo(1));
+
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node = policy.getNodes().get(0);
+    assertThat(node.getNodeId(), equalTo(10));
+    assertThat(node.getAction(), equalTo(HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.PERMIT));
+    assertThat(node.getMatchConditions().getIpPrefix(), equalTo("PREFIX_LIST_1"));
+    assertThat(node.getMatchConditions().getCommunityFilter(), equalTo(10));
+    assertThat(node.getMatchConditions().getCommunities(), notNullValue());
+    assertThat(node.getMatchConditions().getCommunities().size(), equalTo(2));
+    assertThat(node.getSetActions().getLocalPreference(), equalTo(250L));
+    assertThat(node.getSetActions().getCommunities(), notNullValue());
+    assertThat(node.getSetActions().getCommunities().size(), equalTo(2));
+    assertThat(node.getSetActions().getCost(), equalTo(20));
+    assertThat(node.getSetActions().getPreference(), equalTo(120));
+    assertThat(node.getSetActions().getTag(), equalTo(999L));
+  }
+
+  @Test
+  public void testRoutePolicyDenyAndCommunityFilterDenyParsing() {
+    String configText =
+        "sysname Router1\n"
+            + "ip community-filter 11 deny internet\n"
+            + "route-policy BLOCK_POLICY deny node 20\n"
+            + " if-match community-filter 11\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config.getCommunityFilters().size(), equalTo(1));
+    assertThat(config.getCommunityFilter(11), notNullValue());
+    assertThat(config.getCommunityFilter(11).getAction().name(), equalTo("DENY"));
+
+    HuaweiRoutePolicy policy = config.getRoutePolicy("BLOCK_POLICY");
+    assertThat(policy, notNullValue());
+    assertThat(policy.getNodes().size(), equalTo(1));
+
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node = policy.getNodes().get(0);
+    assertThat(node.getAction(), equalTo(HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.DENY));
+    assertThat(node.getMatchConditions().getCommunityFilter(), equalTo(11));
+  }
+
+  @Test
+  public void testInterfaceOspfOptionParsingCoverage() {
+    String configText =
+        "sysname Router1\n"
+            + "ospf 1\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ospf area 0\n"
+            + " ospf cost 10\n"
+            + " ospf network-type broadcast\n"
+            + " ospf timer hello 10\n"
+            + " ospf authentication-mode md5 md5Key\n"
+            + " ospf enable passive\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/1\n"
+            + " ospf area 1\n"
+            + " ospf cost 20\n"
+            + " ospf network-type p2p\n"
+            + " ospf timer dead 40\n"
+            + " ospf authentication-mode simple simpleKey\n"
+            + " ospf disable passive\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/2\n"
+            + " ospf area 2\n"
+            + " ospf cost 30\n"
+            + " ospf network-type p2mp\n"
+            + " ospf timer retransmit-interval 5\n"
+            + "return\n"
+            + "interface GigabitEthernet0/0/3\n"
+            + " ospf area 3\n"
+            + " ospf cost 40\n"
+            + " ospf network-type nbma\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    HuaweiOspfProcess ospf = config.getOspfProcess();
+    assertThat(ospf, notNullValue());
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings ge0 =
+        ospf.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(ge0, notNullValue());
+    assertThat(ge0.getAreaId(), equalTo(0L));
+    assertThat(ge0.getCost(), equalTo(10));
+    assertThat(ge0.getNetworkType(), equalTo("BROADCAST"));
+    assertThat(ge0.getHelloInterval(), equalTo(10));
+    assertThat(ge0.getAuthType(), equalTo("MD5"));
+    assertThat(ge0.getAuthKey(), equalTo("md5Key"));
+    assertThat(ge0.getPassive(), equalTo(true));
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings ge1 =
+        ospf.getInterfaces().get("GigabitEthernet0/0/1");
+    assertThat(ge1, notNullValue());
+    assertThat(ge1.getAreaId(), equalTo(1L));
+    assertThat(ge1.getCost(), equalTo(20));
+    assertThat(ge1.getNetworkType(), equalTo("P2P"));
+    assertThat(ge1.getDeadInterval(), equalTo(40));
+    assertThat(ge1.getAuthType(), equalTo("SIMPLE"));
+    assertThat(ge1.getAuthKey(), equalTo("simpleKey"));
+    assertThat(ge1.getPassive(), equalTo(false));
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings ge2 =
+        ospf.getInterfaces().get("GigabitEthernet0/0/2");
+    assertThat(ge2, notNullValue());
+    assertThat(ge2.getAreaId(), equalTo(2L));
+    assertThat(ge2.getCost(), equalTo(30));
+    assertThat(ge2.getNetworkType(), equalTo("P2MP"));
+    assertThat(ge2.getRetransmitInterval(), equalTo(5));
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings ge3 =
+        ospf.getInterfaces().get("GigabitEthernet0/0/3");
+    assertThat(ge3, notNullValue());
+    assertThat(ge3.getAreaId(), equalTo(3L));
+    assertThat(ge3.getCost(), equalTo(40));
+    assertThat(ge3.getNetworkType(), equalTo("NBMA"));
   }
 }
