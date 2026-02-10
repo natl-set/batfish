@@ -1,4 +1,4 @@
-package org.batfish.vendor.cisco_aci;
+package org.batfish.vendor.cisco_aci.representation;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -7,9 +7,6 @@ import static org.hamcrest.Matchers.not;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.batfish.vendor.cisco_aci.representation.AciConfiguration;
-import org.batfish.vendor.cisco_aci.representation.AciReachabilityAnalyzer;
-import org.batfish.vendor.cisco_aci.representation.ReachabilityFinding;
 import org.junit.Test;
 
 /** Tests for {@link AciReachabilityAnalyzer}. */
