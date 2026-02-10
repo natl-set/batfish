@@ -24,25 +24,25 @@ public class HuaweiAcl implements Serializable {
   }
 
   /** ACL name or number */
-  private @Nonnull String _name;
+  private final @Nonnull String _name;
 
   /** ACL type */
-  private @Nonnull AclType _type;
+  private final @Nonnull AclType _type;
 
   /** ACL entries/lines */
   private @Nonnull List<HuaweiAclLine> _lines;
 
   /** Whether this is an IPv6 ACL */
-  private boolean _ipv6;
+  private final boolean _ipv6;
 
   /** VRF name for this ACL (if applicable) */
   private @Nullable String _vrfName;
 
-  public HuaweiAcl(@Nonnull String name, @Nonnull AclType type) {
+  public HuaweiAcl(@Nonnull String name, @Nonnull AclType type, boolean ipv6) {
     _name = name;
     _type = type;
     _lines = new ArrayList<>();
-    _ipv6 = false;
+    _ipv6 = ipv6;
   }
 
   /**
@@ -55,15 +55,6 @@ public class HuaweiAcl implements Serializable {
   }
 
   /**
-   * Sets the ACL name.
-   *
-   * @param name The ACL name to set
-   */
-  public void setName(@Nonnull String name) {
-    _name = name;
-  }
-
-  /**
    * Gets the ACL type.
    *
    * @return The ACL type
@@ -73,30 +64,12 @@ public class HuaweiAcl implements Serializable {
   }
 
   /**
-   * Sets the ACL type.
-   *
-   * @param type The ACL type to set
-   */
-  public void setType(@Nonnull AclType type) {
-    _type = type;
-  }
-
-  /**
    * Gets the ACL lines/entries.
    *
    * @return A list of ACL lines
    */
   public @Nonnull List<HuaweiAclLine> getLines() {
     return _lines;
-  }
-
-  /**
-   * Sets the ACL lines/entries.
-   *
-   * @param lines The list of ACL lines to set
-   */
-  public void setLines(@Nonnull List<HuaweiAclLine> lines) {
-    _lines = lines;
   }
 
   /**
@@ -115,15 +88,6 @@ public class HuaweiAcl implements Serializable {
    */
   public boolean isIpv6() {
     return _ipv6;
-  }
-
-  /**
-   * Sets whether this is an IPv6 ACL.
-   *
-   * @param ipv6 true if this is an IPv6 ACL, false otherwise
-   */
-  public void setIpv6(boolean ipv6) {
-    _ipv6 = ipv6;
   }
 
   /**

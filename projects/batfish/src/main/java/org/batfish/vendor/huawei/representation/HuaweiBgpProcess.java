@@ -219,7 +219,7 @@ public class HuaweiBgpProcess implements Serializable {
   public static class HuaweiBgpPeerGroup implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String _name;
+    private final String _name;
     private PeerType _type;
     private Long _remoteAs;
     private String _routePolicyIn;
@@ -241,10 +241,6 @@ public class HuaweiBgpProcess implements Serializable {
 
     public String getName() {
       return _name;
-    }
-
-    public void setName(String name) {
-      _name = name;
     }
 
     public PeerType getType() {
@@ -324,7 +320,7 @@ public class HuaweiBgpProcess implements Serializable {
   public static class HuaweiBgpAddressFamily implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String _name;
+    private final String _name;
     private AddressFamilyType _type;
     private boolean _unicast;
     private boolean _multicast;
@@ -351,10 +347,6 @@ public class HuaweiBgpProcess implements Serializable {
 
     public String getName() {
       return _name;
-    }
-
-    public void setName(String name) {
-      _name = name;
     }
 
     public AddressFamilyType getType() {
@@ -434,7 +426,7 @@ public class HuaweiBgpProcess implements Serializable {
   public static class HuaweiBgpAfPeerConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Ip _peerIp;
+    private final Ip _peerIp;
     private String _importPolicy;
     private String _exportPolicy;
     private Boolean _advertiseCommunity;
@@ -445,10 +437,6 @@ public class HuaweiBgpProcess implements Serializable {
 
     public Ip getPeerIp() {
       return _peerIp;
-    }
-
-    public void setPeerIp(Ip peerIp) {
-      _peerIp = peerIp;
     }
 
     public String getImportPolicy() {
@@ -480,7 +468,7 @@ public class HuaweiBgpProcess implements Serializable {
   public static class HuaweiBgpAfPeerGroupConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String _groupName;
+    private final String _groupName;
     private String _importPolicy;
     private String _exportPolicy;
     private Boolean _advertiseCommunity;
@@ -491,10 +479,6 @@ public class HuaweiBgpProcess implements Serializable {
 
     public String getGroupName() {
       return _groupName;
-    }
-
-    public void setGroupName(String groupName) {
-      _groupName = groupName;
     }
 
     public String getImportPolicy() {
@@ -526,9 +510,8 @@ public class HuaweiBgpProcess implements Serializable {
   public static class HuaweiBgpNetwork implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Prefix _network;
-    private Ip _mask;
-    private String _routePolicy;
+    private final Prefix _network;
+    private final Ip _mask;
 
     public HuaweiBgpNetwork(Prefix network, Ip mask) {
       _network = network;
@@ -539,24 +522,8 @@ public class HuaweiBgpProcess implements Serializable {
       return _network;
     }
 
-    public void setNetwork(Prefix network) {
-      _network = network;
-    }
-
     public Ip getMask() {
       return _mask;
-    }
-
-    public void setMask(Ip mask) {
-      _mask = mask;
-    }
-
-    public String getRoutePolicy() {
-      return _routePolicy;
-    }
-
-    public void setRoutePolicy(String routePolicy) {
-      _routePolicy = routePolicy;
     }
   }
 
@@ -565,10 +532,7 @@ public class HuaweiBgpProcess implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** The protocol to redistribute from */
-    private String _protocol;
-
-    /** The route-policy to filter redistribution (optional) */
-    private String _routePolicy;
+    private final String _protocol;
 
     public HuaweiBgpImportRoute(String protocol) {
       _protocol = protocol;
@@ -576,18 +540,6 @@ public class HuaweiBgpProcess implements Serializable {
 
     public String getProtocol() {
       return _protocol;
-    }
-
-    public void setProtocol(String protocol) {
-      _protocol = protocol;
-    }
-
-    public String getRoutePolicy() {
-      return _routePolicy;
-    }
-
-    public void setRoutePolicy(String routePolicy) {
-      _routePolicy = routePolicy;
     }
   }
 }

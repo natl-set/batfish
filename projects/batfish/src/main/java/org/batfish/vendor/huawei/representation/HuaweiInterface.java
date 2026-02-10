@@ -20,7 +20,7 @@ public class HuaweiInterface implements Serializable {
   private static final long serialVersionUID = 1L;
 
   /** Interface name (e.g., "GigabitEthernet0/0/1") */
-  private @Nonnull String _name;
+  private final @Nonnull String _name;
 
   /** Description of the interface */
   private @Nullable String _description;
@@ -64,15 +64,6 @@ public class HuaweiInterface implements Serializable {
    */
   public @Nonnull String getName() {
     return _name;
-  }
-
-  /**
-   * Sets the interface name.
-   *
-   * @param name The interface name
-   */
-  public void setName(@Nonnull String name) {
-    _name = name;
   }
 
   /**
