@@ -328,7 +328,7 @@ public class ParseVendorConfigurationJob extends BatfishJob<ParseVendorConfigura
           String filename = fileEntry.getKey();
           String fileText = fileEntry.getValue();
           try {
-            return AciConfiguration.fromJson(
+            return AciConfiguration.fromFile(
                 filename, fileText, _fileResults.get(filename).getWarnings());
           } catch (Exception e) {
             throw new BatfishException(
