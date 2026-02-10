@@ -65,7 +65,7 @@ if_match_ip_prefix
 // if-match community <community-list>
 if_match_community
 :
-   IF_MATCH COMMUNITY community_list = null_rest_of_line
+   IF_MATCH COMMUNITY community_list += community_value+
 ;
 
 // apply local-preference <value>
@@ -77,7 +77,7 @@ apply_local_preference
 // apply community <community-value>
 apply_community
 :
-   APPLY COMMUNITY community_val = null_rest_of_line
+   APPLY COMMUNITY community_val += community_value+
 ;
 
 // apply cost <value>

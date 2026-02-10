@@ -1,5 +1,6 @@
 package org.batfish.vendor.huawei.grammar;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -9,6 +10,7 @@ import org.batfish.datamodel.BgpActivePeerConfig;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.LongSpace;
 import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.bgp.community.Community;
 import org.batfish.grammar.ControlPlaneExtractor;
 import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
 import org.batfish.vendor.VendorConfiguration;
@@ -20,11 +22,15 @@ import org.batfish.vendor.huawei.grammar.HuaweiParser.Apply_tagContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_authenticationContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_nssaContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Area_stubContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_address_familyContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_af_peerContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_af_peer_groupContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_importContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_networkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peerContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_peer_groupContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_router_idContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.Community_valueContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Description_lineContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.If_dot1q_terminationContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.If_ip_addressContext;
@@ -54,6 +60,7 @@ import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_router_idContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.Ospf_virtual_linkContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_bgpContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_interfaceContext;
+import org.batfish.vendor.huawei.grammar.HuaweiParser.S_ip_community_filterContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_natContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_ospfContext;
 import org.batfish.vendor.huawei.grammar.HuaweiParser.S_returnContext;
@@ -73,6 +80,7 @@ import org.batfish.vendor.huawei.representation.HuaweiAcl;
 import org.batfish.vendor.huawei.representation.HuaweiAcl.AclType;
 import org.batfish.vendor.huawei.representation.HuaweiAclLine;
 import org.batfish.vendor.huawei.representation.HuaweiBgpProcess;
+import org.batfish.vendor.huawei.representation.HuaweiCommunityFilter;
 import org.batfish.vendor.huawei.representation.HuaweiConfiguration;
 import org.batfish.vendor.huawei.representation.HuaweiInterface;
 import org.batfish.vendor.huawei.representation.HuaweiNatAddressGroup;
@@ -106,6 +114,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   private String _pendingVlanDescription;
   private Long _currentOspfAreaId;
   private HuaweiRoutePolicyNode _currentRoutePolicyNode;
+  private HuaweiBgpProcess.HuaweiBgpAddressFamily _currentBgpAddressFamily;
 
   public HuaweiControlPlaneExtractor(
       String text, HuaweiCombinedParser parser, Warnings w, SilentSyntaxCollection silentSyntax) {
@@ -1014,6 +1023,153 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
   }
 
   /**
+   * Process entry to bgp_address_family rule - begin tracking address family configuration.
+   *
+   * <p>Creates or retrieves the address family object and sets it as current context.
+   */
+  @Override
+  public void enterBgp_address_family(Bgp_address_familyContext ctx) {
+    HuaweiBgpProcess bgpProcess = _configuration.getBgpProcess();
+    if (bgpProcess == null) {
+      return;
+    }
+
+    try {
+      // Determine address family name (e.g., "ipv4-family" or "ipv4-family vpnv4")
+      String afName = "ipv4-family";
+      if (ctx.VPNV4() != null) {
+        afName = "ipv4-family vpnv4";
+      }
+
+      // Get or create address family
+      HuaweiBgpProcess.HuaweiBgpAddressFamily addressFamily =
+          bgpProcess
+              .getAddressFamilies()
+              .computeIfAbsent(afName, HuaweiBgpProcess.HuaweiBgpAddressFamily::new);
+
+      // Set address family properties
+      addressFamily.setType(HuaweiBgpProcess.HuaweiBgpAddressFamily.AddressFamilyType.IPV4);
+      addressFamily.setUnicast(true); // Default to unicast
+      if (ctx.VPNV4() != null) {
+        addressFamily.setVpn(true);
+      }
+
+      // Set as current address family for peer configuration
+      _currentBgpAddressFamily = addressFamily;
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error creating BGP address family at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /** Process exit from bgp_address_family rule - clear current address family context. */
+  @Override
+  public void exitBgp_address_family(Bgp_address_familyContext ctx) {
+    _currentBgpAddressFamily = null;
+  }
+
+  /**
+   * Process exit from bgp_af_peer rule - extract address family peer configuration.
+   *
+   * <p>Extracts peer-specific route policies and advertise-community settings within an address
+   * family context.
+   */
+  @Override
+  public void exitBgp_af_peer(Bgp_af_peerContext ctx) {
+    if (_currentBgpAddressFamily == null || ctx.peer_ip == null) {
+      return;
+    }
+
+    try {
+      // Parse peer IP address
+      Ip peerIp = Ip.parse(ctx.peer_ip.getText());
+
+      // Get or create peer config in current address family
+      HuaweiBgpProcess.HuaweiBgpAfPeerConfig peerConfig =
+          _currentBgpAddressFamily.getOrCreatePeerConfig(peerIp);
+
+      // Extract peer parameters
+      if (ctx.bgp_af_peer_param() != null) {
+        for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_af_peer_paramContext paramCtx :
+            ctx.bgp_af_peer_param()) {
+          if (paramCtx.policy_name != null) {
+            // Route-policy configuration
+            String policyName = paramCtx.policy_name.getText();
+            if (paramCtx.IMPORT() != null) {
+              peerConfig.setImportPolicy(policyName);
+            } else if (paramCtx.EXPORT() != null) {
+              peerConfig.setExportPolicy(policyName);
+            }
+          } else if (paramCtx.ADVERTISE_COMMUNITY() != null) {
+            // Advertise community configuration
+            peerConfig.setAdvertiseCommunity(true);
+          }
+          // Other parameters are ignored (null_rest_of_line)
+        }
+      }
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing BGP AF peer configuration at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Process exit from bgp_af_peer_group rule - extract address family peer group configuration.
+   *
+   * <p>Extracts peer-group-specific route policies and advertise-community settings within an
+   * address family context.
+   */
+  @Override
+  public void exitBgp_af_peer_group(Bgp_af_peer_groupContext ctx) {
+    if (_currentBgpAddressFamily == null || ctx.group_name == null) {
+      return;
+    }
+
+    try {
+      String groupName = ctx.group_name.getText();
+
+      // Get or create peer group config in current address family
+      HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig groupConfig =
+          _currentBgpAddressFamily.getOrCreatePeerGroupConfig(groupName);
+
+      // Extract peer group parameters
+      if (ctx.bgp_af_peer_group_param() != null) {
+        for (org.batfish.vendor.huawei.grammar.HuaweiParser.Bgp_af_peer_group_paramContext
+            paramCtx : ctx.bgp_af_peer_group_param()) {
+          if (paramCtx.policy_name != null) {
+            // Route-policy configuration
+            String policyName = paramCtx.policy_name.getText();
+            if (paramCtx.IMPORT() != null) {
+              groupConfig.setImportPolicy(policyName);
+            } else if (paramCtx.EXPORT() != null) {
+              groupConfig.setExportPolicy(policyName);
+            }
+          } else if (paramCtx.ADVERTISE_COMMUNITY() != null) {
+            // Advertise community configuration
+            groupConfig.setAdvertiseCommunity(true);
+          }
+          // Other parameters are ignored (null_rest_of_line)
+        }
+      }
+
+    } catch (Exception e) {
+      String warning =
+          String.format(
+              "Error parsing BGP AF peer group configuration at line %d: %s",
+              ctx.getStart().getLine(), e.getMessage());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
    * Process entry to acl_ipv4 rule - create IPv4 ACL object.
    *
    * <p>Creates HuaweiAcl object with name/number and type.
@@ -1667,6 +1823,7 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts router ID from the "router-id" command. @TODO This method may not have a
    * corresponding rule in the combined parser grammar.
    */
+  @Override
   public void exitOspf_router_id(Ospf_router_idContext ctx) {
     HuaweiOspfProcess ospfProcess = _configuration.getOspfProcess();
     if (ospfProcess == null || ctx.router_ip == null) {
@@ -2233,16 +2390,25 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts community list from "if-match community &lt;communities&gt;" command.
    */
   @Override
-  @SuppressWarnings("unused")
   public void exitIf_match_community(If_match_communityContext ctx) {
-    if (_currentRoutePolicyNode == null || ctx.community_list == null) {
+    if (_currentRoutePolicyNode == null
+        || ctx.community_list == null
+        || ctx.community_list.isEmpty()) {
       return;
     }
 
-    // Store the raw community list text for later parsing
-    // Full community parsing would require additional context
-    String communityText = ctx.community_list.getText();
-    // TODO: Parse community list text into Community objects
+    // Parse community values and add to match conditions
+    List<org.batfish.datamodel.bgp.community.Community> communities = new ArrayList<>();
+    for (HuaweiParser.Community_valueContext commCtx : ctx.community_list) {
+      org.batfish.datamodel.bgp.community.Community community = parseCommunity(commCtx);
+      if (community != null) {
+        communities.add(community);
+      }
+    }
+
+    if (!communities.isEmpty()) {
+      _currentRoutePolicyNode.getMatchConditions().setCommunities(communities);
+    }
   }
 
   /**
@@ -2274,15 +2440,25 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
    * <p>Extracts community value from "apply community &lt;community-value&gt;" command.
    */
   @Override
-  @SuppressWarnings("unused")
   public void exitApply_community(Apply_communityContext ctx) {
-    if (_currentRoutePolicyNode == null || ctx.community_val == null) {
+    if (_currentRoutePolicyNode == null
+        || ctx.community_val == null
+        || ctx.community_val.isEmpty()) {
       return;
     }
 
-    // Store the raw community value text for later parsing
-    // TODO: Parse community value text into Community objects
-    String communityText = ctx.community_val.getText();
+    // Parse community values and add to set actions
+    List<org.batfish.datamodel.bgp.community.Community> communities = new ArrayList<>();
+    for (HuaweiParser.Community_valueContext commCtx : ctx.community_val) {
+      org.batfish.datamodel.bgp.community.Community community = parseCommunity(commCtx);
+      if (community != null) {
+        communities.add(community);
+      }
+    }
+
+    if (!communities.isEmpty()) {
+      _currentRoutePolicyNode.getSetActions().setCommunities(communities);
+    }
   }
 
   /**
@@ -2349,6 +2525,115 @@ public class HuaweiControlPlaneExtractor extends HuaweiParserBaseListener
       String warning =
           String.format(
               "Invalid tag value at line %d: %s", ctx.tag.getStart().getLine(), ctx.tag.getText());
+      _w.redFlag(warning);
+    }
+  }
+
+  /**
+   * Parse a community value from its parse tree context.
+   *
+   * <p>Handles both standard communities (AA:NN format) and well-known communities (internet,
+   * no-export, no-advertise, no-export-subconfed).
+   *
+   * @param ctx The community_value parse context
+   * @return A Community object, or null if parsing fails
+   */
+  private org.batfish.datamodel.bgp.community.Community parseCommunity(
+      HuaweiParser.Community_valueContext ctx) {
+    try {
+      // Check for well-known community first
+      if (ctx.INTERNET() != null) {
+        return org.batfish.datamodel.bgp.community.StandardCommunity.INTERNET;
+      } else if (ctx.NO_EXPORT() != null) {
+        return org.batfish.datamodel.bgp.community.StandardCommunity.NO_EXPORT;
+      } else if (ctx.NO_ADVERTISE() != null) {
+        return org.batfish.datamodel.bgp.community.StandardCommunity.NO_ADVERTISE;
+      } else if (ctx.NO_EXPORT_SUBCONFED() != null) {
+        return org.batfish.datamodel.bgp.community.StandardCommunity.NO_EXPORT_SUBCONFED;
+      }
+      // Parse standard community in AA:NN format
+      else if (ctx.aa_uint != null && ctx.nn_uint != null) {
+        int aa = (int) Long.parseLong(ctx.aa_uint.getText());
+        int nn = (int) Long.parseLong(ctx.nn_uint.getText());
+        return org.batfish.datamodel.bgp.community.StandardCommunity.of(aa, nn);
+      }
+    } catch (Exception e) {
+      // Invalid community format - will return null
+      String warning =
+          String.format(
+              "Invalid community value at line %d: %s", ctx.getStart().getLine(), ctx.getText());
+      _w.redFlag(warning);
+    }
+    return null;
+  }
+
+  /**
+   * Process exit from s_ip_community_filter rule.
+   *
+   * <p>Extracts community filter configuration from "ip community-filter &lt;number&gt;
+   * [permit|deny] &lt;community-value&gt;+" command.
+   *
+   * <p>Example configurations:
+   *
+   * <pre>
+   * ip community-filter 1 permit 65000:100
+   * ip community-filter 2 deny internet
+   * ip community-filter 3 permit 65000:100 65000:200
+   * </pre>
+   */
+  @Override
+  public void exitS_ip_community_filter(S_ip_community_filterContext ctx) {
+    if (ctx.filter_num == null
+        || ctx.action == null
+        || ctx.communities == null
+        || ctx.communities.isEmpty()) {
+      String warning =
+          String.format(
+              "Invalid community-filter definition at line %d: missing required fields",
+              ctx.getStart().getLine());
+      _w.redFlag(warning);
+      return;
+    }
+
+    try {
+      // Parse filter number
+      int filterNum = Integer.parseInt(ctx.filter_num.getText());
+
+      // Parse action
+      HuaweiCommunityFilter.Action action;
+      String actionText = ctx.action.getText();
+      if ("permit".equalsIgnoreCase(actionText)) {
+        action = HuaweiCommunityFilter.Action.PERMIT;
+      } else if ("deny".equalsIgnoreCase(actionText)) {
+        action = HuaweiCommunityFilter.Action.DENY;
+      } else {
+        String warning =
+            String.format(
+                "Invalid community-filter action at line %d: %s (expected 'permit' or 'deny')",
+                ctx.action.getStart().getLine(), actionText);
+        _w.redFlag(warning);
+        return;
+      }
+
+      // Create community filter
+      HuaweiCommunityFilter filter = new HuaweiCommunityFilter(filterNum, action);
+
+      // Parse community values
+      for (Community_valueContext commCtx : ctx.communities) {
+        Community community = parseCommunity(commCtx);
+        if (community != null) {
+          filter.addCommunity(community);
+        }
+      }
+
+      // Add to configuration
+      _configuration.addCommunityFilter(filterNum, filter);
+
+    } catch (NumberFormatException e) {
+      String warning =
+          String.format(
+              "Invalid community-filter number at line %d: %s",
+              ctx.filter_num.getStart().getLine(), ctx.filter_num.getText());
       _w.redFlag(warning);
     }
   }

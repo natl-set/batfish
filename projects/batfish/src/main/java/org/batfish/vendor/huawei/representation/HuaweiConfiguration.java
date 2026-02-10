@@ -57,6 +57,9 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
   /** Map of route-policy names to route-policy configurations */
   private SortedMap<String, HuaweiRoutePolicy> _routePolicies;
 
+  /** Map of community filter numbers to community filter configurations */
+  private SortedMap<Integer, HuaweiCommunityFilter> _communityFilters;
+
   public HuaweiConfiguration() {
     _interfaces = ImmutableSortedMap.of();
     _vlans = ImmutableSortedMap.of();
@@ -66,6 +69,7 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
     _vrfs = ImmutableSortedMap.of();
     _acls = ImmutableSortedMap.of();
     _routePolicies = ImmutableSortedMap.of();
+    _communityFilters = ImmutableSortedMap.of();
   }
 
   /**
@@ -433,5 +437,47 @@ public class HuaweiConfiguration extends VendorConfiguration implements Serializ
         ImmutableSortedMap.<Integer, HuaweiNatAddressGroup>naturalOrder().putAll(_natAddressGroups);
     builder.put(addressGroup.getIndex(), addressGroup);
     _natAddressGroups = builder.build();
+  }
+
+  /**
+   * Gets the map of community filters.
+   *
+   * @return A sorted map of filter numbers to community filter configurations
+   */
+  public @Nonnull SortedMap<Integer, HuaweiCommunityFilter> getCommunityFilters() {
+    return _communityFilters;
+  }
+
+  /**
+   * Sets the community filters map.
+   *
+   * @param communityFilters The map of filter numbers to community filter configurations
+   */
+  public void setCommunityFilters(
+      @Nonnull SortedMap<Integer, HuaweiCommunityFilter> communityFilters) {
+    _communityFilters = communityFilters;
+  }
+
+  /**
+   * Gets a specific community filter by number.
+   *
+   * @param filterNumber The filter number
+   * @return The community filter, or null if not found
+   */
+  public @Nullable HuaweiCommunityFilter getCommunityFilter(int filterNumber) {
+    return _communityFilters.get(filterNumber);
+  }
+
+  /**
+   * Adds or updates a community filter.
+   *
+   * @param filterNumber The filter number
+   * @param communityFilter The community filter configuration
+   */
+  public void addCommunityFilter(int filterNumber, HuaweiCommunityFilter communityFilter) {
+    ImmutableSortedMap.Builder<Integer, HuaweiCommunityFilter> builder =
+        ImmutableSortedMap.<Integer, HuaweiCommunityFilter>naturalOrder().putAll(_communityFilters);
+    builder.put(filterNumber, communityFilter);
+    _communityFilters = builder.build();
   }
 }

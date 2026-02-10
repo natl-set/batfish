@@ -185,3 +185,14 @@ double_quoted_string
       inner_text += ~DOUBLE_QUOTE
    )* DOUBLE_QUOTE
 ;
+
+// BGP community value
+// Used in route-policies and community-filters
+community_value
+:
+   aa_uint = uint16 COLON nn_uint = uint16
+   | INTERNET
+   | NO_EXPORT
+   | NO_ADVERTISE
+   | NO_EXPORT_SUBCONFED
+;

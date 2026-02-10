@@ -34,6 +34,10 @@ ADDRESS: 'address';
 
 ADDRESS_GROUP: 'address-group';
 
+ADVERTISE: 'advertise';
+
+ADVERTISE_COMMUNITY: 'advertise-community';
+
 MASK: 'mask';
 
 AREA: 'area';
@@ -97,6 +101,15 @@ COMMIT: 'commit';
 COMMUNITY: 'community';
 
 COMMUNITY_FILTER: 'community-filter';
+
+// Well-known BGP communities
+INTERNET: 'internet';
+
+NO_EXPORT: 'no-export';
+
+NO_ADVERTISE: 'no-advertise';
+
+NO_EXPORT_SUBCONFED: 'no-export-subconfed';
 
 CONFIG: 'config';
 
@@ -681,6 +694,8 @@ VPLS: 'vpls';
 VPN: 'vpn';
 
 VPN_INSTANCE: 'vpn-instance';
+
+VPNV4: 'vpnv4';
 
 VPN_TARGET: 'vpn-target';
 

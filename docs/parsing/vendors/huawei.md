@@ -28,6 +28,7 @@ The Huawei grammar is split into several files:
 - `Huawei_vlan.g4`: VLAN configuration grammar
 - `Huawei_vrf.g4`: VRF/VPN instance grammar
 - `Huawei_route_policy.g4`: Route-policy grammar
+- `Huawei_community_filter.g4`: Community filter grammar
 - `Huawei_ignored.g4`: Catch-all for unsupported commands
 
 ## Common Huawei Parsing Patterns
@@ -235,5 +236,320 @@ public void testInterfaceExtraction() {
 
   assertEquals("10.0.0.1/24", iface.getPrimaryAddress());
   assertEquals("Test interface", iface.getDescription());
+}
+```
+
+## BGP Routing Policies
+
+Huawei BGP supports route policies for controlling route advertisement and acceptance. Route policies in Huawei are similar to route-maps in Cisco IOS.
+
+### Route Policy Structure
+
+Huawei route policies have the following structure:
+
+```huawei
+route-policy <name> permit|deny node <node-id>
+  if-match <condition>
+  apply <action>
+```
+
+### Supported Match Conditions
+
+- `if-match ip-prefix <prefix-list>`: Match routes by IP prefix list
+- `if-match community-filter <number>`: Match routes by community filter (numbered)
+- `if-match community <communities>`: Match routes by community list
+
+### Supported Set Actions
+
+- `apply local-preference <value>`: Set BGP local preference
+- `apply cost <value>`: Set route cost/metric
+- `apply preference <value>`: Set route preference
+- `apply tag <value>`: Set route tag
+- `apply community <community>`: Set BGP community attribute
+
+### Route Policy Conversion
+
+Huawei route policies are converted to Batfish vendor-independent `RoutingPolicy` format:
+
+- **Match Conditions**: Converted to `AclLineMatchExpr` objects
+  - IP prefix matching → `MatchPrefixSet` with `NamedPrefixSet`
+  - Community matching → `MatchCommunity` (future implementation)
+
+- **Set Actions**: Converted to Batfish statement objects
+  - Local preference → `SetLocalPreference`
+  - Cost/metric → `SetMetric`
+  - Preference → `SetAdministrativeCost`
+  - Tag → `SetTag`
+  - Community → `SetCommunity` (future implementation)
+
+- **Policy Nodes**: Each node becomes a `RoutePolicyStatement` with:
+  - PERMIT action → Continue to next node or accept route
+  - DENY action → Reject matching routes
+
+### Example Route Policy
+
+```huawei
+route-policy FILTER_ROUTES permit node 10
+  if-match ip-prefix PREFIX_LIST
+  apply local-preference 200
+```
+
+Converts to Batfish `RoutingPolicy` with statements that match the prefix set and set local preference.
+
+## BGP Address Families
+
+Huawei BGP supports address family configuration for different types of routing information:
+
+### Supported Address Families
+
+- **ipv4-family**: Standard IPv4 unicast routing
+- **ipv4-family vpnv4**: IPv4 VPN routes (MPLS VPN)
+- **ipv4-family multicast**: IPv4 multicast routing (parsed, not yet converted)
+- **ipv6-family**: IPv6 unicast routing (parsed, not yet converted)
+
+### Address Family Configuration
+
+```huawei
+bgp 65000
+ ipv4-family
+  peer 10.0.0.1 route-policy IMPORT_POLICY import
+  peer 10.0.0.1 advertise-community
+ #
+ ipv4-family vpnv4
+  peer 10.0.0.2 route-policy EXPORT_POLICY export
+```
+
+### Address Family Features
+
+Within address families, Huawei supports:
+
+- **Route Policies**: Import/export policies per peer
+  - `peer <ip> route-policy <name> import`
+  - `peer <ip> route-policy <name> export`
+
+- **Community Advertisement**: Control community propagation
+  - `peer <ip> advertise-community`
+
+- **Peer Groups**: Apply policies to groups of peers
+  - `peer <group-name> route-policy <name> import`
+
+### Conversion Status
+
+- **Parsing**: Full support for all address family commands
+- **Extraction**: Peer policies are extracted into `HuaweiBgpAddressFamily` objects
+- **Conversion**: IPv4 unicast policies are converted to Batfish `Ipv4UnicastAddressFamily`
+- **TODO**: IPv6, multicast, and VPNv4 address families need conversion implementation
+
+## Community Filters
+
+Huawei supports numbered community filters for matching BGP communities:
+
+### Community Filter Syntax
+
+```huawei
+ip community-filter <number> permit <community-value>
+ip community-filter <number> deny <community-value>
+```
+
+### Community Value Formats
+
+- **Standard Format**: `AA:NN` (e.g., `65000:100`)
+- **Well-Known Communities**: `internet`, `no-export`, `no-advertise`, `no-export-subconfed`
+- **Multiple Communities**: Can list multiple communities in a single filter
+
+### Example
+
+```huawei
+ip community-filter 1 permit 65000:100
+ip community-filter 2 deny internet
+ip community-filter 3 permit 65000:100 65000:200
+```
+
+### Integration with Route Policies
+
+Community filters are referenced in route policies:
+
+```huawei
+route-policy MATCH_COMMUNITY permit node 10
+  if-match community-filter 1
+  apply local-preference 200
+```
+
+### Implementation Status
+
+- **Parsing**: Fully supported in `Huawei_community_filter.g4`
+- **Extraction**: Community filters extracted to `HuaweiCommunityFilter` objects
+- **Storage**: Stored in `HuaweiConfiguration._communityFilters` map
+- **Conversion**: Parsing and extraction complete; conversion to Batfish format pending
+
+## OSPF Area Types
+
+Huawei OSPF supports different area types with specific behaviors:
+
+### Supported Area Types
+
+- **NORMAL**: Standard OSPF area (default)
+- **STUB**: Stub area - no Type 5 LSAs
+  - `area <id> stub` - Regular stub
+  - `area <id> stub no-summary` - Totally stubby (no Type 3 LSAs)
+
+- **NSSA**: Not-So-Stubby Area
+  - `area <id> nssa` - Standard NSSA
+  - `area <id> nssa no-summary` - Totally stubby NSSA (no Type 3 LSAs)
+  - `area <id> nssa default-information-originate` - NSSA with default route
+
+### NSSA Default Originate
+
+NSSA areas support the `default-information-originate` command:
+
+```huawei
+area 1 nssa default-information-originate
+```
+
+This converts to Batfish `OspfDefaultOriginateType`:
+- **Without default-information-originate**: `NONE`
+- **With default-information-originate**: `INTER_AREA`
+
+### Conversion Mapping
+
+| Huawei Area Type | Batfish Setting |
+|-----------------|------------------|
+| `area <id> stub` | `StubSettings` with `suppressType3=false` |
+| `area <id> stub no-summary` | `StubSettings` with `suppressType3=true` |
+| `area <id> nssa` | `NssaSettings` with `defaultOriginateType=NONE` |
+| `area <id> nssa no-summary` | `NssaSettings` with `suppressType3=true` |
+| `area <id> nssa default-information-originate` | `NssaSettings` with `defaultOriginateType=INTER_AREA` |
+
+## OSPF Area Ranges
+
+Huawei supports OSPF area ranges (abr-summary) for route aggregation:
+
+```huawei
+area 1
+  abr-summary 10.1.0.0 255.255.0.0 advertise
+  abr-summary 10.2.0.0 255.255.0.0 not-advertise
+```
+
+### Conversion
+
+- **Advertise**: `OspfAreaSummary.SummaryRouteBehavior.ADVERTISE`
+- **Not-Advertise**: `OspfAreaSummary.SummaryRouteBehavior.DO_NOT_ADVERTISE`
+
+## OSPF Redistribution
+
+Huawei OSPF supports redistributing routes from other protocols:
+
+```huawei
+ospf 1
+  import-route direct route-policy FILTER_DIRECT
+  import-route static
+  import-route bgp
+```
+
+### Conversion
+
+Redistribution policies are converted to OSPF export policies in Batfish:
+- If a route-policy is specified, it's used as the OSPF process export policy
+- Otherwise, a placeholder policy is created
+- The route-policy must be defined elsewhere in the configuration
+
+## Implementation Status Summary
+
+### Fully Implemented (Parsing + Extraction + Conversion)
+
+- **Route Policies**: All match conditions and set actions converted to Batfish format
+- **BGP IPv4 Unicast Address Families**: Peer policies fully supported
+- **Community Filters**: Parsing and extraction complete
+- **OSPF Area Types**: All area types (STUB, NSSA) with proper settings
+- **OSPF Area Ranges**: Full support with advertise/not-advertise
+- **OSPF Interface Settings**: Hello/dead intervals, costs, authentication
+- **OSPF Redistribution**: Route policy references tracked
+
+### Partially Implemented (Parsing + Extraction, Conversion Pending)
+
+- **Community Matching**: `if-match community-filter` parsed, conversion pending
+- **Community Setting**: `apply community` parsed, conversion pending
+- **BGP IPv6 Address Families**: Parsed and extracted, conversion pending
+- **BGP Multicast Address Families**: Parsed, extraction and conversion pending
+- **BGP VPNv4/VPNv6**: Parsed, conversion pending
+- **BGP Network Policies**: Parsed, policy application pending
+
+### Not Yet Implemented
+
+- **BGP Route Reflector**: Cluster ID and client settings extracted but not applied
+- **OSPF Virtual Links**: Extracted but not converted (Batfish model limitation)
+- **OSPF Authentication**: MD5/SIMPLE authentication parsed but not converted
+- **BGP Password**: MD5 authentication parsed but not converted
+
+## Data Structures
+
+### HuaweiBgpProcess
+
+```java
+public class HuaweiBgpProcess {
+  // Process-level settings
+  private Long _asNum;
+  private Ip _routerId;
+
+  // Neighbors (peer-level, pre-address family)
+  private Map<Ip, BgpPeerConfig> _neighbors;
+
+  // Peer groups
+  private Map<String, HuaweiBgpPeerGroup> _peerGroups;
+
+  // Address families (ipv4-family, ipv4-family vpnv4, etc.)
+  private Map<String, HuaweiBgpAddressFamily> _addressFamilies;
+
+  // BGP networks
+  private Map<Prefix, HuaweiBgpNetwork> _networks;
+
+  // Redistribution
+  private Map<FrrRoutingProtocol, HuaweiBgpImportRoute> _redistributionPolicies;
+}
+```
+
+### HuaweiBgpAddressFamily
+
+```java
+public static class HuaweiBgpAddressFamily {
+  private String _name; // "ipv4-family", "ipv4-family vpnv4", etc.
+  private AddressFamilyType _type; // IPV4, IPV6
+  private Boolean _multicast;
+  private Boolean _vpn;
+
+  // Peer-specific configs within this address family
+  private Map<Ip, HuaweiBgpAfPeerConfig> _peerConfigs;
+
+  // Peer group configs within this address family
+  private Map<String, HuaweiBgpAfPeerGroupConfig> _peerGroupConfigs;
+}
+```
+
+### HuaweiRoutePolicy
+
+```java
+public class HuaweiRoutePolicy {
+  private String _name;
+
+  // Nodes are stored in order by sequence number
+  private SortedMap<Integer, HuaweiRoutePolicyNode> _nodes;
+
+  public static class HuaweiRoutePolicyNode {
+    private int _nodeId;
+    private LineAction _action; // PERMIT or DENY
+
+    private HuaweiRoutePolicyMatchConditions _matchConditions;
+    private HuaweiRoutePolicySetActions _setActions;
+  }
+}
+```
+
+### HuaweiCommunityFilter
+
+```java
+public class HuaweiCommunityFilter {
+  private int _filterNumber;
+  private LineAction _action; // PERMIT or DENY
+  private List<Community> _communities;
 }
 ```

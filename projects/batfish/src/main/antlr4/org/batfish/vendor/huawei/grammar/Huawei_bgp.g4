@@ -26,6 +26,7 @@ bgp_substanza
    | bgp_network
    | bgp_import
    | bgp_export
+   | bgp_address_family
    | bgp_null
 ;
 
@@ -109,6 +110,81 @@ bgp_export
 
 // Null BGP configuration (parse but ignore)
 bgp_null
+:
+   NO?
+   (
+      null_rest_of_line
+   )
+;
+
+// BGP address family configuration
+bgp_address_family
+:
+   IPV4_FAMILY
+   (
+      VPNV4
+   )?
+   (
+      bgp_af_substanza
+   )*
+   (RETURN | QUIT | EXIT)?
+;
+
+// BGP address family sub-stanzas
+bgp_af_substanza
+:
+   bgp_af_peer
+   | bgp_af_peer_group
+   | bgp_af_undo_policy
+   | bgp_af_null
+;
+
+// BGP address family peer configuration
+bgp_af_peer
+:
+   PEER peer_ip = ip_address
+   (
+      bgp_af_peer_param
+   )*
+;
+
+// BGP address family peer parameters
+bgp_af_peer_param
+:
+   ROUTE_POLICY policy_name = variable (IMPORT | EXPORT)
+   |
+   ADVERTISE_COMMUNITY
+   |
+   null_rest_of_line
+;
+
+// BGP address family undo policy
+bgp_af_undo_policy
+:
+   UNDO POLICY VPN_TARGET
+;
+
+// BGP address family peer group configuration
+bgp_af_peer_group
+:
+   PEER GROUP group_name = variable
+   (
+      bgp_af_peer_group_param
+   )*
+;
+
+// BGP address family peer group parameters
+bgp_af_peer_group_param
+:
+   ROUTE_POLICY policy_name = variable (IMPORT | EXPORT)
+   |
+   ADVERTISE_COMMUNITY
+   |
+   null_rest_of_line
+;
+
+// Null BGP AF configuration (parse but ignore)
+bgp_af_null
 :
    NO?
    (

@@ -332,6 +332,12 @@ public class HuaweiBgpProcess implements Serializable {
     private String _importPolicy;
     private String _exportPolicy;
 
+    /** Peer-specific route-policies: IP -> (import policy, export policy, advertise-community) */
+    private Map<Ip, HuaweiBgpProcess.HuaweiBgpAfPeerConfig> _peerConfigs;
+
+    /** Peer-group-specific route-policies: group name -> policy configuration */
+    private Map<String, HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig> _peerGroupConfigs;
+
     public enum AddressFamilyType {
       IPV4,
       IPV6
@@ -339,6 +345,8 @@ public class HuaweiBgpProcess implements Serializable {
 
     public HuaweiBgpAddressFamily(String name) {
       _name = name;
+      _peerConfigs = new TreeMap<>();
+      _peerGroupConfigs = new TreeMap<>();
     }
 
     public String getName() {
@@ -395,6 +403,122 @@ public class HuaweiBgpProcess implements Serializable {
 
     public void setExportPolicy(String exportPolicy) {
       _exportPolicy = exportPolicy;
+    }
+
+    public Map<Ip, HuaweiBgpAfPeerConfig> getPeerConfigs() {
+      return _peerConfigs;
+    }
+
+    public void setPeerConfigs(Map<Ip, HuaweiBgpAfPeerConfig> peerConfigs) {
+      _peerConfigs = peerConfigs;
+    }
+
+    public HuaweiBgpAfPeerConfig getOrCreatePeerConfig(Ip peerIp) {
+      return _peerConfigs.computeIfAbsent(peerIp, HuaweiBgpAfPeerConfig::new);
+    }
+
+    public Map<String, HuaweiBgpAfPeerGroupConfig> getPeerGroupConfigs() {
+      return _peerGroupConfigs;
+    }
+
+    public void setPeerGroupConfigs(Map<String, HuaweiBgpAfPeerGroupConfig> peerGroupConfigs) {
+      _peerGroupConfigs = peerGroupConfigs;
+    }
+
+    public HuaweiBgpAfPeerGroupConfig getOrCreatePeerGroupConfig(String groupName) {
+      return _peerGroupConfigs.computeIfAbsent(groupName, HuaweiBgpAfPeerGroupConfig::new);
+    }
+  }
+
+  /** Represents BGP address family peer-specific configuration. */
+  public static class HuaweiBgpAfPeerConfig implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Ip _peerIp;
+    private String _importPolicy;
+    private String _exportPolicy;
+    private Boolean _advertiseCommunity;
+
+    public HuaweiBgpAfPeerConfig(Ip peerIp) {
+      _peerIp = peerIp;
+    }
+
+    public Ip getPeerIp() {
+      return _peerIp;
+    }
+
+    public void setPeerIp(Ip peerIp) {
+      _peerIp = peerIp;
+    }
+
+    public String getImportPolicy() {
+      return _importPolicy;
+    }
+
+    public void setImportPolicy(String importPolicy) {
+      _importPolicy = importPolicy;
+    }
+
+    public String getExportPolicy() {
+      return _exportPolicy;
+    }
+
+    public void setExportPolicy(String exportPolicy) {
+      _exportPolicy = exportPolicy;
+    }
+
+    public Boolean getAdvertiseCommunity() {
+      return _advertiseCommunity;
+    }
+
+    public void setAdvertiseCommunity(Boolean advertiseCommunity) {
+      _advertiseCommunity = advertiseCommunity;
+    }
+  }
+
+  /** Represents BGP address family peer-group-specific configuration. */
+  public static class HuaweiBgpAfPeerGroupConfig implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private String _groupName;
+    private String _importPolicy;
+    private String _exportPolicy;
+    private Boolean _advertiseCommunity;
+
+    public HuaweiBgpAfPeerGroupConfig(String groupName) {
+      _groupName = groupName;
+    }
+
+    public String getGroupName() {
+      return _groupName;
+    }
+
+    public void setGroupName(String groupName) {
+      _groupName = groupName;
+    }
+
+    public String getImportPolicy() {
+      return _importPolicy;
+    }
+
+    public void setImportPolicy(String importPolicy) {
+      _importPolicy = importPolicy;
+    }
+
+    public String getExportPolicy() {
+      return _exportPolicy;
+    }
+
+    public void setExportPolicy(String exportPolicy) {
+      _exportPolicy = exportPolicy;
+    }
+
+    public Boolean getAdvertiseCommunity() {
+      return _advertiseCommunity;
+    }
+
+    public void setAdvertiseCommunity(Boolean advertiseCommunity) {
+      _advertiseCommunity = advertiseCommunity;
     }
   }
 
