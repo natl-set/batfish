@@ -747,6 +747,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private HaGroupPool _currentHaGroupPool;
   private HaGroupTrunk _currentHaGroupTrunk;
   private IgnoredContext _currentIgnored;
+  private @Nullable F5BigipStructuredParser.Ignored_blockContext _currentIgnoredBlock;
+  private boolean _inMetadataBlock = false;
   private @Nullable Interface _currentInterface;
   private @Nullable Node _currentNode;
   private @Nullable Pool _currentPool;
@@ -965,7 +967,22 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void enterCm_key(Cm_keyContext ctx) {
-    todo(ctx.getParent());
+    _inMetadataBlock = true;
+  }
+
+  @Override
+  public void exitCm_key(Cm_keyContext ctx) {
+    _inMetadataBlock = false;
+  }
+
+  @Override
+  public void enterCm_cert(F5BigipStructuredParser.Cm_certContext ctx) {
+    _inMetadataBlock = true;
+  }
+
+  @Override
+  public void exitCm_cert(F5BigipStructuredParser.Cm_certContext ctx) {
+    _inMetadataBlock = false;
   }
 
   @Override
@@ -3430,8 +3447,24 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   }
 
   @Override
+  public void enterIgnored_block(F5BigipStructuredParser.Ignored_blockContext ctx) {
+    if (_currentIgnoredBlock != null) {
+      return;
+    }
+    _currentIgnoredBlock = ctx;
+  }
+
+  @Override
+  public void exitIgnored_block(F5BigipStructuredParser.Ignored_blockContext ctx) {
+    if (_currentIgnoredBlock != ctx) {
+      return;
+    }
+    _currentIgnoredBlock = null;
+  }
+
+  @Override
   public void enterUnrecognized(UnrecognizedContext ctx) {
-    if (_currentIgnored != null || _currentUnrecognized != null) {
+    if (_currentIgnored != null || _currentIgnoredBlock != null || _currentUnrecognized != null) {
       return;
     }
     _c.setUnrecognized(true);
@@ -3440,7 +3473,12 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitUnrecognized(UnrecognizedContext ctx) {
-    if (_currentIgnored != null || _currentUnrecognized != ctx) {
+    if (_currentIgnored != null || _currentIgnoredBlock != null || _currentUnrecognized != ctx) {
+      return;
+    }
+    // Skip warnings for unrecognized content inside metadata blocks
+    if (_inMetadataBlock) {
+      _currentUnrecognized = null;
       return;
     }
     unrecognized(ctx);

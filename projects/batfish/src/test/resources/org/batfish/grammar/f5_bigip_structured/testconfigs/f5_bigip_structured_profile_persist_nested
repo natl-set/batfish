@@ -1,0 +1,85 @@
+#TMSH-VERSION: 1.0
+
+sys global-settings {
+    hostname f5_bigip_structured_profile_persist_nested
+}
+
+# Test profiles with nested braced content - should not generate warnings
+ltm virtual /Common/test-virtual-1 {
+    destination 10.0.0.1:80
+    pool /Common/test-pool
+    profiles {
+        /Common/fastL4 { }
+        /Common/http {
+            new-profile-field value
+        }
+        /Common/tcp {
+            defaults-from /Common/tcp
+            key-exchange on
+            nested-option {
+                sub-option-1 value1
+                sub-option-2 value2
+            }
+        }
+    }
+    persist {
+        /Common/source_addr {
+            default yes
+            method {
+                ssl
+                passive
+            }
+            new-persist-field test
+        }
+        /Common/cookie {
+            fallback yes
+            method {
+                hash
+                across-vserv
+            }
+        }
+    }
+}
+
+# Test profiles with various nested structures
+ltm virtual /Common/test-virtual-2 {
+    destination 10.0.0.2:443
+    profiles {
+        /Common/ssl {
+            cipher-string DEFAULT:SSLv3
+            options {
+                ssl-options-1 value1
+                ssl-options-2 value2
+            }
+            new-ssl-option test123
+        }
+        /Common/client-ssl {
+            authenticate never
+            authenticate-depth 0
+            ca-file none
+            cert-key-chain {
+                /Common/cert-key-chain-1 {
+                    cert /Common/server.crt
+                    chain /Common/chain.crt
+                    key /Common/server.key
+                    passphrase none
+                    new-cert-field test
+                }
+            }
+        }
+    }
+    persist {
+        /Common/ssl-persist {
+            fallback yes
+            mode ssl
+            timeout 3600
+            persist-attr {
+                attribute-1 value1
+                attribute-2 value2
+            }
+        }
+    }
+}
+
+# Profile/persist nested test complete - all nested content is handled properly
+# without generating warnings from the deeply nested structures

@@ -3835,4 +3835,68 @@ public final class F5BigipStructuredGrammarTest {
         vc.getPools().get("/Common/test_pool_mixed").getDescription(),
         equalTo("pool with disabled status"));
   }
+
+  @Test
+  public void testMetadataBlocksIgnored() throws IOException {
+    String filename = "f5_bigip_structured_metadata_blocks";
+    String hostname = "f5_bigip_structured_metadata_blocks";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that metadata blocks with new/unknown fields don't generate parse warnings
+    // This verifies the fix for:
+    // - cm cert/cm key blocks using _inMetadataBlock flag
+    // - sys blocks using ignored_block
+    // - analytics blocks using ignored_block
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+
+    // Verify that device was extracted from cm blocks
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+    assertThat(vc.getDevices(), hasKey("/Common/f5_bigip_structured_metadata_blocks"));
+  }
+
+  @Test
+  public void testProfilePersistNestedContentIgnored() throws IOException {
+    String filename = "f5_bigip_structured_profile_persist_nested";
+    String hostname = "f5_bigip_structured_profile_persist_nested";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that nested braced content in profiles and persist don't generate warnings
+    // This verifies the fix for ignored_content handling:
+    // - profile { ... nested-option { ... } ... }
+    // - persist { ... method { ssl passive } ... }
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+
+    // Verify virtual servers were extracted
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-virtual-1"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-virtual-2"));
+
+    // Verify profile references were extracted
+    Virtual v1 = vc.getVirtuals().get("/Common/test-virtual-1");
+    assertThat(v1.getProfiles(), hasSize(3)); // fastL4, http, tcp
+
+    // Verify persist entries were extracted
+    assertThat(v1.getPersistences(), notNullValue());
+    assertThat(v1.getPersistences(), hasSize(2)); // source_addr and cookie
+  }
 }

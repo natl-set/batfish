@@ -22,7 +22,14 @@ s_cm
 
 cm_cert
 :
-  CERT name = structure_name ignored
+  CERT name = structure_name BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored
+      | unrecognized
+    )*
+  )? BRACE_RIGHT NEWLINE
 ;
 
 cm_device
@@ -227,7 +234,14 @@ device_group_type
 
 cm_key
 :
-  KEY name = structure_name ignored
+  KEY name = structure_name BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored
+      | unrecognized
+    )*
+  )? BRACE_RIGHT NEWLINE
 ;
 
 cm_traffic_group

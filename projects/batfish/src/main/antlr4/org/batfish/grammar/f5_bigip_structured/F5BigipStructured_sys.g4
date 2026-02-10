@@ -22,7 +22,7 @@ sgs_null
 
 sys_dns
 :
-  DNS ignored
+  DNS ignored_block
 ;
 
 sys_global_settings
@@ -109,12 +109,12 @@ shtt_weight
 
 sys_management_ip
 :
-  MANAGEMENT_IP ignored
+  MANAGEMENT_IP ignored_block
 ;
 
 sys_management_route
 :
-  MANAGEMENT_ROUTE ignored
+  MANAGEMENT_ROUTE ignored_block
 ;
 
 sys_ntp
@@ -410,10 +410,13 @@ s_sys
     | sys_dns
     | sys_global_settings
     | sys_ha_group
+    | sys_httpd
     | sys_management_ip
     | sys_management_route
     | sys_ntp
     | sys_null
+    | sys_outbound_smtp
+    | sys_provision
     | sys_snmp
     | sys_software_update
     | sys_sshd
@@ -493,68 +496,42 @@ sys_log_config
 
 sys_software_update
 :
-  SOFTWARE UPDATE BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sys_software_update_settings
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sys_software_update_settings
-:
-  AUTO_CHECK (ENABLED | DISABLED) NEWLINE
-  | AUTO_PHONEHOME (ENABLED | DISABLED) NEWLINE
-  | FREQUENCY word_id NEWLINE
-  | ignored
+  SOFTWARE UPDATE ignored_block
 ;
 
 sys_wom_deduplication
 :
-  WOM DEDUPLICATION ignored
+  WOM DEDUPLICATION ignored_block
+;
+
+sys_httpd
+:
+  HTTPD ignored_block
+;
+
+sys_outbound_smtp
+:
+  OUTBOUND_SMTP ignored_block
+;
+
+sys_provision
+:
+  PROVISION structure_name ignored_block
 ;
 
 sys_diags_ihealth
 :
-  DIAGS IHEALTH BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  DIAGS IHEALTH ignored_block
 ;
 
 sys_management_ovsdb
 :
-  MANAGEMENT_OVSDB BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  MANAGEMENT_OVSDB ignored_block
 ;
 
 sys_compatibility_level
 :
-  COMPATIBILITY_LEVEL BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sysc_level
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sysc_level
-:
-  LEVEL uint NEWLINE
+  COMPATIBILITY_LEVEL ignored_block
 ;
 
 slc_format
