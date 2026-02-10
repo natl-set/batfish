@@ -11,8 +11,6 @@ import org.batfish.datamodel.Prefix;
 import org.junit.Test;
 
 public class FortiosRouteConversionsTest {
-  private static final String FILENAME = "test-config";
-
   @Test
   public void testConvertStaticRoutes_enabledWithGateway() {
     StaticRoute route = new StaticRoute("1");

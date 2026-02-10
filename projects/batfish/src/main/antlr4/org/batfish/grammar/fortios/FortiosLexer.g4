@@ -234,6 +234,22 @@ DEVICE_IDENTIFICATION: 'device-identification' -> pushMode(M_Str);
 
 DISABLE: 'disable';
 
+DNS: 'dns' {
+  // ignore config system dns
+  if (lastTokenType() == SYSTEM && secondToLastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
+
+DNSFILTER: 'dnsfilter' {
+  // ignore config dnsfilter
+  if (lastTokenType() == CONFIG) {
+    setType(IGNORED_CONFIG_BLOCK);
+    pushMode(M_IgnoredConfigBlock);
+  }
+};
+
 DNSFILTER_PROFILE: 'dnsfilter-profile' -> pushMode(M_Str);
 
 DISTANCE: 'distance';

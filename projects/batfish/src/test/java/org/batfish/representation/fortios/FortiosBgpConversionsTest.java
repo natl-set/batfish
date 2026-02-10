@@ -20,8 +20,6 @@ import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.junit.Test;
 
 public class FortiosBgpConversionsTest {
-  private static final String FILENAME = "test-config";
-
   @Test
   public void testGetVrfs_singleNeighborSingleVrf() {
     Configuration c = new Configuration("test", ConfigurationFormat.FORTIOS);
