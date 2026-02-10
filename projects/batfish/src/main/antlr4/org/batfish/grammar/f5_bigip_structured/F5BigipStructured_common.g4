@@ -133,6 +133,7 @@ u_word
   | NETWORK
   | NTP
   | PATH
+  | PARTITION
   | PORT
   | PROTOCOL
   | SELF
@@ -141,6 +142,7 @@ u_word
   | STATE
   | STATUS
   | SYS
+  | GLOBAL_SETTINGS
   | TRUE
   | TYPE
   | VALUE
