@@ -94,7 +94,7 @@ interface_name
 // Variable for interface names
 variable_interface_name
 :
-   ~(IP_ADDRESS | IP_PREFIX | UINT8 | UINT16 | UINT32 | VARIABLE)+
+   VARIABLE
 ;
 
 // Null rest of line (consume all tokens until next command)

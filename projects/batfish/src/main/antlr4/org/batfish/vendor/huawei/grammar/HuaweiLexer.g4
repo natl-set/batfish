@@ -702,7 +702,7 @@ ZONE: 'zone';
 
 // Literals
 
-NEWLINE: '\r'? '\n' -> skip;
+NEWLINE: '\r'? '\n' -> channel(HIDDEN);
 
 WS: [ \t]+ -> skip;
 
