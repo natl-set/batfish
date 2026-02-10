@@ -118606,7 +118606,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "201",
+        "humanName" : "leaf-1 (ID: 201)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118620,8 +118620,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -118653,7 +118654,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "202",
+        "humanName" : "leaf-2 (ID: 202)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118667,8 +118668,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -118700,7 +118702,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "203",
+        "humanName" : "leaf-3 (ID: 203)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118714,8 +118716,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -118747,7 +118750,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "204",
+        "humanName" : "leaf-4 (ID: 204)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118761,8 +118764,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -118794,7 +118798,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "201",
+        "humanName" : "leaf1 (ID: 201)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118808,8 +118812,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -118841,7 +118846,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "202",
+        "humanName" : "leaf2 (ID: 202)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -118855,8 +118860,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -128782,7 +128788,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "101",
+        "humanName" : "spine-1 (ID: 101)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -128796,8 +128802,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -128829,7 +128836,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "102",
+        "humanName" : "spine-2 (ID: 102)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -128843,8 +128850,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -128876,7 +128884,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "101",
+        "humanName" : "spine1 (ID: 101)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -128890,8 +128898,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
@@ -128923,7 +128932,7 @@
         "deviceModel" : "CISCO_UNSPECIFIED",
         "deviceType" : "SWITCH",
         "disconnectAdminDownInterfaces" : true,
-        "humanName" : "102",
+        "humanName" : "spine2 (ID: 102)",
         "interfaces" : {
           "loopback0" : {
             "name" : "loopback0",
@@ -128937,8 +128946,9 @@
             "declaredNames" : [
               "loopback0"
             ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
             "hmm" : false,
-            "humanName" : "Loopback0",
+            "humanName" : "VTEP Loopback",
             "lineUp" : true,
             "mtu" : 1500,
             "proxyArp" : false,
