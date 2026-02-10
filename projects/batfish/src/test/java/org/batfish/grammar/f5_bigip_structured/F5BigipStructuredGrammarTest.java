@@ -2737,6 +2737,20 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testVirtualProfilesAndPersistExtraction() {
+    F5BigipConfiguration vc = parseVendorConfig("f5_bigip_structured_ltm_references");
+    Virtual virtual = vc.getVirtuals().get("/Common/virtual_used");
+
+    assertThat(virtual.getProfiles(), hasItem("/Common/http"));
+    assertThat(virtual.getProfiles(), hasItem("/Common/profile_http_used"));
+    assertThat(virtual.getProfiles(), hasItem("/Common/profile_http_undefined"));
+
+    assertThat(virtual.getPersistences(), hasItem("/Common/cookie"));
+    assertThat(virtual.getPersistences(), hasItem("/Common/persistence_cookie_used"));
+    assertThat(virtual.getPersistences(), hasItem("/Common/persistence_cookie_undefined"));
+  }
+
+  @Test
   public void testSelfReferences() throws IOException {
     String hostname = "f5_bigip_structured_self_references";
     String file = "configs/" + hostname;

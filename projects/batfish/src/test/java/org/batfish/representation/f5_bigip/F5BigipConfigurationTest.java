@@ -1828,6 +1828,16 @@ public class F5BigipConfigurationTest {
     assertThat(pool.getMembers().size(), equalTo(2));
   }
 
+  @Test
+  public void testVirtual_profilesAndPersistences() {
+    Virtual virtual = new Virtual("virtual1");
+    virtual.getProfiles().add("/Common/http");
+    virtual.getPersistences().add("/Common/cookie");
+
+    assertThat(virtual.getProfiles(), equalTo(ImmutableSet.of("/Common/http")));
+    assertThat(virtual.getPersistences(), equalTo(ImmutableSet.of("/Common/cookie")));
+  }
+
   // ==================== AccessList Tests ====================
 
   @Test

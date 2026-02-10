@@ -2177,6 +2177,7 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   @Override
   public void enterLv_profiles_profile(Lv_profiles_profileContext ctx) {
     String name = toName(ctx.name);
+    _currentVirtual.getProfiles().add(name);
     if (BuiltinProfile.getBuiltinProfile(name) == null) {
       _c.referenceStructure(PROFILE, name, VIRTUAL_PROFILE, ctx.name.getStart().getLine());
     }
@@ -2795,6 +2796,7 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   @Override
   public void exitLvp_persistence(Lvp_persistenceContext ctx) {
     String name = toName(ctx.name);
+    _currentVirtual.getPersistences().add(name);
     if (BuiltinPersistence.getBuiltinPersistence(name) == null) {
       _c.referenceStructure(
           PERSISTENCE, name, VIRTUAL_PERSIST_PERSISTENCE, ctx.name.getStart().getLine());
