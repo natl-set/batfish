@@ -34,5 +34,5 @@ s_config
         | c_firewall
         | c_router
         | IGNORED_CONFIG_BLOCK
-    ) END NEWLINE?
+    ) END NEWLINE? // Optional trailing NEWLINE for flexibility
 ;
