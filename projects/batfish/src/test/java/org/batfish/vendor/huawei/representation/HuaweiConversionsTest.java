@@ -12,6 +12,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import org.batfish.datamodel.BgpActivePeerConfig;
+import org.batfish.datamodel.BgpAuthenticationAlgorithm;
+import org.batfish.datamodel.BgpAuthenticationSettings;
 import org.batfish.datamodel.BgpProcess;
 import org.batfish.datamodel.ConcreteInterfaceAddress;
 import org.batfish.datamodel.Configuration;
@@ -19,12 +21,20 @@ import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.Interface;
 import org.batfish.datamodel.InterfaceType;
 import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.LongSpace;
 import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.PrefixSpace;
+import org.batfish.datamodel.StaticRoute;
 import org.batfish.datamodel.Vrf;
+import org.batfish.datamodel.bgp.AddressFamily;
+import org.batfish.datamodel.ospf.OspfArea;
+import org.batfish.datamodel.ospf.OspfAreaSummary;
+import org.batfish.datamodel.ospf.OspfDefaultOriginateType;
 import org.batfish.datamodel.ospf.OspfInterfaceSettings;
 import org.batfish.datamodel.ospf.OspfNetworkType;
+import org.batfish.datamodel.ospf.OspfProcess;
+import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.junit.Test;
 
 /** Tests for HuaweiConversions */
@@ -92,7 +102,7 @@ public class HuaweiConversionsTest {
     assertThat(vrf, notNullValue());
     assertThat(vrf.getStaticRoutes().size(), equalTo(1));
 
-    org.batfish.datamodel.StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
     assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
     assertThat(staticRoute.getNextHopIp(), equalTo(Ip.parse("192.168.1.1")));
     assertThat(staticRoute.getAdministrativeCost(), equalTo(100));
@@ -140,7 +150,7 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getIpAccessLists(), hasKey("2000"));
-    org.batfish.datamodel.IpAccessList ipAccessList = config.getIpAccessLists().get("2000");
+    IpAccessList ipAccessList = config.getIpAccessLists().get("2000");
     assertThat(ipAccessList.getName(), equalTo("2000"));
     assertThat(ipAccessList.getLines().size(), equalTo(2));
   }
@@ -638,24 +648,20 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
     assertThat(convertedOspf, notNullValue());
 
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
     assertThat(convertedArea, notNullValue());
 
     // Check that the area range was converted to OspfAreaSummary
     assertThat(convertedArea.getSummaries().size(), equalTo(1));
 
-    org.batfish.datamodel.ospf.OspfAreaSummary summary =
-        convertedArea.getSummaries().get(summaryPrefix);
+    OspfAreaSummary summary = convertedArea.getSummaries().get(summaryPrefix);
     assertThat(summary, notNullValue());
     assertThat(
         summary.getBehavior(),
-        equalTo(
-            org.batfish.datamodel.ospf.OspfAreaSummary.SummaryRouteBehavior
-                .ADVERTISE_AND_INSTALL_DISCARD));
+        equalTo(OspfAreaSummary.SummaryRouteBehavior.ADVERTISE_AND_INSTALL_DISCARD));
     assertThat(summary.getMetric(), equalTo(100L));
   }
 
@@ -680,24 +686,20 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
     assertThat(convertedOspf, notNullValue());
 
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
     assertThat(convertedArea, notNullValue());
 
     // Check that the area range was converted with NOT_ADVERTISE_AND_NO_DISCARD behavior
     assertThat(convertedArea.getSummaries().size(), equalTo(1));
 
-    org.batfish.datamodel.ospf.OspfAreaSummary summary =
-        convertedArea.getSummaries().get(summaryPrefix);
+    OspfAreaSummary summary = convertedArea.getSummaries().get(summaryPrefix);
     assertThat(summary, notNullValue());
     assertThat(
         summary.getBehavior(),
-        equalTo(
-            org.batfish.datamodel.ospf.OspfAreaSummary.SummaryRouteBehavior
-                .NOT_ADVERTISE_AND_NO_DISCARD));
+        equalTo(OspfAreaSummary.SummaryRouteBehavior.NOT_ADVERTISE_AND_NO_DISCARD));
     assertThat(summary.getMetric(), nullValue());
   }
 
@@ -727,43 +729,33 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
     assertThat(convertedOspf, notNullValue());
 
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
     assertThat(convertedArea, notNullValue());
 
     // Check that all area ranges were converted
     assertThat(convertedArea.getSummaries().size(), equalTo(3));
 
     // Verify each summary
-    org.batfish.datamodel.ospf.OspfAreaSummary summary1 =
-        convertedArea.getSummaries().get(Prefix.parse("10.0.0.0/8"));
+    OspfAreaSummary summary1 = convertedArea.getSummaries().get(Prefix.parse("10.0.0.0/8"));
     assertThat(summary1.getMetric(), equalTo(100L));
     assertThat(
         summary1.getBehavior(),
-        equalTo(
-            org.batfish.datamodel.ospf.OspfAreaSummary.SummaryRouteBehavior
-                .ADVERTISE_AND_INSTALL_DISCARD));
+        equalTo(OspfAreaSummary.SummaryRouteBehavior.ADVERTISE_AND_INSTALL_DISCARD));
 
-    org.batfish.datamodel.ospf.OspfAreaSummary summary2 =
-        convertedArea.getSummaries().get(Prefix.parse("192.168.0.0/16"));
+    OspfAreaSummary summary2 = convertedArea.getSummaries().get(Prefix.parse("192.168.0.0/16"));
     assertThat(summary2.getMetric(), nullValue());
     assertThat(
         summary2.getBehavior(),
-        equalTo(
-            org.batfish.datamodel.ospf.OspfAreaSummary.SummaryRouteBehavior
-                .NOT_ADVERTISE_AND_NO_DISCARD));
+        equalTo(OspfAreaSummary.SummaryRouteBehavior.NOT_ADVERTISE_AND_NO_DISCARD));
 
-    org.batfish.datamodel.ospf.OspfAreaSummary summary3 =
-        convertedArea.getSummaries().get(Prefix.parse("172.16.0.0/12"));
+    OspfAreaSummary summary3 = convertedArea.getSummaries().get(Prefix.parse("172.16.0.0/12"));
     assertThat(summary3.getMetric(), nullValue());
     assertThat(
         summary3.getBehavior(),
-        equalTo(
-            org.batfish.datamodel.ospf.OspfAreaSummary.SummaryRouteBehavior
-                .ADVERTISE_AND_INSTALL_DISCARD));
+        equalTo(OspfAreaSummary.SummaryRouteBehavior.ADVERTISE_AND_INSTALL_DISCARD));
   }
 
   @Test
@@ -831,7 +823,7 @@ public class HuaweiConversionsTest {
         BgpActivePeerConfig.builder()
             .setPeerAddress(peerIp)
             .setGroup("INTERNAL_PEERS")
-            .setRemoteAsns(org.batfish.datamodel.LongSpace.of(65003L)) // Override AS
+            .setRemoteAsns(LongSpace.of(65003L)) // Override AS
             .build();
     bgp.addNeighbor(peerIp, peer);
 
@@ -953,7 +945,7 @@ public class HuaweiConversionsTest {
     assertThat(convertedPeer.getIpv4UnicastAddressFamily(), notNullValue());
     assertThat(
         convertedPeer.getIpv4UnicastAddressFamily().getType(),
-        equalTo(org.batfish.datamodel.bgp.AddressFamily.Type.IPV4_UNICAST));
+        equalTo(AddressFamily.Type.IPV4_UNICAST));
   }
 
   @Test
@@ -1035,7 +1027,7 @@ public class HuaweiConversionsTest {
     assertThat(convertedPeer.getIpv6UnicastAddressFamily(), notNullValue());
     assertThat(
         convertedPeer.getIpv6UnicastAddressFamily().getType(),
-        equalTo(org.batfish.datamodel.bgp.AddressFamily.Type.IPV6_UNICAST));
+        equalTo(AddressFamily.Type.IPV6_UNICAST));
   }
 
   @Test
@@ -1203,7 +1195,7 @@ public class HuaweiConversionsTest {
     assertThat(convertedPeer.getIpv6UnicastAddressFamily(), notNullValue());
     assertThat(
         convertedPeer.getIpv6UnicastAddressFamily().getType(),
-        equalTo(org.batfish.datamodel.bgp.AddressFamily.Type.IPV6_UNICAST));
+        equalTo(AddressFamily.Type.IPV6_UNICAST));
   }
 
   @Test
@@ -1267,7 +1259,7 @@ public class HuaweiConversionsTest {
     assertThat(convertedPeer.getAuthenticationSettings(), notNullValue());
     assertThat(
         convertedPeer.getAuthenticationSettings().getAuthenticationAlgorithm(),
-        equalTo(org.batfish.datamodel.BgpAuthenticationAlgorithm.TCP_SIGNATURE_MD5));
+        equalTo(BgpAuthenticationAlgorithm.TCP_SIGNATURE_MD5));
     assertThat(
         convertedPeer.getAuthenticationSettings().getAuthenticationKey(),
         equalTo("mySecretPassword"));
@@ -1292,10 +1284,8 @@ public class HuaweiConversionsTest {
     Ip peerIp = Ip.parse("192.168.1.2");
 
     // Create custom authentication settings for the peer
-    org.batfish.datamodel.BgpAuthenticationSettings peerAuth =
-        new org.batfish.datamodel.BgpAuthenticationSettings();
-    peerAuth.setAuthenticationAlgorithm(
-        org.batfish.datamodel.BgpAuthenticationAlgorithm.TCP_SIGNATURE_MD5);
+    BgpAuthenticationSettings peerAuth = new BgpAuthenticationSettings();
+    peerAuth.setAuthenticationAlgorithm(BgpAuthenticationAlgorithm.TCP_SIGNATURE_MD5);
     peerAuth.setAuthenticationKey("peerPassword");
 
     BgpActivePeerConfig peer =
@@ -1599,7 +1589,7 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getIpAccessLists(), hasKey("3000"));
-    org.batfish.datamodel.IpAccessList ipAccessList = config.getIpAccessLists().get("3000");
+    IpAccessList ipAccessList = config.getIpAccessLists().get("3000");
     assertThat(ipAccessList.getLines().size(), equalTo(1));
   }
 
@@ -1624,7 +1614,7 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getIpAccessLists(), hasKey("3001"));
-    org.batfish.datamodel.IpAccessList ipAccessList = config.getIpAccessLists().get("3001");
+    IpAccessList ipAccessList = config.getIpAccessLists().get("3001");
     assertThat(ipAccessList.getLines().size(), equalTo(1));
   }
 
@@ -1726,7 +1716,7 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getIpAccessLists(), hasKey("3005"));
-    org.batfish.datamodel.IpAccessList ipAccessList = config.getIpAccessLists().get("3005");
+    IpAccessList ipAccessList = config.getIpAccessLists().get("3005");
     assertThat(ipAccessList.getLines().size(), equalTo(2));
   }
 
@@ -2026,9 +2016,8 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
 
     assertThat(convertedArea, notNullValue());
     assertThat(convertedArea.getStub(), notNullValue());
@@ -2051,9 +2040,8 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
 
     assertThat(convertedArea, notNullValue());
     assertThat(convertedArea.getStub(), notNullValue());
@@ -2075,15 +2063,13 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
 
     assertThat(convertedArea, notNullValue());
     assertThat(convertedArea.getNssa(), notNullValue());
     assertThat(
-        convertedArea.getNssa().getDefaultOriginateType(),
-        equalTo(org.batfish.datamodel.ospf.OspfDefaultOriginateType.NONE));
+        convertedArea.getNssa().getDefaultOriginateType(), equalTo(OspfDefaultOriginateType.NONE));
   }
 
   @Test
@@ -2102,9 +2088,8 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
 
     assertThat(convertedArea.getNssa().getSuppressType3(), equalTo(true));
   }
@@ -2125,13 +2110,12 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
-    org.batfish.datamodel.ospf.OspfArea convertedArea = convertedOspf.getAreas().get(1L);
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfArea convertedArea = convertedOspf.getAreas().get(1L);
 
     assertThat(
         convertedArea.getNssa().getDefaultOriginateType(),
-        equalTo(org.batfish.datamodel.ospf.OspfDefaultOriginateType.INTER_AREA));
+        equalTo(OspfDefaultOriginateType.INTER_AREA));
   }
 
   // Tests for route policy conversion (testing toRoutingPolicy and toConfigurationRoutePolicies)
@@ -2157,8 +2141,7 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getRoutingPolicies(), hasKey("POLICY1"));
-    org.batfish.datamodel.routing_policy.RoutingPolicy convertedPolicy =
-        config.getRoutingPolicies().get("POLICY1");
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("POLICY1");
     assertThat(convertedPolicy, notNullValue());
     assertThat(convertedPolicy.getName(), equalTo("POLICY1"));
   }
@@ -2220,8 +2203,7 @@ public class HuaweiConversionsTest {
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
     assertThat(config.getRoutingPolicies(), hasKey("MULTI_NODE_POLICY"));
-    org.batfish.datamodel.routing_policy.RoutingPolicy convertedPolicy =
-        config.getRoutingPolicies().get("MULTI_NODE_POLICY");
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("MULTI_NODE_POLICY");
     assertThat(convertedPolicy.getStatements().size(), equalTo(3));
   }
 
@@ -2295,8 +2277,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     // Verify export policy was created
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
@@ -2324,8 +2305,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2351,8 +2331,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2377,8 +2356,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2404,8 +2382,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2431,8 +2408,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2458,8 +2434,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2486,8 +2461,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2513,8 +2487,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2540,8 +2513,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
   }
@@ -2575,8 +2547,7 @@ public class HuaweiConversionsTest {
 
     Configuration config = toVendorIndependentConfiguration(huaweiConfig);
 
-    org.batfish.datamodel.ospf.OspfProcess convertedOspf =
-        config.getVrfs().get("default").getOspfProcesses().get("1");
+    OspfProcess convertedOspf = config.getVrfs().get("default").getOspfProcesses().get("1");
 
     assertThat(convertedOspf.getExportPolicy(), notNullValue());
 
