@@ -72,6 +72,12 @@ public final class VendorConfigurationFormatDetector {
   private static final Pattern NEXUS_BOOTFLASH_PATTERN =
       Pattern.compile("bootflash:(n\\d+|/?nxos)");
 
+  // checkCiscoAci patterns
+  private static final Pattern ACI_JSON_PATTERN =
+      Pattern.compile("(?m)\"polUni\"|\"fvTenant\"|\"fabricNode\"");
+  private static final Pattern ACI_XML_PATTERN =
+      Pattern.compile("(?m)<polUni|<fvTenant|<fabricNode");
+
   // checkJuniper patterns
   private static final Pattern FLAT_JUNIPER_HOSTNAME_DECLARATION_PATTERN =
       Pattern.compile("(?m)^set (groups [^ ][^ ]* )?system host-name ");
@@ -204,6 +210,13 @@ public final class VendorConfigurationFormatDetector {
   private @Nullable ConfigurationFormat checkCiscoXr() {
     if (_fileText.contains("IOS XR")) {
       return ConfigurationFormat.CISCO_IOS_XR;
+    }
+    return null;
+  }
+
+  private @Nullable ConfigurationFormat checkCiscoAci() {
+    if (fileTextMatches(ACI_JSON_PATTERN) || fileTextMatches(ACI_XML_PATTERN)) {
+      return ConfigurationFormat.CISCO_ACI;
     }
     return null;
   }
@@ -503,6 +516,7 @@ public final class VendorConfigurationFormatDetector {
     format = (format == null) ? checkCumulusNclu() : format;
     format = (format == null) ? checkF5() : format;
     format = (format == null) ? checkCiscoXr() : format;
+    format = (format == null) ? checkCiscoAci() : format;
     format = (format == null) ? checkFlatVyos() : format;
     format = (format == null) ? checkMetamako() : format;
     format = (format == null) ? checkMrv() : format;

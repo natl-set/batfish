@@ -36178,6 +36178,981 @@
           }
         }
       },
+      "aci-aci-bd-multiple-subnets" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-bd-multiple-subnets",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-bd-multiple-subnets",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          },
+          "Vlan3325" : {
+            "name" : "Vlan3325",
+            "active" : false,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "addressMetadata" : {
+              "10.0.1.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              },
+              "10.0.2.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              },
+              "10.0.3.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              },
+              "192.168.100.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              }
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "10.0.1.1/24",
+              "10.0.2.1/24",
+              "10.0.3.1/24",
+              "192.168.100.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "Vlan3325"
+            ],
+            "hmm" : false,
+            "humanName" : "VLAN 3325 (tenant1:bd1)",
+            "inactiveReason" : "AUTOSTATE_FAILURE",
+            "lineUp" : true,
+            "mtu" : 9000,
+            "prefix" : "10.0.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "VLAN",
+            "vlan" : 3325,
+            "vrf" : "tenant1:vrf1"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          }
+        }
+      },
+      "aci-aci-bridge-domains" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-bridge-domains",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-bridge-domains",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          },
+          "Vlan3325" : {
+            "name" : "Vlan3325",
+            "active" : false,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "addressMetadata" : {
+              "10.0.1.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              }
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "10.0.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "Vlan3325"
+            ],
+            "hmm" : false,
+            "humanName" : "VLAN 3325 (tenant1:bd1)",
+            "inactiveReason" : "AUTOSTATE_FAILURE",
+            "lineUp" : true,
+            "mtu" : 9000,
+            "prefix" : "10.0.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "VLAN",
+            "vlan" : 3325,
+            "vrf" : "tenant1:vrf1"
+          },
+          "Vlan3326" : {
+            "name" : "Vlan3326",
+            "active" : false,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "addressMetadata" : {
+              "10.0.2.1/24" : {
+                "generateConnectedRoute" : true,
+                "generateLocalRoutes" : false
+              }
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "10.0.2.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "Vlan3326"
+            ],
+            "hmm" : false,
+            "humanName" : "VLAN 3326 (tenant1:bd2)",
+            "inactiveReason" : "AUTOSTATE_FAILURE",
+            "lineUp" : true,
+            "mtu" : 9000,
+            "prefix" : "10.0.2.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "VLAN",
+            "vlan" : 3326,
+            "vrf" : "tenant1:vrf1"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          }
+        }
+      },
+      "aci-aci-contracts-complex" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-contracts-complex",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-contracts-complex",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "ipAccessLists" : {
+          "~CONTRACT~tenant1:db-contract" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:db-contract filter tcp-filter"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:db-contract filter udp-filter"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Default deny for contract tenant1:db-contract"
+              }
+            ],
+            "name" : "~CONTRACT~tenant1:db-contract"
+          },
+          "~CONTRACT~tenant1:web-contract" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:web-contract filter http-filter"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:web-contract filter https-filter"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:web-contract filter icmp-filter"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Default deny for contract tenant1:web-contract"
+              }
+            ],
+            "name" : "~CONTRACT~tenant1:web-contract"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-contracts-filters" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-contracts-filters",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-contracts-filters",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "ipAccessLists" : {
+          "~CONTRACT~tenant1:mgmt-contract" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "22"
+                    }
+                  ]
+                },
+                "name" : "Contract tenant1:mgmt-contract filter tcp-ssh-filter entry ssh"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "UDP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "53"
+                    }
+                  ]
+                },
+                "name" : "Contract tenant1:mgmt-contract filter udp-dns-filter entry dns"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "ICMP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                      "headerSpace" : {
+                        "icmpTypes" : [
+                          "8-8"
+                        ],
+                        "negate" : false
+                      }
+                    }
+                  ]
+                },
+                "name" : "Contract tenant1:mgmt-contract filter icmp-echo-filter entry icmp-echo"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Default deny for contract tenant1:mgmt-contract"
+              }
+            ],
+            "name" : "~CONTRACT~tenant1:mgmt-contract"
+          },
+          "~CONTRACT~tenant1:web-contract" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "80"
+                    }
+                  ]
+                },
+                "name" : "Contract tenant1:web-contract filter tcp-http-filter entry http"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.AndMatchExpr",
+                  "conjuncts" : [
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchIpProtocol",
+                      "protocol" : "TCP"
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.acl.MatchDestinationPort",
+                      "ports" : "443"
+                    }
+                  ]
+                },
+                "name" : "Contract tenant1:web-contract filter tcp-https-filter entry https"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Default deny for contract tenant1:web-contract"
+              }
+            ],
+            "name" : "~CONTRACT~tenant1:web-contract"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-contracts-simple" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-contracts-simple",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-contracts-simple",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "ipAccessLists" : {
+          "~CONTRACT~tenant1:contract1" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Contract tenant1:contract1 filter filter1"
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Default deny for contract tenant1:contract1"
+              }
+            ],
+            "name" : "~CONTRACT~tenant1:contract1"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-empty-config" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-empty-config",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-empty-config",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-epgs-no-bd" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-epgs-no-bd",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-epgs-no-bd",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-l3out-bgp" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-l3out-bgp",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-l3out-bgp",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          }
+        }
+      },
+      "aci-aci-l3out-ospf" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-l3out-ospf",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-l3out-ospf",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          }
+        }
+      },
+      "aci-aci-l3out-static" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-l3out-static",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-l3out-static",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          }
+        }
+      },
+      "aci-aci-multiple-tenants" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-multiple-tenants",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-multiple-tenants",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-single-tenant" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-single-tenant",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-single-tenant",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "aci-aci-vrf-only" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "aci-aci-vrf-only",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "aci-aci-vrf-only",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "hmm" : false,
+            "humanName" : "Loopback0",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          },
+          "tenant1:vrf1" : {
+            "name" : "tenant1:vrf1"
+          },
+          "tenant1:vrf2" : {
+            "name" : "tenant1:vrf2"
+          }
+        }
+      },
       "address_family" : {
         "configurationFormat" : "CISCO_IOS",
         "exportBgpFromBgpRib" : true,
@@ -118745,6 +119720,294 @@
           }
         }
       },
+      "leaf-1" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf-1",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf-1 (ID: 201)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "leaf-2" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf-2",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf-2 (ID: 202)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "leaf-3" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf-3",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf-3 (ID: 203)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "leaf-4" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf-4",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf-4 (ID: 204)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "leaf1" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf1",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf1 (ID: 201)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "leaf2" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "leaf2",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "leaf2 (ID: 202)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
       "local_v6_addr" : {
         "configurationFormat" : "CISCO_IOS",
         "exportBgpFromBgpRib" : true,
@@ -128761,6 +130024,198 @@
           "default" : {
             "name" : "default",
             "resolutionPolicy" : "~RESOLUTION_POLICY~"
+          }
+        }
+      },
+      "spine-1" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "spine-1",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "spine-1 (ID: 101)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "spine-2" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "spine-2",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "spine-2 (ID: 102)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "spine1" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "spine1",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "spine1 (ID: 101)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        }
+      },
+      "spine2" : {
+        "configurationFormat" : "CISCO_ACI",
+        "exportBgpFromBgpRib" : true,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "spine2",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_UNSPECIFIED",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "spine2 (ID: 102)",
+        "interfaces" : {
+          "loopback0" : {
+            "name" : "loopback0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "autostate" : true,
+            "blacklisted" : false,
+            "declaredNames" : [
+              "loopback0"
+            ],
+            "description" : "VTEP (VXLAN Tunnel Endpoint) - dynamically assigned IP from TEP pool",
+            "hmm" : false,
+            "humanName" : "VTEP Loopback",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "LOOPBACK",
+            "vrf" : "default"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
           }
         }
       },
