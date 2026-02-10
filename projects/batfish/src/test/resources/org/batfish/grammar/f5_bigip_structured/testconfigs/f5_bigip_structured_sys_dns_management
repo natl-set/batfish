@@ -1,0 +1,16 @@
+#TMSH-VERSION: 13.1.1
+
+sys global-settings {
+    hostname f5_bigip_structured_sys_dns_management
+}
+
+sys dns {
+    name-servers { 1.2.3.4 5.6.7.8 }
+    search { example.local localhost }
+}
+
+sys management-ip 192.0.2.1/24 { }
+sys management-route /Common/default {
+    gateway 192.0.2.2
+    network default
+}

@@ -24,6 +24,8 @@ public final class Virtual implements Serializable {
   private @Nullable Ip6 _mask6;
   private final @Nonnull String _name;
   private @Nullable String _pool;
+  private final @Nonnull Set<String> _profiles;
+  private final @Nonnull Set<String> _persistences;
   private boolean _reject;
   private @Nullable Prefix _source;
   private @Nullable Prefix6 _source6;
@@ -35,6 +37,8 @@ public final class Virtual implements Serializable {
 
   public Virtual(String name) {
     _name = name;
+    _persistences = new HashSet<>();
+    _profiles = new HashSet<>();
     _vlans = new HashSet<>();
   }
 
@@ -76,6 +80,14 @@ public final class Virtual implements Serializable {
 
   public @Nullable String getPool() {
     return _pool;
+  }
+
+  public @Nonnull Set<String> getProfiles() {
+    return _profiles;
+  }
+
+  public @Nonnull Set<String> getPersistences() {
+    return _persistences;
   }
 
   public boolean getReject() {

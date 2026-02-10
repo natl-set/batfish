@@ -62,7 +62,7 @@ mac_address
 
 structure_name
 :
-  partition = PARTITION? word_id
+  partition = PARTITION? (word | word_id)
 ;
 
 structure_name_or_address
@@ -71,7 +71,8 @@ structure_name_or_address
   (
     address = ip_address
     | address6 = ipv6_address
-    | w = word_id
+    | word_id
+    | word
   )
 ;
 
@@ -85,7 +86,7 @@ structure_name_with_port
   )
 ;
 
-/* 
+/*
  * An ignored fragment of syntax.
  * Must always be preceded by at least one token on line in which it appears.
  */
@@ -93,7 +94,6 @@ ignored
 :
   u_word* list? NEWLINE
 ;
-
 
 /* An unrecognized fragment of syntax. When used, MUST be LAST alternative */
 unrecognized
@@ -110,6 +110,43 @@ u_word
 :
   bracket_list
   | word
+  | ACTIVE
+  | ACTION
+  | ADDRESS
+  | ALL
+  | ANY
+  | APM
+  | ASM
+  | DEFAULT
+  | DESCRIPTION
+  | DESTINATION
+  | DISABLED
+  | DNS
+  | ENABLED
+  | FALSE
+  | HOST
+  | INFINITY
+  | KEY
+  | LTM
+  | MODE
+  | MODULE
+  | NETWORK
+  | NTP
+  | PATH
+  | PARTITION
+  | PORT
+  | PROTOCOL
+  | SELF
+  | SNMP
+  | SOURCE
+  | STATE
+  | STATUS
+  | SYS
+  | GLOBAL_SETTINGS
+  | TRUE
+  | TYPE
+  | VALUE
+  | VERSION
 ;
 
 u_word_list
@@ -128,6 +165,14 @@ uint32
   UINT16
   | UINT32
   | VLAN_ID
+;
+
+uint
+:
+  UINT16
+  | UINT32
+  | VLAN_ID
+  | UNIT_ID
 ;
 
 vlan_id
