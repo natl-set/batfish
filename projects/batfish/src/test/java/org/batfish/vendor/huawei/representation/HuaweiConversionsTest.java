@@ -4,6 +4,7 @@ import static org.batfish.vendor.huawei.representation.HuaweiConversions.toVendo
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertNull;
@@ -2755,5 +2756,279 @@ public class HuaweiConversionsTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getRoutingPolicies(), hasKey("OSPF_EXPORT_POLICY"));
+  }
+
+  // Additional tests for improved coverage
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeerGroup() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Add peer group
+    HuaweiBgpProcess.HuaweiBgpPeerGroup group = new HuaweiBgpProcess.HuaweiBgpPeerGroup("INTERNAL");
+    group.setRemoteAs(65002L);
+    group.setRoutePolicyIn("IMPORT_POLICY");
+    group.setRoutePolicyOut("EXPORT_POLICY");
+    group.setPassword("md5password");
+    group.setClusterId("1.1.1.1");
+    group.setLocalAs(65003);
+    group.setRouteReflectorClient(true);
+    bgp.getPeerGroups().put("INTERNAL", group);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    BgpProcess bgpProcess = vrf.getBgpProcess();
+    assertThat(bgpProcess, notNullValue());
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeer() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Add peer directly
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(Ip.parse("10.0.0.1"))
+            .setRemoteAsns(LongSpace.of(65002L))
+            .setDescription("Test peer")
+            .build();
+    bgp.addNeighbor(Ip.parse("10.0.0.1"), peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    BgpProcess bgpProcess = vrf.getBgpProcess();
+    assertThat(bgpProcess.getActiveNeighbors(), hasKey(Ip.parse("10.0.0.1")));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpIpv6AddressFamily() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Add IPv6 address family
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv6-unicast");
+    af.setType(HuaweiBgpProcess.HuaweiBgpAddressFamily.AddressFamilyType.IPV6);
+    af.setUnicast(true);
+    af.setImportPolicy("IMPORT6");
+    af.setExportPolicy("EXPORT6");
+    bgp.getAddressFamilies().put("ipv6-unicast", af);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclCidrPrefix() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("2001", HuaweiAcl.AclType.BASIC);
+
+    HuaweiAclLine line1 = new HuaweiAclLine(10, "permit");
+    line1.setSource("10.1.1.0/24");
+    acl.getLines().add(line1);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("2001", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("2001"));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationInterfaceTypeLoopback() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface iface = new HuaweiInterface("Loopback0");
+    iface.setShutdown(false);
+    iface.setAddress(ConcreteInterfaceAddress.parse("10.0.0.1/32"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("Loopback0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface convertedIface = config.getAllInterfaces().get("Loopback0");
+    assertThat(convertedIface.getInterfaceType(), equalTo(InterfaceType.LOOPBACK));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationInterfaceTypeVlanif() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface iface = new HuaweiInterface("Vlanif100");
+    iface.setShutdown(false);
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("Vlanif100", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface convertedIface = config.getAllInterfaces().get("Vlanif100");
+    assertThat(convertedIface.getInterfaceType(), equalTo(InterfaceType.VLAN));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationInterfaceTypeEthTrunk() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface iface = new HuaweiInterface("Eth-Trunk1");
+    iface.setShutdown(false);
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("Eth-Trunk1", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface convertedIface = config.getAllInterfaces().get("Eth-Trunk1");
+    assertThat(convertedIface.getInterfaceType(), equalTo(InterfaceType.AGGREGATED));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationInterfaceTypeSubinterface() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/0.100");
+    iface.setShutdown(false);
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0.100", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface convertedIface = config.getAllInterfaces().get("GigabitEthernet0/0/0.100");
+    // Subinterfaces are detected as PHYSICAL due to the split regex in getInterfaceType
+    assertThat(convertedIface.getInterfaceType(), equalTo(InterfaceType.PHYSICAL));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationInterfaceTypeNull() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface iface = new HuaweiInterface("Null0");
+    iface.setShutdown(false);
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("Null0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface convertedIface = config.getAllInterfaces().get("Null0");
+    assertThat(convertedIface.getInterfaceType(), equalTo(InterfaceType.NULL));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyMatchConditions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("TEST_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.PERMIT);
+    node.getMatchConditions().setIpPrefix("PREFIX_LIST");
+    node.getSetActions().setLocalPreference(200L);
+    node.getSetActions().setCost(100);
+    node.getSetActions().setPreference(50);
+    node.getSetActions().setTag(1000L);
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("TEST_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("TEST_POLICY"));
+    RoutingPolicy policy = config.getRoutingPolicies().get("TEST_POLICY");
+    assertThat(policy.getStatements(), hasSize(1));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithStaticRouteWithInterface() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route.setNextHopIp(Ip.parse("192.168.1.1"));
+    route.setNextHopInterface("GigabitEthernet0/0/0");
+    route.setPreference(100);
+    huaweiConfig.getStaticRoutes().add(route);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    assertThat(vrf.getStaticRoutes().size(), equalTo(1));
+
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    assertThat(staticRoute.getNextHopInterface(), equalTo("GigabitEthernet0/0/0"));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfDefaultOriginate() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+    ospf.setDefaultOriginate(true);
+    ospf.setDefaultCost(10L);
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    OspfProcess ospfProcess = vrf.getOspfProcesses().get("1");
+    OspfArea area0 = ospfProcess.getAreas().get(0L);
+    assertTrue(area0.getInjectDefaultRoute());
+    assertThat(area0.getMetricOfDefaultRoute(), equalTo(10));
   }
 }

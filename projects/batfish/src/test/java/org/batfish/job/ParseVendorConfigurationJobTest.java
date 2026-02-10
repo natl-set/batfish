@@ -120,4 +120,187 @@ public class ParseVendorConfigurationJobTest {
         detectFormat(ImmutableMap.of("file", fileText), settings, ConfigurationFormat.UNKNOWN),
         equalTo(ConfigurationFormat.IGNORED));
   }
+
+  // Huawei-specific tests
+
+  @Test
+  public void testDetectFormatHuaweiSysname() {
+    String huaweiConfig = "sysname Router1\nreturn\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("config", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiInterface() {
+    // "interface" is too generic and matches Cisco first
+    // Use sysname which is Huawei-specific
+    String huaweiConfig =
+        "sysname Router1\ninterface GigabitEthernet0/0/0\n ip address 192.168.1.1 255.255.255.0\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiVlan() {
+    String huaweiConfig = "sysname Router1\nvlan batch 10,20,30\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file.vrp", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiBgp() {
+    String huaweiConfig = "sysname Router1\nbgp 65001\n peer 10.0.0.1 as-number 65002\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("huawei.cfg", huaweiConfig),
+            new Settings(),
+            ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiOspf() {
+    String huaweiConfig = "sysname Router1\nospf 1 router-id 1.1.1.1\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiStaticRoute() {
+    String huaweiConfig = "sysname Router1\nip route-static 10.0.0.0 255.0.0.0 192.168.1.1\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiAcl() {
+    String huaweiConfig =
+        "sysname Router1\nacl number 2000\n rule permit source 10.0.0.0 0.0.0.255\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
+
+  @Test
+  public void testParseHuaweiConfigFile() {
+    String huaweiConfig =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "return\n";
+
+    ParseVendorConfigurationResult result =
+        new ParseVendorConfigurationJob(
+                new Settings(),
+                new NetworkSnapshot(new NetworkId("net"), new SnapshotId("ss")),
+                ImmutableMap.of("config.vrp", huaweiConfig),
+                new Warnings.Settings(false, false, false),
+                ConfigurationFormat.HUAWEI,
+                ImmutableMultimap.of())
+            .call();
+
+    assertThat(result.getFailureCause(), equalTo(null));
+  }
+
+  @Test
+  public void testParseHuaweiConfigEmpty() {
+    String emptyConfig = "";
+
+    ParseResult result =
+        new ParseVendorConfigurationJob(
+                new Settings(),
+                new NetworkSnapshot(new NetworkId("net"), new SnapshotId("ss")),
+                ImmutableMap.of("empty.vrp", emptyConfig),
+                new Warnings.Settings(false, false, false),
+                ConfigurationFormat.HUAWEI,
+                ImmutableMultimap.of())
+            .parse();
+
+    // Empty files should be detected as empty, not parsed as Huawei
+    assertThat(result.getFormat(), equalTo(ConfigurationFormat.EMPTY));
+  }
+
+  @Test
+  public void testParseHuaweiConfigMinimal() {
+    String minimalConfig = "sysname Router\nreturn\n";
+
+    ParseVendorConfigurationResult result =
+        new ParseVendorConfigurationJob(
+                new Settings(),
+                new NetworkSnapshot(new NetworkId("net"), new SnapshotId("ss")),
+                ImmutableMap.of("minimal.vrp", minimalConfig),
+                new Warnings.Settings(false, false, false),
+                ConfigurationFormat.HUAWEI,
+                ImmutableMultimap.of())
+            .call();
+
+    assertThat(result.getFailureCause(), equalTo(null));
+  }
+
+  @Test
+  public void testParseHuaweiConfigWithMultipleInterfaces() {
+    String config =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "interface GigabitEthernet0/0/1\n"
+            + " ip address 192.168.2.1 255.255.255.0\n"
+            + "interface Loopback0\n"
+            + " ip address 10.0.0.1 255.255.255.255\n"
+            + "return\n";
+
+    ParseVendorConfigurationResult result =
+        new ParseVendorConfigurationJob(
+                new Settings(),
+                new NetworkSnapshot(new NetworkId("net"), new SnapshotId("ss")),
+                ImmutableMap.of("multi-iface.vrp", config),
+                new Warnings.Settings(false, false, false),
+                ConfigurationFormat.HUAWEI,
+                ImmutableMultimap.of())
+            .call();
+
+    assertThat(result.getFailureCause(), equalTo(null));
+  }
+
+  @Test
+  public void testParseHuaweiConfigWithRoutePolicy() {
+    String config =
+        "sysname Router1\n"
+            + "route-policy POLICY1 permit node 10\n"
+            + " if-match ip-prefix PREFIX1\n"
+            + " apply local-preference 200\n"
+            + "return\n";
+
+    ParseVendorConfigurationResult result =
+        new ParseVendorConfigurationJob(
+                new Settings(),
+                new NetworkSnapshot(new NetworkId("net"), new SnapshotId("ss")),
+                ImmutableMap.of("route-policy.vrp", config),
+                new Warnings.Settings(false, false, false),
+                ConfigurationFormat.HUAWEI,
+                ImmutableMultimap.of())
+            .call();
+
+    assertThat(result.getFailureCause(), equalTo(null));
+  }
+
+  @Test
+  public void testDetectFormatHuaweiVrf() {
+    String huaweiConfig = "sysname Router1\nip vrf VRF1\n route-distinguisher 100:1\n";
+    assertThat(
+        detectFormat(
+            ImmutableMap.of("file", huaweiConfig), new Settings(), ConfigurationFormat.UNKNOWN),
+        equalTo(ConfigurationFormat.HUAWEI));
+  }
 }
