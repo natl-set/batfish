@@ -26,6 +26,8 @@ ACCPROFILE: 'accprofile' {
 
 ACTION: 'action';
 
+ACCESS_LIST: 'access-list';
+
 ADDRESS: 'address';
 
 ADDRESS6: 'address6' {
@@ -69,6 +71,8 @@ ALERTMAIL: 'alertmail' {
 ALIAS: 'alias' -> pushMode(M_Str);
 
 ALL: [aA][lL][lL];
+
+ANY: 'any';
 
 ALLOW: 'allow';
 
@@ -232,6 +236,8 @@ DISABLE: 'disable';
 
 DISTANCE: 'distance';
 
+DNSFILTER_PROFILE: 'dnsfilter-profile' -> pushMode(M_Str);
+
 DLP: 'dlp' {
   // ignore config dlp
   if (lastTokenType() == CONFIG) {
@@ -260,6 +266,8 @@ DYNAMIC: 'dynamic';
 EBGP_MULTIPATH: 'ebgp-multipath';
 
 EMAC_VLAN: 'emac-vlan';
+
+EDIT: 'edit' -> pushMode(M_Str);
 
 EMAIL_FILTER: 'emailfilter' {
   // ignore config emailfilter
@@ -540,6 +548,10 @@ MODE: 'mode' -> pushMode(M_Str);
 MONITOR_BANDWIDTH: 'monitor-bandwidth' -> pushMode(M_Str);
 
 MOVE: 'move' -> pushMode(M_SingleStr);
+
+MTU: 'mtu';
+
+MTU_OVERRIDE: 'mtu-override';
 
 MULTICAST: 'multicast' {
   if (lastTokenType() == ROUTER && secondToLastTokenType() == CONFIG) {
@@ -839,6 +851,8 @@ SPLIT_PORT_MODE: 'split-port-mode' {
     pushMode(M_IgnoredConfigBlock);
   }
 };
+
+SCTP_PORTRANGE: 'sctp-portrange';
 
 SRCADDR: 'srcaddr' -> pushMode(M_Str);
 
