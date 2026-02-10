@@ -12,6 +12,7 @@ Huawei_acl,
 Huawei_nat,
 Huawei_vrf,
 Huawei_route_policy,
+Huawei_community_filter,
 Huawei_ignored;
 
 options {
@@ -40,6 +41,7 @@ s_stanza
    | s_nat
    | s_vrf
    | s_route_policy
+   | s_ip_community_filter
    | s_return
    | s_interface
    | s_ignored
