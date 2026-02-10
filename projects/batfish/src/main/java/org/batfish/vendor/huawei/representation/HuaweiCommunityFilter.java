@@ -48,10 +48,10 @@ public class HuaweiCommunityFilter implements Serializable {
   private final int _filterNumber;
 
   /** The action: permit or deny */
-  private final @Nonnull Action _action;
+  private @Nonnull Action _action;
 
   /** The list of community values to match */
-  private final @Nonnull List<Community> _communities;
+  private @Nonnull List<Community> _communities;
 
   /** The action type for a community filter */
   public enum Action {
