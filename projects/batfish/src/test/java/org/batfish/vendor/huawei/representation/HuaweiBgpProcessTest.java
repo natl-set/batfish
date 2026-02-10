@@ -577,4 +577,247 @@ public class HuaweiBgpProcessTest {
     assertThat(process.getImportRoutes().get(0).getProtocol(), equalTo("ospf"));
     assertThat(process.getImportRoutes().get(0).getRoutePolicy(), equalTo("REDISTRIBUTE_POLICY"));
   }
+
+  @Test
+  public void testPeerGroupLocalAs() {
+    HuaweiBgpProcess process = new HuaweiBgpProcess(65001L);
+    HuaweiBgpProcess.HuaweiBgpPeerGroup group = process.getOrCreatePeerGroup("GROUP1");
+
+    assertThat(group.getLocalAs(), nullValue());
+
+    group.setLocalAs(65001);
+    assertThat(group.getLocalAs(), equalTo(65001));
+
+    group.setLocalAs(null);
+    assertThat(group.getLocalAs(), nullValue());
+  }
+
+  @Test
+  public void testAddressFamilyMulticast() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+    assertThat(af.isMulticast(), equalTo(false));
+
+    af.setMulticast(true);
+    assertThat(af.isMulticast(), equalTo(true));
+
+    af.setMulticast(false);
+    assertThat(af.isMulticast(), equalTo(false));
+  }
+
+  @Test
+  public void testAddressFamilyVpn() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("vpnv4");
+    assertThat(af.isVpn(), equalTo(false));
+
+    af.setVpn(true);
+    assertThat(af.isVpn(), equalTo(true));
+
+    af.setVpn(false);
+    assertThat(af.isVpn(), equalTo(false));
+  }
+
+  @Test
+  public void testAddressFamilyPolicies() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    assertThat(af.getImportPolicy(), nullValue());
+    assertThat(af.getExportPolicy(), nullValue());
+
+    af.setImportPolicy("IMPORT_POLICY");
+    af.setExportPolicy("EXPORT_POLICY");
+
+    assertThat(af.getImportPolicy(), equalTo("IMPORT_POLICY"));
+    assertThat(af.getExportPolicy(), equalTo("EXPORT_POLICY"));
+  }
+
+  @Test
+  public void testAddressFamilyGetOrCreatePeerConfig() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    assertThat(af.getPeerConfigs().size(), equalTo(0));
+
+    Ip peerIp = Ip.parse("10.0.0.1");
+    HuaweiBgpProcess.HuaweiBgpAfPeerConfig config = af.getOrCreatePeerConfig(peerIp);
+
+    assertThat(config.getPeerIp(), equalTo(peerIp));
+    assertThat(af.getPeerConfigs().size(), equalTo(1));
+    assertThat(af.getPeerConfigs(), hasKey(peerIp));
+
+    // Get same peer should return existing
+    HuaweiBgpProcess.HuaweiBgpAfPeerConfig config2 = af.getOrCreatePeerConfig(peerIp);
+    assertThat(config, equalTo(config2));
+    assertThat(af.getPeerConfigs().size(), equalTo(1));
+  }
+
+  @Test
+  public void testAddressFamilyGetOrCreatePeerGroupConfig() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    assertThat(af.getPeerGroupConfigs().size(), equalTo(0));
+
+    String groupName = "GROUP1";
+    HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig config = af.getOrCreatePeerGroupConfig(groupName);
+
+    assertThat(config.getGroupName(), equalTo(groupName));
+    assertThat(af.getPeerGroupConfigs().size(), equalTo(1));
+    assertThat(af.getPeerGroupConfigs(), hasKey(groupName));
+
+    // Get same group should return existing
+    HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig config2 = af.getOrCreatePeerGroupConfig(groupName);
+    assertThat(config, equalTo(config2));
+    assertThat(af.getPeerGroupConfigs().size(), equalTo(1));
+  }
+
+  @Test
+  public void testAfPeerConfigSettings() {
+    HuaweiBgpProcess.HuaweiBgpAfPeerConfig config =
+        new HuaweiBgpProcess.HuaweiBgpAfPeerConfig(Ip.parse("10.0.0.1"));
+
+    assertThat(config.getPeerIp(), equalTo(Ip.parse("10.0.0.1")));
+    assertThat(config.getImportPolicy(), nullValue());
+    assertThat(config.getExportPolicy(), nullValue());
+    assertThat(config.getAdvertiseCommunity(), nullValue());
+
+    config.setImportPolicy("IMPORT_POLICY");
+    config.setExportPolicy("EXPORT_POLICY");
+    config.setAdvertiseCommunity(true);
+
+    assertThat(config.getImportPolicy(), equalTo("IMPORT_POLICY"));
+    assertThat(config.getExportPolicy(), equalTo("EXPORT_POLICY"));
+    assertThat(config.getAdvertiseCommunity(), equalTo(true));
+
+    config.setAdvertiseCommunity(false);
+    assertThat(config.getAdvertiseCommunity(), equalTo(false));
+  }
+
+  @Test
+  public void testAfPeerGroupConfigSettings() {
+    HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig config =
+        new HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig("GROUP1");
+
+    assertThat(config.getGroupName(), equalTo("GROUP1"));
+    assertThat(config.getImportPolicy(), nullValue());
+    assertThat(config.getExportPolicy(), nullValue());
+    assertThat(config.getAdvertiseCommunity(), nullValue());
+
+    config.setImportPolicy("IMPORT_POLICY");
+    config.setExportPolicy("EXPORT_POLICY");
+    config.setAdvertiseCommunity(true);
+
+    assertThat(config.getImportPolicy(), equalTo("IMPORT_POLICY"));
+    assertThat(config.getExportPolicy(), equalTo("EXPORT_POLICY"));
+    assertThat(config.getAdvertiseCommunity(), equalTo(true));
+
+    config.setAdvertiseCommunity(false);
+    assertThat(config.getAdvertiseCommunity(), equalTo(false));
+  }
+
+  @Test
+  public void testBgpNetworkConstructor() {
+    Prefix prefix = Prefix.parse("10.0.0.0/24");
+    Ip mask = Ip.parse("255.255.255.0");
+
+    HuaweiBgpProcess.HuaweiBgpNetwork network = new HuaweiBgpProcess.HuaweiBgpNetwork(prefix, mask);
+
+    assertThat(network.getNetwork(), equalTo(prefix));
+    assertThat(network.getMask(), equalTo(mask));
+    assertThat(network.getRoutePolicy(), nullValue());
+  }
+
+  @Test
+  public void testBgpNetworkSetRoutePolicy() {
+    Prefix prefix = Prefix.parse("10.0.0.0/24");
+    Ip mask = Ip.parse("255.255.255.0");
+
+    HuaweiBgpProcess.HuaweiBgpNetwork network = new HuaweiBgpProcess.HuaweiBgpNetwork(prefix, mask);
+
+    network.setRoutePolicy("ROUTE_POLICY");
+    assertThat(network.getRoutePolicy(), equalTo("ROUTE_POLICY"));
+
+    network.setRoutePolicy(null);
+    assertThat(network.getRoutePolicy(), nullValue());
+  }
+
+  @Test
+  public void testSetNetworks() {
+    HuaweiBgpProcess process = new HuaweiBgpProcess(65001L);
+
+    java.util.List<HuaweiBgpProcess.HuaweiBgpNetwork> networks = new java.util.ArrayList<>();
+    networks.add(
+        new HuaweiBgpProcess.HuaweiBgpNetwork(
+            Prefix.parse("10.0.0.0/24"), Ip.parse("255.255.255.0")));
+    networks.add(
+        new HuaweiBgpProcess.HuaweiBgpNetwork(
+            Prefix.parse("10.1.0.0/24"), Ip.parse("255.255.255.0")));
+
+    process.setNetworks(networks);
+    assertThat(process.getNetworks(), equalTo(networks));
+    assertThat(process.getNetworks().size(), equalTo(2));
+  }
+
+  @Test
+  public void testAddressFamilySetPeerConfigs() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    Map<Ip, HuaweiBgpProcess.HuaweiBgpAfPeerConfig> peerConfigs = new TreeMap<>();
+    peerConfigs.put(
+        Ip.parse("10.0.0.1"), new HuaweiBgpProcess.HuaweiBgpAfPeerConfig(Ip.parse("10.0.0.1")));
+    peerConfigs.put(
+        Ip.parse("10.0.0.2"), new HuaweiBgpProcess.HuaweiBgpAfPeerConfig(Ip.parse("10.0.0.2")));
+
+    af.setPeerConfigs(peerConfigs);
+    assertThat(af.getPeerConfigs(), equalTo(peerConfigs));
+    assertThat(af.getPeerConfigs().size(), equalTo(2));
+  }
+
+  @Test
+  public void testAddressFamilySetPeerGroupConfigs() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    Map<String, HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig> peerGroupConfigs = new TreeMap<>();
+    peerGroupConfigs.put("GROUP1", new HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig("GROUP1"));
+    peerGroupConfigs.put("GROUP2", new HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig("GROUP2"));
+
+    af.setPeerGroupConfigs(peerGroupConfigs);
+    assertThat(af.getPeerGroupConfigs(), equalTo(peerGroupConfigs));
+    assertThat(af.getPeerGroupConfigs().size(), equalTo(2));
+  }
+
+  @Test
+  public void testAddressFamilyWithMultiplePeersAndGroups() {
+    HuaweiBgpProcess.HuaweiBgpAddressFamily af =
+        new HuaweiBgpProcess.HuaweiBgpAddressFamily("ipv4");
+
+    af.setImportPolicy("GLOBAL_IMPORT");
+    af.setExportPolicy("GLOBAL_EXPORT");
+    af.setUnicast(true);
+    af.setMulticast(false);
+    af.setVpn(false);
+
+    HuaweiBgpProcess.HuaweiBgpAfPeerConfig peerConfig1 =
+        af.getOrCreatePeerConfig(Ip.parse("10.0.0.1"));
+    peerConfig1.setImportPolicy("PEER1_IMPORT");
+    peerConfig1.setAdvertiseCommunity(true);
+
+    HuaweiBgpProcess.HuaweiBgpAfPeerConfig peerConfig2 =
+        af.getOrCreatePeerConfig(Ip.parse("10.0.0.2"));
+    peerConfig2.setExportPolicy("PEER2_EXPORT");
+
+    HuaweiBgpProcess.HuaweiBgpAfPeerGroupConfig groupConfig =
+        af.getOrCreatePeerGroupConfig("GROUP1");
+    groupConfig.setImportPolicy("GROUP_IMPORT");
+    groupConfig.setExportPolicy("GROUP_EXPORT");
+
+    assertThat(af.getImportPolicy(), equalTo("GLOBAL_IMPORT"));
+    assertThat(af.getExportPolicy(), equalTo("GLOBAL_EXPORT"));
+    assertThat(af.getPeerConfigs().size(), equalTo(2));
+    assertThat(af.getPeerGroupConfigs().size(), equalTo(1));
+  }
 }
