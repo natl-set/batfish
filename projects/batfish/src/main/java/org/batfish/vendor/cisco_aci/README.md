@@ -299,8 +299,8 @@ List<FabricNode> leaves = nodes.stream()
 for (FabricNode leaf : leaves) {
     for (FabricNode spine : spines) {
         edges.add(new Layer1Edge(
-            leaf.getNodeId(), leafInterface,
-            spine.getNodeId(), spineInterface
+            leaf.getName(), leafInterface,
+            spine.getName(), spineInterface
         ));
     }
 }
@@ -313,22 +313,22 @@ Virtual Port Channel (VPC) pairs are automatically detected and connected:
 ```java
 // VPC peer-link edges
 for (VpcPair vpcPair : aciConfig.getVpcPairs().values()) {
-    String peer1Id = vpcPair.getPeer1NodeId();
-    String peer2Id = vpcPair.getPeer2NodeId();
+    String peer1Hostname = ...; // resolved from peer1 node
+    String peer2Hostname = ...; // resolved from peer2 node
     edges.add(new Layer1Edge(
-        peer1Id, "port-channel1",
-        peer2Id, "port-channel1"
+        peer1Hostname, "port-channel1",
+        peer2Hostname, "port-channel1"
     ));
 }
 ```
 
 ### Important: Node Identification
 
-Topology edges use `nodeId` (e.g., "101", "201") rather than node names to ensure proper matching with the configuration map. This is critical for Batfish to correlate topology edges with device configurations.
+Topology edges use resolved node hostnames (prefer `fabricNodeIdentP.attributes.name`; otherwise fallback names) so they match the configuration map keys.
 
-**Example edge:** `Layer1Edge(201, "ethernet1/1", 101, "ethernet1/1")`
-- Node 201 (leaf) connects to Node 101 (spine)
-- Both identifiers are numeric nodeIds, not hostnames
+**Example edge:** `Layer1Edge("leaf-1", "ethernet1/1", "spine-1", "ethernet1/1")`
+- Hostname `leaf-1` connects to hostname `spine-1`
+- Edge identifiers match configuration hostnames
 
 ## Fabric Node to Configuration Mapping
 
@@ -337,9 +337,10 @@ Each fabric node in the ACI configuration becomes a separate Batfish `Configurat
 ```java
 // In AciConversion.toVendorIndependentConfigurations()
 for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
-    Configuration c = convertNode(node, aciConfig, warnings);
-    // Key by nodeId to match topology edge identifiers
-    configs.put(node.getNodeId(), c);
+    String hostname = ...; // resolved node hostname
+    Configuration c = convertNode(node, aciConfig, hostname, warnings);
+    // Key by resolved hostname to match topology edge identifiers
+    configs.put(hostname, c);
 }
 ```
 

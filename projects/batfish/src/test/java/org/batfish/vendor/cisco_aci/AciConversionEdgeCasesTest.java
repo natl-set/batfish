@@ -79,7 +79,7 @@ public class AciConversionEdgeCasesTest {
 
     // Should still create a configuration, using node ID as fallback
     assertThat(viConfigs, aMapWithSize(1));
-    Configuration nodeConfig = viConfigs.get("101");
+    Configuration nodeConfig = viConfigs.get("test-fabric-101");
     assertNotNull(nodeConfig);
     assertEquals("test-fabric-101", nodeConfig.getHostname());
   }
@@ -102,7 +102,7 @@ public class AciConversionEdgeCasesTest {
     SortedMap<String, Configuration> viConfigs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration nodeConfig = viConfigs.get("1204");
+    Configuration nodeConfig = viConfigs.get("aci-dc2-ce2-1204");
     assertNotNull(nodeConfig);
     assertEquals("aci-dc2-ce2-1204", nodeConfig.getHostname());
   }
@@ -131,7 +131,7 @@ public class AciConversionEdgeCasesTest {
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
     // Should still create configuration
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
     // EPG without BD should not cause failure
   }
@@ -160,7 +160,7 @@ public class AciConversionEdgeCasesTest {
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
     // Should create configuration even with empty contract (no subjects = no ACL)
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
     // Contract without subjects doesn't create an ACL
   }
@@ -193,7 +193,7 @@ public class AciConversionEdgeCasesTest {
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
     // Should create configuration without BGP
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
     // L3Out should be processed even without BGP
   }
@@ -230,7 +230,7 @@ public class AciConversionEdgeCasesTest {
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
     // Both VRFs should be created in the vendor-independent config
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
     assertThat(leafConfig.getVrfs(), hasKey("tenant1:orphaned-vrf"));
     assertThat(leafConfig.getVrfs(), hasKey("tenant1:used-vrf"));
@@ -270,7 +270,7 @@ public class AciConversionEdgeCasesTest {
     SortedMap<String, Configuration> viConfigs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
 
     // Count VLAN interfaces with addresses
@@ -319,7 +319,7 @@ public class AciConversionEdgeCasesTest {
     SortedMap<String, Configuration> viConfigs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
 
     String aclName = AciConversion.getContractAclName("tenant1:deny-contract");
@@ -347,7 +347,7 @@ public class AciConversionEdgeCasesTest {
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
     // Should still create valid configuration
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
   }
 
@@ -376,7 +376,7 @@ public class AciConversionEdgeCasesTest {
     SortedMap<String, Configuration> viConfigs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
 
     // Interface should exist even without VLAN
@@ -428,7 +428,7 @@ public class AciConversionEdgeCasesTest {
     SortedMap<String, Configuration> viConfigs =
         AciConversion.toVendorIndependentConfigurations(config, warnings);
 
-    Configuration leafConfig = viConfigs.get("101");
+    Configuration leafConfig = viConfigs.get("leaf1");
     assertNotNull(leafConfig);
 
     // Should have default VRF
