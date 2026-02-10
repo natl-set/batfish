@@ -123002,6 +123002,20 @@
           }
         }
       },
+      "palo_alto_snmp_settings" : {
+        "configurationFormat" : "PALO_ALTO_NESTED",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "palo_alto_snmp_settings",
+        "defaultCrossZoneAction" : "DENY",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "PALO_ALTO_FIREWALL",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : false,
+        "humanName" : "palo_alto_snmp_settings",
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { }
+      },
       "palo_alto_virtual_routers" : {
         "configurationFormat" : "PALO_ALTO_NESTED",
         "exportBgpFromBgpRib" : false,
@@ -123685,6 +123699,7 @@
             "hmm" : false,
             "lineUp" : true,
             "mtu" : 1500,
+            "outgoingOriginalFlowFilter" : "~ethernet1/1~OUTGOING_FILTER~",
             "proxyArp" : false,
             "ripEnabled" : false,
             "ripPassive" : false,
@@ -123742,6 +123757,7 @@
             "hmm" : false,
             "lineUp" : true,
             "mtu" : 1500,
+            "outgoingOriginalFlowFilter" : "~ethernet1/3~OUTGOING_FILTER~",
             "proxyArp" : false,
             "ripEnabled" : false,
             "ripPassive" : false,
@@ -123767,6 +123783,7 @@
             "hmm" : false,
             "lineUp" : true,
             "mtu" : 1500,
+            "outgoingOriginalFlowFilter" : "~ethernet1/4~OUTGOING_FILTER~",
             "proxyArp" : false,
             "ripEnabled" : false,
             "ripPassive" : false,
@@ -123808,6 +123825,42 @@
             ],
             "name" : "zone~zl3~vsys10~to~zone~zl3~vsys10"
           },
+          "~ethernet1/1~OUTGOING_FILTER~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Not in a zone",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Cannot exit interface ethernet1/1 because it is not in a zone"
+                    }
+                  ]
+                }
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.OriginatingFromDevice"
+                },
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Originated from the device"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~ethernet1/1~OUTGOING_FILTER~"
+          },
           "~ethernet1/2~OUTGOING_FILTER~" : {
             "lines" : [
               {
@@ -123840,6 +123893,78 @@
               }
             ],
             "name" : "~ethernet1/2~OUTGOING_FILTER~"
+          },
+          "~ethernet1/3~OUTGOING_FILTER~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Not in a zone",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Cannot exit interface ethernet1/3 because it is not in a zone"
+                    }
+                  ]
+                }
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.OriginatingFromDevice"
+                },
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Originated from the device"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~ethernet1/3~OUTGOING_FILTER~"
+          },
+          "~ethernet1/4~OUTGOING_FILTER~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.TrueExpr"
+                },
+                "name" : "Not in a zone",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Cannot exit interface ethernet1/4 because it is not in a zone"
+                    }
+                  ]
+                }
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.OriginatingFromDevice"
+                },
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Originated from the device"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~ethernet1/4~OUTGOING_FILTER~"
           },
           "~zl3~vsys10~OUTGOING_FILTER~" : {
             "lines" : [

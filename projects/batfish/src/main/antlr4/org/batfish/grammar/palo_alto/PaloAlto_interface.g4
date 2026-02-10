@@ -45,10 +45,73 @@ sni_aggregate_ethernet_definition
     name = variable
     (
         if_common
+        | snie_lacp
         | snie_layer2
         | snie_layer3
         | snie_virtual_wire
-    )?
+    )*
+;
+
+snie_lacp
+: LACP
+    (
+        sniel_enable
+        | sniel_fast_null
+        | sniel_high_availability
+        | sniel_mode
+        | sniel_passive_pre_negotiation_null
+        | sniel_port_priority
+        | sniel_transmission_rate_null
+    )*
+;
+
+sniel_high_availability
+:
+    HIGH_AVAILABILITY
+    (
+        sniel_ha_passive_pre_negotiation_null
+        | sniel_use_same_system_mac_null
+    )*
+;
+
+sniel_ha_passive_pre_negotiation_null
+:
+    PASSIVE_PRE_NEGOTIATION yn = yes_or_no
+;
+
+sniel_use_same_system_mac_null
+:
+    USE_SAME_SYSTEM_MAC ENABLE yn = yes_or_no
+;
+
+sniel_mode
+:
+    MODE (ACTIVE | PASSIVE)
+;
+
+sniel_port_priority
+:
+    PORT_PRIORITY priority = uint16
+;
+
+sniel_enable
+:
+    ENABLE yn = yes_or_no
+;
+
+sniel_fast_null
+:
+    FAST
+;
+
+sniel_passive_pre_negotiation_null
+:
+    PASSIVE_PRE_NEGOTIATION yn = yes_or_no
+;
+
+sniel_transmission_rate_null
+:
+    TRANSMISSION_RATE rate = variable
 ;
 
 sni_ethernet
@@ -63,6 +126,7 @@ sni_ethernet_definition
         if_common
         | snie_aggregate_group
         | snie_ha
+        | snie_lacp
         | snie_layer2
         | snie_layer3
         | snie_link_duplex
@@ -70,7 +134,7 @@ sni_ethernet_definition
         | snie_link_state
         | snie_tap
         | snie_virtual_wire
-    )?
+    )*
 ;
 
 sni_loopback
@@ -80,7 +144,7 @@ sni_loopback
         if_common
         | snil_ip
         | snil_units
-    )?
+    )*
 ;
 
 sni_tunnel
@@ -88,7 +152,7 @@ sni_tunnel
     TUNNEL (
         if_common
         | snit_units
-    )?
+    )*
 ;
 
 sni_vlan
@@ -97,7 +161,7 @@ sni_vlan
     (
         if_common
         | sniv_units
-    )?
+    )*
 ;
 
 snie_aggregate_group
@@ -115,7 +179,13 @@ snie_layer2
     LAYER2
     (
         sniel2_units
-    )?
+        | sniel2_zone
+    )*
+;
+
+sniel2_zone
+:
+    ZONE zone = variable
 ;
 
 snie_layer3
@@ -123,8 +193,15 @@ snie_layer3
     LAYER3
     (
         sniel3_common
+        | snie_lacp
+        | snie_untagged_sub_interface
         | sniel3_units
-    )?
+    )*
+;
+
+snie_untagged_sub_interface
+:
+    UNTAGGED_SUB_INTERFACE yn = yes_or_no
 ;
 
 snie_link_duplex
@@ -172,20 +249,31 @@ sniel2_unit
     (
         if_common
         | if_tag
-    )
+    )*
+;
+
+sniel2_lldp
+:
+    LLDP ENABLE yn = yes_or_no
 ;
 
 sniel2_units
 :
     UNITS sniel2_unit?
+    | sniel2_lldp
 ;
 
 // Common syntax between layer3 interfaces and subinterfaces (units)
 sniel3_common
 :
     (
-        sniel3_ip
+        sniel3_adjust_tcp_mss
+        | sniel3_interface_management_profile
+        | sniel3_ip
+        | sniel3_ipv6
+        | sniel3_lldp
         | sniel3_mtu
+        | sniel3_ndp_proxy
         | sniel3_null
     )
 ;
@@ -193,6 +281,11 @@ sniel3_common
 sniel3_ip
 :
     IP address = interface_address_or_reference
+;
+
+sniel3_lldp
+:
+    LLDP ENABLE yn = yes_or_no
 ;
 
 sniel3_mtu
@@ -204,12 +297,40 @@ sniel3_null
 :
     (
         ADJUST_TCP_MSS
-        | LLDP
-        | IPV6
-        | NDP_PROXY
         | NETFLOW_PROFILE
+        | INTERFACE_MANAGEMENT_PROFILE
     )
     null_rest_of_line
+;
+
+sniel3_ndp_proxy
+:
+    NDP_PROXY (ENABLE | ENABLED)? yn = yes_or_no
+;
+
+sniel3_adjust_tcp_mss
+:
+    ADJUST_TCP_MSS (ENABLE | ENABLED)? yn = yes_or_no
+;
+
+sniel3_interface_management_profile
+:
+    INTERFACE_MANAGEMENT_PROFILE profile = variable
+;
+
+sniel3_ipv6
+:
+    IPV6 sniel3_ipv6_neighbor_discovery?
+;
+
+sniel3_ipv6_neighbor_discovery
+:
+    NEIGHBOR_DISCOVERY sniel3_ipv6_nd_router_advertisement?
+;
+
+sniel3_ipv6_nd_router_advertisement
+:
+    ROUTER_ADVERTISEMENT ENABLE yn = yes_or_no
 ;
 
 sniel3_unit
@@ -219,7 +340,7 @@ sniel3_unit
         if_common
         | sniel3_common
         | if_tag
-    )
+    )*
 ;
 
 sniel3_units
@@ -238,7 +359,7 @@ snil_unit
     (
         if_common
         | snil_ip
-    )?
+    )*
 ;
 
 snil_units
@@ -251,7 +372,8 @@ snit_unit
     name = variable
     (
         if_common
-    )?
+        | sniel3_common
+    )*
 ;
 
 snit_units
@@ -264,7 +386,12 @@ sniv_unit
     name = variable
     (
         if_common
-    )?
+        | sniel3_adjust_tcp_mss
+        | sniel3_interface_management_profile
+        | sniel3_ip
+        | sniel3_ipv6
+        | sniel3_ndp_proxy
+    )*
 ;
 
 sniv_units
