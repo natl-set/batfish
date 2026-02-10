@@ -541,7 +541,7 @@ public class HuaweiBgpProcess implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** The protocol to redistribute from */
-    private final String _protocol;
+    private String _protocol;
 
     private String _routePolicy;
 
@@ -551,6 +551,10 @@ public class HuaweiBgpProcess implements Serializable {
 
     public String getProtocol() {
       return _protocol;
+    }
+
+    public void setProtocol(String protocol) {
+      _protocol = protocol;
     }
 
     public @Nullable String getRoutePolicy() {
