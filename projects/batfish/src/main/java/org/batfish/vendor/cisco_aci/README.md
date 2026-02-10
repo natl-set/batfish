@@ -359,8 +359,8 @@ For each fabric node, the conversion:
 private static Configuration convertNode(
     AciConfiguration.FabricNode node,
     AciConfiguration aciConfig,
+    String hostname,
     Warnings warnings) {
-    String hostname = node.getName();
     Configuration c = new Configuration(hostname, ConfigurationFormat.CISCO_ACI);
     c.setDeviceModel(DeviceModel.CISCO_ACI);
     // ... VRF, interface, contract, EPG conversion

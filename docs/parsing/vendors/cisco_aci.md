@@ -301,7 +301,7 @@ Each fabric node becomes a separate Batfish `Configuration` object:
 
 ```java
 // In AciConversion.toVendorIndependentConfigurations()
-Map<String, Configuration> configs = new HashMap<>();
+SortedMap<String, Configuration> configs = new TreeMap<>();
 
 if (aciConfig.getFabricNodes().isEmpty()) {
     // No fabric nodes - create single config
@@ -310,8 +310,9 @@ if (aciConfig.getFabricNodes().isEmpty()) {
 } else {
     // One config per fabric node
     for (AciConfiguration.FabricNode node : aciConfig.getFabricNodes().values()) {
-        Configuration c = convertNode(node, aciConfig, warnings);
-        configs.put(node.getName(), c);
+        String hostname = ...; // resolved node hostname
+        Configuration c = convertNode(node, aciConfig, hostname, warnings);
+        configs.put(hostname, c);
     }
 }
 
