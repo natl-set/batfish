@@ -234,9 +234,9 @@ DEVICE_IDENTIFICATION: 'device-identification' -> pushMode(M_Str);
 
 DISABLE: 'disable';
 
-DISTANCE: 'distance';
-
 DNSFILTER_PROFILE: 'dnsfilter-profile' -> pushMode(M_Str);
+
+DISTANCE: 'distance';
 
 DLP: 'dlp' {
   // ignore config dlp
