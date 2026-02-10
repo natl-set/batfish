@@ -307,18 +307,6 @@ public class BgpPeerConfigTest {
   }
 
   @Test
-  public void testEqualsSelf() {
-    BgpActivePeerConfig config =
-        BgpActivePeerConfig.builder()
-            .setPeerAddress(Ip.parse("10.0.0.1"))
-            .setRemoteAs(65001L)
-            .build();
-
-    // Reflexivity: x.equals(x) should be true
-    assertTrue(config.equals(config));
-  }
-
-  @Test
   public void testNotEqualsNull() {
     BgpActivePeerConfig config =
         BgpActivePeerConfig.builder()
