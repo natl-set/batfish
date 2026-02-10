@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
  *   <li>Contracts with no filter rules
  * </ul>
  */
+@SuppressWarnings("PMD.UnusedFormalParameter")
 public class AciReachabilityAnalyzer {
 
   /** Status of reachability between two EPGs. */
@@ -57,8 +58,7 @@ public class AciReachabilityAnalyzer {
    * @param config The ACI configuration to analyze
    * @return List of reachability findings sorted by severity (HIGH first)
    */
-  @Nonnull
-  public static List<ReachabilityFinding> analyzeEpgReachability(AciConfiguration config) {
+  public static @Nonnull List<ReachabilityFinding> analyzeEpgReachability(AciConfiguration config) {
     List<ReachabilityFinding> findings = new ArrayList<>();
 
     // Collect all EPGs across all tenants
@@ -125,8 +125,7 @@ public class AciReachabilityAnalyzer {
    * @param allEpgs Map of all EPGs in the configuration
    * @return Reachability status between the two EPGs
    */
-  @Nonnull
-  private static ReachabilityStatus canCommunicate(
+  private static @Nonnull ReachabilityStatus canCommunicate(
       String epg1,
       String epg2,
       AciConfiguration config,
@@ -258,8 +257,7 @@ public class AciReachabilityAnalyzer {
    * @param allEpgs Map of all EPGs in the configuration
    * @return List of findings for orphaned EPGs
    */
-  @Nonnull
-  private static List<ReachabilityFinding> findOrphanedEpgs(
+  private static @Nonnull List<ReachabilityFinding> findOrphanedEpgs(
       AciConfiguration config, Map<String, AciConfiguration.Epg> allEpgs) {
 
     List<ReachabilityFinding> findings = new ArrayList<>();
@@ -314,8 +312,7 @@ public class AciReachabilityAnalyzer {
    * @param allContracts Map of all contracts in the configuration
    * @return List of findings for invalid contract references
    */
-  @Nonnull
-  private static List<ReachabilityFinding> findInvalidContractReferences(
+  private static @Nonnull List<ReachabilityFinding> findInvalidContractReferences(
       AciConfiguration config,
       Map<String, AciConfiguration.Epg> allEpgs,
       Map<String, AciConfiguration.Contract> allContracts) {
@@ -373,8 +370,7 @@ public class AciReachabilityAnalyzer {
    * @param allContracts Map of all contracts in the configuration
    * @return List of findings for empty contracts
    */
-  @Nonnull
-  private static List<ReachabilityFinding> findEmptyContracts(
+  private static @Nonnull List<ReachabilityFinding> findEmptyContracts(
       Map<String, AciConfiguration.Contract> allContracts) {
 
     List<ReachabilityFinding> findings = new ArrayList<>();
@@ -419,8 +415,7 @@ public class AciReachabilityAnalyzer {
    * @param allEpgs Map of all EPGs in the configuration
    * @return List of findings for EPGs without path attachments
    */
-  @Nonnull
-  private static List<ReachabilityFinding> findEpgsWithoutPaths(
+  private static @Nonnull List<ReachabilityFinding> findEpgsWithoutPaths(
       AciConfiguration config, Map<String, AciConfiguration.Epg> allEpgs) {
 
     List<ReachabilityFinding> findings = new ArrayList<>();

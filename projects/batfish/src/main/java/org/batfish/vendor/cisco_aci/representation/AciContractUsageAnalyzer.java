@@ -38,8 +38,8 @@ public final class AciContractUsageAnalyzer {
    * @param config The ACI configuration to analyze
    * @return List of findings describing potential issues
    */
-  @Nonnull
-  public static List<ContractUsageFinding> analyzeContractUsage(@Nonnull AciConfiguration config) {
+  public static @Nonnull List<ContractUsageFinding> analyzeContractUsage(
+      @Nonnull AciConfiguration config) {
     List<ContractUsageFinding> findings = new ArrayList<>();
 
     // Build maps of contract providers and consumers

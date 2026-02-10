@@ -97,62 +97,52 @@ public class SubnetFinding implements Serializable {
   }
 
   @JsonProperty(PROP_SEVERITY)
-  @Nonnull
-  public Severity getSeverity() {
+  public @Nonnull Severity getSeverity() {
     return _severity;
   }
 
   @JsonProperty(PROP_CATEGORY)
-  @Nonnull
-  public Category getCategory() {
+  public @Nonnull Category getCategory() {
     return _category;
   }
 
   @JsonProperty(PROP_BRIDGE_DOMAIN_1)
-  @Nonnull
-  public String getBridgeDomain1() {
+  public @Nonnull String getBridgeDomain1() {
     return _bridgeDomain1;
   }
 
   @JsonProperty(PROP_VRF_1)
-  @Nonnull
-  public String getVrf1() {
+  public @Nonnull String getVrf1() {
     return _vrf1;
   }
 
   @JsonProperty(PROP_SUBNET_1)
-  @Nonnull
-  public String getSubnet1() {
+  public @Nonnull String getSubnet1() {
     return _subnet1;
   }
 
   @JsonProperty(PROP_BRIDGE_DOMAIN_2)
-  @Nullable
-  public String getBridgeDomain2() {
+  public @Nullable String getBridgeDomain2() {
     return _bridgeDomain2;
   }
 
   @JsonProperty(PROP_VRF_2)
-  @Nullable
-  public String getVrf2() {
+  public @Nullable String getVrf2() {
     return _vrf2;
   }
 
   @JsonProperty(PROP_SUBNET_2)
-  @Nullable
-  public String getSubnet2() {
+  public @Nullable String getSubnet2() {
     return _subnet2;
   }
 
   @JsonProperty(PROP_DESCRIPTION)
-  @Nonnull
-  public String getDescription() {
+  public @Nonnull String getDescription() {
     return _description;
   }
 
   @JsonProperty(PROP_RECOMMENDATION)
-  @Nonnull
-  public String getRecommendation() {
+  public @Nonnull String getRecommendation() {
     return _recommendation;
   }
 

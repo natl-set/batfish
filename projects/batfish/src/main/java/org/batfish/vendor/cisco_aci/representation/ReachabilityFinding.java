@@ -92,8 +92,7 @@ public class ReachabilityFinding implements Serializable {
     _category = category;
   }
 
-  @Nullable
-  public String getSourceEpg() {
+  public @Nullable String getSourceEpg() {
     return _sourceEpg;
   }
 
@@ -101,8 +100,7 @@ public class ReachabilityFinding implements Serializable {
     _sourceEpg = sourceEpg;
   }
 
-  @Nullable
-  public String getDestEpg() {
+  public @Nullable String getDestEpg() {
     return _destEpg;
   }
 
@@ -118,8 +116,7 @@ public class ReachabilityFinding implements Serializable {
     _description = description;
   }
 
-  @Nullable
-  public String getRecommendation() {
+  public @Nullable String getRecommendation() {
     return _recommendation;
   }
 
@@ -127,8 +124,7 @@ public class ReachabilityFinding implements Serializable {
     _recommendation = recommendation;
   }
 
-  @Nullable
-  public String getContract() {
+  public @Nullable String getContract() {
     return _contract;
   }
 

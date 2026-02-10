@@ -64,6 +64,11 @@ import org.batfish.vendor.VendorConfiguration;
  *                             └── fabricNodePEp (fabric nodes)
  * </pre>
  */
+@SuppressWarnings({
+  "PMD.UnusedPrivateField",
+  "PMD.UnusedLocalVariable",
+  "PMD.UnusedFormalParameter"
+})
 public final class AciConfiguration extends VendorConfiguration {
 
   private static final String PROP_HOSTNAME = "hostname";
@@ -1823,8 +1828,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return An immutable map of Application Profile names to configurations
    */
-  @Nonnull
-  public Map<String, ApplicationProfile> getApplicationProfiles() {
+  public @Nonnull Map<String, ApplicationProfile> getApplicationProfiles() {
     return _applicationProfiles;
   }
 
@@ -1899,8 +1903,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return An immutable map of VPC IDs to VPC pair configurations
    */
-  @Nonnull
-  public Map<String, VpcPair> getVpcPairs() {
+  public @Nonnull Map<String, VpcPair> getVpcPairs() {
     return _vpcPairs;
   }
 
@@ -1917,8 +1920,7 @@ public final class AciConfiguration extends VendorConfiguration {
    * @return Set of Layer 1 edges between fabric nodes
    */
   @Override
-  @Nonnull
-  public Set<Layer1Edge> getLayer1Edges() {
+  public @Nonnull Set<Layer1Edge> getLayer1Edges() {
     return AciConversion.createLayer1Edges(this);
   }
 
@@ -1927,8 +1929,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return Map of connection IDs to inter-fabric connection configurations
    */
-  @Nonnull
-  public Map<String, InterFabricConnection> getInterFabricConnections() {
+  public @Nonnull Map<String, InterFabricConnection> getInterFabricConnections() {
     return _interFabricConnections;
   }
 
@@ -1941,8 +1942,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return Map of (nodeId, interfaceName) to PathAttachment details
    */
-  @Nonnull
-  public Map<String, Map<String, PathAttachment>> getPathAttachmentMap() {
+  public @Nonnull Map<String, Map<String, PathAttachment>> getPathAttachmentMap() {
     return _pathAttachmentMap;
   }
 
@@ -1951,8 +1951,7 @@ public final class AciConfiguration extends VendorConfiguration {
    *
    * @return Map of node IDs to lists of interface names
    */
-  @Nonnull
-  public Map<String, List<String>> getNodeInterfaces() {
+  public @Nonnull Map<String, List<String>> getNodeInterfaces() {
     return _nodeInterfaces;
   }
 

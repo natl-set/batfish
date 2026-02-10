@@ -27,8 +27,7 @@ import javax.annotation.Nonnull;
 public class AciVrfIsolationAnalyzer {
 
   /** Analyzes VRF isolation across the ACI configuration. */
-  @Nonnull
-  public static List<VrfIsolationFinding> analyzeVrfIsolation(AciConfiguration config) {
+  public static @Nonnull List<VrfIsolationFinding> analyzeVrfIsolation(AciConfiguration config) {
     ImmutableList.Builder<VrfIsolationFinding> findings = new ImmutableList.Builder<>();
 
     // Check for overlapping subnets across VRFs
@@ -56,8 +55,7 @@ public class AciVrfIsolationAnalyzer {
    * routing ambiguity and communication issues.
    */
   @VisibleForTesting
-  @Nonnull
-  static List<VrfIsolationFinding> checkSubnetOverlap(AciConfiguration config) {
+  static @Nonnull List<VrfIsolationFinding> checkSubnetOverlap(AciConfiguration config) {
     List<VrfIsolationFinding> findings = new ArrayList<>();
 
     // Map subnet to list of VRFs that use it
@@ -83,7 +81,7 @@ public class AciVrfIsolationAnalyzer {
       // Check if this subnet appears in multiple VRFs
       Set<String> uniqueVrfs = new HashSet<>();
       for (SubnetVrfPair pair : vrfList) {
-        uniqueVrfs.add(pair.vrf);
+        uniqueVrfs.add(pair._vrf);
       }
 
       if (uniqueVrfs.size() > 1) {
@@ -94,20 +92,20 @@ public class AciVrfIsolationAnalyzer {
             SubnetVrfPair pair1 = pairs.get(i);
             SubnetVrfPair pair2 = pairs.get(j);
 
-            if (!pair1.vrf.equals(pair2.vrf)) {
+            if (!pair1._vrf.equals(pair2._vrf)) {
               VrfIsolationFinding finding = new VrfIsolationFinding();
               finding.setSeverity(VrfIsolationFinding.Severity.HIGH);
               finding.setCategory(VrfIsolationFinding.Category.SUBNET_OVERLAP);
-              finding.setVrfName1(pair1.vrf);
-              finding.setVrfName2(pair2.vrf);
-              finding.setSubnet1(pair1.subnet);
-              finding.setSubnet2(pair2.subnet);
-              finding.setBridgeDomain(pair1.bd);
-              finding.setTenantName(pair1.tenant);
+              finding.setVrfName1(pair1._vrf);
+              finding.setVrfName2(pair2._vrf);
+              finding.setSubnet1(pair1._subnet);
+              finding.setSubnet2(pair2._subnet);
+              finding.setBridgeDomain(pair1._bd);
+              finding.setTenantName(pair1._tenant);
               finding.setDescription(
                   String.format(
                       "Subnet %s is used in multiple VRFs: %s (in BD %s) and %s (in BD %s)",
-                      entry.getKey(), pair1.vrf, pair1.bd, pair2.vrf, pair2.bd));
+                      entry.getKey(), pair1._vrf, pair1._bd, pair2._vrf, pair2._bd));
               finding.setImpact(
                   "Overlapping subnets across VRFs can cause routing ambiguity and unexpected"
                       + " traffic forwarding. This violates VRF isolation principles.");
@@ -132,8 +130,7 @@ public class AciVrfIsolationAnalyzer {
    * should only happen through L3Outs.
    */
   @VisibleForTesting
-  @Nonnull
-  static List<VrfIsolationFinding> checkContractVrfScope(AciConfiguration config) {
+  static @Nonnull List<VrfIsolationFinding> checkContractVrfScope(AciConfiguration config) {
     List<VrfIsolationFinding> findings = new ArrayList<>();
 
     // Build a map of EPG to VRF
@@ -211,8 +208,7 @@ public class AciVrfIsolationAnalyzer {
    * <p>Unused VRFs may indicate configuration drift or abandoned plans.
    */
   @VisibleForTesting
-  @Nonnull
-  static List<VrfIsolationFinding> checkUnusedVrfs(AciConfiguration config) {
+  static @Nonnull List<VrfIsolationFinding> checkUnusedVrfs(AciConfiguration config) {
     List<VrfIsolationFinding> findings = new ArrayList<>();
 
     // Track which VRFs are used
@@ -260,8 +256,7 @@ public class AciVrfIsolationAnalyzer {
    * <p>Detects bridge domains that are associated with multiple VRFs or have no VRF association.
    */
   @VisibleForTesting
-  @Nonnull
-  static List<VrfIsolationFinding> checkBridgeDomainVrfIssues(AciConfiguration config) {
+  static @Nonnull List<VrfIsolationFinding> checkBridgeDomainVrfIssues(AciConfiguration config) {
     List<VrfIsolationFinding> findings = new ArrayList<>();
 
     // Track which bridge domains are used by EPGs in different VRFs
@@ -318,8 +313,7 @@ public class AciVrfIsolationAnalyzer {
    * connectivity.
    */
   @VisibleForTesting
-  @Nonnull
-  static List<VrfIsolationFinding> checkL3OutScope(AciConfiguration config) {
+  static @Nonnull List<VrfIsolationFinding> checkL3OutScope(AciConfiguration config) {
     List<VrfIsolationFinding> findings = new ArrayList<>();
 
     for (AciConfiguration.L3Out l3Out : config.getL3Outs().values()) {
@@ -394,16 +388,16 @@ public class AciVrfIsolationAnalyzer {
 
   /** Helper class to track subnet-VRF associations. */
   private static class SubnetVrfPair {
-    final String subnet;
-    final String vrf;
-    final String bd;
-    final String tenant;
+    final String _subnet;
+    final String _vrf;
+    final String _bd;
+    final String _tenant;
 
     SubnetVrfPair(String subnet, String vrf, String bd, String tenant) {
-      this.subnet = subnet;
-      this.vrf = vrf;
-      this.bd = bd;
-      this.tenant = tenant;
+      _subnet = subnet;
+      _vrf = vrf;
+      _bd = bd;
+      _tenant = tenant;
     }
   }
 }

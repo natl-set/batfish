@@ -25,6 +25,7 @@ import org.batfish.vendor.cisco_aci.representation.SecurityFinding.Severity;
  *
  * <p>The analyzer is extensible and can be enhanced with additional security checks as needed.
  */
+@SuppressWarnings({"PMD.UnusedPrivateField", "PMD.UnusedFormalParameter"})
 public class AciSecurityAnalyzer {
 
   /** Common values that indicate "any" or "unspecified" in ACI configurations. */

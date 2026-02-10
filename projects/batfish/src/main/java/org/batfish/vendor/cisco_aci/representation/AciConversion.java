@@ -77,6 +77,11 @@ import org.batfish.datamodel.routing_policy.statement.Statements;
  *   <li>l3ExtOut: L3 external connectivity (BGP, OSPF, etc.)
  * </ul>
  */
+@SuppressWarnings({
+  "PMD.UnusedPrivateField",
+  "PMD.UnusedLocalVariable",
+  "PMD.UnusedFormalParameter"
+})
 public final class AciConversion {
 
   /** Default administrative distance for EBGP routes on ACI */

@@ -78,8 +78,7 @@ public class ContractUsageFinding implements Serializable {
     _recommendation = recommendation;
   }
 
-  @Nonnull
-  public Severity getSeverity() {
+  public @Nonnull Severity getSeverity() {
     return _severity;
   }
 
@@ -87,8 +86,7 @@ public class ContractUsageFinding implements Serializable {
     _severity = severity;
   }
 
-  @Nonnull
-  public Category getCategory() {
+  public @Nonnull Category getCategory() {
     return _category;
   }
 
@@ -96,8 +94,7 @@ public class ContractUsageFinding implements Serializable {
     _category = category;
   }
 
-  @Nonnull
-  public String getContractName() {
+  public @Nonnull String getContractName() {
     return _contractName;
   }
 
@@ -105,8 +102,7 @@ public class ContractUsageFinding implements Serializable {
     _contractName = contractName;
   }
 
-  @Nonnull
-  public String getTenantName() {
+  public @Nonnull String getTenantName() {
     return _tenantName;
   }
 
@@ -114,8 +110,7 @@ public class ContractUsageFinding implements Serializable {
     _tenantName = tenantName;
   }
 
-  @Nonnull
-  public String getDescription() {
+  public @Nonnull String getDescription() {
     return _description;
   }
 
@@ -123,8 +118,7 @@ public class ContractUsageFinding implements Serializable {
     _description = description;
   }
 
-  @Nonnull
-  public String getRecommendation() {
+  public @Nonnull String getRecommendation() {
     return _recommendation;
   }
 
@@ -132,8 +126,7 @@ public class ContractUsageFinding implements Serializable {
     _recommendation = recommendation;
   }
 
-  @Nullable
-  public String getRelatedContracts() {
+  public @Nullable String getRelatedContracts() {
     return _relatedContracts;
   }
 

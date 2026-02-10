@@ -110,8 +110,7 @@ public class VrfIsolationFinding implements Serializable {
     _recommendation = recommendation;
   }
 
-  @Nonnull
-  public Severity getSeverity() {
+  public @Nonnull Severity getSeverity() {
     return _severity;
   }
 
@@ -119,8 +118,7 @@ public class VrfIsolationFinding implements Serializable {
     _severity = severity;
   }
 
-  @Nonnull
-  public Category getCategory() {
+  public @Nonnull Category getCategory() {
     return _category;
   }
 
@@ -128,8 +126,7 @@ public class VrfIsolationFinding implements Serializable {
     _category = category;
   }
 
-  @Nonnull
-  public String getVrfName1() {
+  public @Nonnull String getVrfName1() {
     return _vrfName1;
   }
 
@@ -137,8 +134,7 @@ public class VrfIsolationFinding implements Serializable {
     _vrfName1 = vrfName1;
   }
 
-  @Nullable
-  public String getVrfName2() {
+  public @Nullable String getVrfName2() {
     return _vrfName2;
   }
 
@@ -146,8 +142,7 @@ public class VrfIsolationFinding implements Serializable {
     _vrfName2 = vrfName2;
   }
 
-  @Nullable
-  public String getTenantName() {
+  public @Nullable String getTenantName() {
     return _tenantName;
   }
 
@@ -155,8 +150,7 @@ public class VrfIsolationFinding implements Serializable {
     _tenantName = tenantName;
   }
 
-  @Nullable
-  public String getBridgeDomain() {
+  public @Nullable String getBridgeDomain() {
     return _bridgeDomain;
   }
 
@@ -164,8 +158,7 @@ public class VrfIsolationFinding implements Serializable {
     _bridgeDomain = bridgeDomain;
   }
 
-  @Nullable
-  public String getSubnet1() {
+  public @Nullable String getSubnet1() {
     return _subnet1;
   }
 
@@ -173,8 +166,7 @@ public class VrfIsolationFinding implements Serializable {
     _subnet1 = subnet1;
   }
 
-  @Nullable
-  public String getSubnet2() {
+  public @Nullable String getSubnet2() {
     return _subnet2;
   }
 
@@ -182,8 +174,7 @@ public class VrfIsolationFinding implements Serializable {
     _subnet2 = subnet2;
   }
 
-  @Nullable
-  public String getContractName() {
+  public @Nullable String getContractName() {
     return _contractName;
   }
 
@@ -191,8 +182,7 @@ public class VrfIsolationFinding implements Serializable {
     _contractName = contractName;
   }
 
-  @Nonnull
-  public String getDescription() {
+  public @Nonnull String getDescription() {
     return _description;
   }
 
@@ -200,8 +190,7 @@ public class VrfIsolationFinding implements Serializable {
     _description = description;
   }
 
-  @Nonnull
-  public String getImpact() {
+  public @Nonnull String getImpact() {
     return _impact;
   }
 
@@ -209,8 +198,7 @@ public class VrfIsolationFinding implements Serializable {
     _impact = impact;
   }
 
-  @Nonnull
-  public String getRecommendation() {
+  public @Nonnull String getRecommendation() {
     return _recommendation;
   }
 

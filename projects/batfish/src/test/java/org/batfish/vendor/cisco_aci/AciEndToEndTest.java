@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasKey;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -692,7 +693,7 @@ public class AciEndToEndTest {
           roleByHostname.containsKey(node2));
 
       // Verify edge connects different nodes
-      assertTrue("Edge should connect two different nodes", !node1.equals(node2));
+      assertNotEquals("Edge should connect two different nodes", node1, node2);
 
       // Verify spine-leaf connection (one spine, one leaf)
       String role1 = roleByHostname.get(node1);
