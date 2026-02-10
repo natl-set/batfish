@@ -919,20 +919,6 @@
       },
       {
         "Filename" : "configs/f5_bigip/f5_bigip_structured_ltm",
-        "Line" : 96,
-        "Text" : "persist {",
-        "Parser_Context" : "[lv_persist l_virtual s_ltm statement f5_bigip_structured_configuration]",
-        "Comment" : "This feature is not currently supported"
-      },
-      {
-        "Filename" : "configs/f5_bigip/f5_bigip_structured_ltm",
-        "Line" : 102,
-        "Text" : "profiles {",
-        "Parser_Context" : "[lv_profiles l_virtual s_ltm statement f5_bigip_structured_configuration]",
-        "Comment" : "This feature is not currently supported"
-      },
-      {
-        "Filename" : "configs/f5_bigip/f5_bigip_structured_ltm",
         "Line" : 137,
         "Text" : "defaults-from /Common/http",
         "Parser_Context" : "[lmh_defaults_from lm_http l_monitor s_ltm statement f5_bigip_structured_configuration]",
@@ -1080,9 +1066,23 @@
       },
       {
         "Filename" : "configs/f5_bigip/f5_bigip_structured_sys",
+        "Line" : 3,
+        "Text" : "dns {",
+        "Parser_Context" : "[sys_dns s_sys statement f5_bigip_structured_configuration]",
+        "Comment" : "This feature is not currently supported"
+      },
+      {
+        "Filename" : "configs/f5_bigip/f5_bigip_structured_sys",
         "Line" : 43,
         "Text" : "management-ip 192.0.2.1/24 { }",
         "Parser_Context" : "[sys_management_ip s_sys statement f5_bigip_structured_configuration]",
+        "Comment" : "This feature is not currently supported"
+      },
+      {
+        "Filename" : "configs/f5_bigip/f5_bigip_structured_sys",
+        "Line" : 44,
+        "Text" : "management-route /Common/default {",
+        "Parser_Context" : "[sys_management_route s_sys statement f5_bigip_structured_configuration]",
         "Comment" : "This feature is not currently supported"
       },
       {
