@@ -249,6 +249,8 @@ import org.batfish.representation.f5_bigip.DeviceGroup;
 import org.batfish.representation.f5_bigip.DeviceGroupDevice;
 import org.batfish.representation.f5_bigip.F5BigipConfiguration;
 import org.batfish.representation.f5_bigip.F5BigipStructureType;
+import org.batfish.representation.f5_bigip.FirewallRule;
+import org.batfish.representation.f5_bigip.FirewallRuleList;
 import org.batfish.representation.f5_bigip.HaGroup;
 import org.batfish.representation.f5_bigip.HaGroupPool;
 import org.batfish.representation.f5_bigip.HaGroupTrunk;
@@ -3708,6 +3710,42 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(haGroup.getTrunks(), hasKey("t1"));
     HaGroupTrunk trunk = haGroup.getTrunks().get("t1");
     assertThat(trunk.getWeight(), equalTo(56));
+  }
+
+  @Test
+  public void testSecurityFirewallRuleListNumericIpProtocol() throws IOException {
+    String hostname = "f5_bigip_structured_security_firewall_numeric_ip_protocol";
+    F5BigipConfiguration vc = parseVendorConfig(hostname);
+
+    assertThat(vc.getFirewallRuleLists(), hasKey("/Common/rl1"));
+    FirewallRuleList ruleList = vc.getFirewallRuleLists().get("/Common/rl1");
+    assertThat(ruleList.getRules(), hasSize(1));
+
+    FirewallRule rule = ruleList.getRules().get(0);
+    assertThat(rule.getName(), equalTo("/Common/rule1"));
+    assertThat(rule.getAction(), equalTo("accept"));
+    assertThat(rule.getIpProtocol(), equalTo("6"));
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testVirtualAddressWildcardNoFalseInvalidIpWarning() throws IOException {
+    String hostname = "f5_bigip_structured_virtual_address_wildcard";
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    Warnings warnings =
+        batfish.initInfo(batfish.getSnapshot(), false, true).getWarnings().get(hostname);
+    if (warnings == null) {
+      return;
+    }
+
+    assertFalse(
+        "Wildcard virtual-address should not be flagged as invalid IP",
+        warnings.getRedFlagWarnings().stream()
+            .map(Warning::getText)
+            .anyMatch(Predicates.containsPattern("invalid or empty IP address")));
   }
 
   @Test

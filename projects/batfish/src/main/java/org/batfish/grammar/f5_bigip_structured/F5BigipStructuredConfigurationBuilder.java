@@ -3137,7 +3137,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitSys_dns(Sys_dnsContext ctx) {
-    // DNS configuration is parsed but not extracted
+    // Parsed, but semantics are not yet extracted into the vendor model.
+    todo(ctx);
   }
 
   @Override
@@ -3198,7 +3199,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitSys_management_route(Sys_management_routeContext ctx) {
-    // Management routes are parsed but not extracted
+    // Parsed, but semantics are not yet extracted into the vendor model.
+    todo(ctx);
   }
 
   @Override
@@ -3679,53 +3681,11 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private void validateConfiguration() {
     // Check for common configuration issues
 
-    // Check if virtual references non-existent pools
-    validateVirtualPoolReferences();
-
-    // Check for potential IP address issues
-    validateIpAddressFormats();
-
     // Check for SNMP configuration issues
     validateSnmpConfiguration();
 
     // Check for interface configuration issues
     validateInterfaceConfiguration();
-  }
-
-  private void validateVirtualPoolReferences() {
-    for (Map.Entry<String, Virtual> entry : _c.getVirtuals().entrySet()) {
-      Virtual virtual = entry.getValue();
-      if (virtual.getPool() != null) {
-        String poolName = virtual.getPool();
-        if (!_c.getPools().containsKey(poolName)) {
-          _w.redFlag(
-              String.format(
-                  "Virtual '%s' references non-existent pool '%s'", entry.getKey(), poolName));
-        }
-      }
-    }
-  }
-
-  private void validateIpAddressFormats() {
-    // Check virtual addresses for valid IP formats
-    for (Map.Entry<String, VirtualAddress> entry : _c.getVirtualAddresses().entrySet()) {
-      VirtualAddress va = entry.getValue();
-      try {
-        // Try to parse the address to validate format
-        String address = va.getAddress().toString();
-        if (address.isEmpty() || address.equals("0.0.0.0")) {
-          _w.redFlag(
-              String.format(
-                  "Virtual address '%s' has invalid or empty IP address: %s",
-                  entry.getKey(), address));
-        }
-      } catch (Exception e) {
-        _w.redFlag(
-            String.format(
-                "Virtual address '%s' has malformed IP address: %s",
-                entry.getKey(), va.getAddress()));
-      }
-    }
   }
 
   private void validateSnmpConfiguration() {

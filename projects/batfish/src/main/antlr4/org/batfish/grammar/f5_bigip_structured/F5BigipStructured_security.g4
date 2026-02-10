@@ -201,7 +201,7 @@ sec_firewall_rule
 sec_firewall_rule_item
 :
   ACTION word_id NEWLINE
-  | IP_PROTOCOL word_id NEWLINE
+  | IP_PROTOCOL (word_id | uint) NEWLINE
 ;
 
 // Other security configurations that are not yet implemented
@@ -371,4 +371,3 @@ sec_protocol_inspection_item
   DESCRIPTION description_text NEWLINE
   | word ignored
 ;
-

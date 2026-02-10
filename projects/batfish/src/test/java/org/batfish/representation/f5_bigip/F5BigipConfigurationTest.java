@@ -14,13 +14,17 @@ import org.batfish.common.Warnings;
 import org.batfish.datamodel.ConcreteInterfaceAddress;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
+import org.batfish.datamodel.ExprAclLine;
+import org.batfish.datamodel.HeaderSpace;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.Ip6;
+import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.Prefix6;
 import org.batfish.datamodel.RouteFilterList;
+import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.referencelibrary.AddressGroup;
 import org.batfish.referencelibrary.GeneratedRefBookUtils;
 import org.batfish.referencelibrary.GeneratedRefBookUtils.BookType;
@@ -255,6 +259,26 @@ public class F5BigipConfigurationTest {
     assertThat(
         toAddressGroup(p1),
         equalTo(new AddressGroup(ImmutableSortedSet.of("1.1.1.1"), p1.getName())));
+  }
+
+  @Test
+  public void testFirewallRuleListNumericProtocolToIpAccessList() {
+    F5BigipConfiguration f5Config = new F5BigipConfiguration();
+    f5Config.setHostname("node");
+    f5Config.setVendor(ConfigurationFormat.F5_BIGIP_STRUCTURED);
+
+    FirewallRule rule =
+        FirewallRule.builder().setName("r1").setAction("accept").setIpProtocol("6").build();
+    FirewallRuleList ruleList = FirewallRuleList.builder().setName("rl1").addRule(rule).build();
+    f5Config.getFirewallRuleLists().put(ruleList.getName(), ruleList);
+
+    Configuration c = Iterables.getOnlyElement(f5Config.toVendorIndependentConfigurations());
+    IpAccessList acl = c.getIpAccessLists().get("rl1");
+    ExprAclLine line = (ExprAclLine) Iterables.getOnlyElement(acl.getLines());
+    HeaderSpace headerSpace = ((MatchHeaderSpace) line.getMatchCondition()).getHeaderspace();
+
+    assertThat(line.getAction(), equalTo(LineAction.PERMIT));
+    assertThat(headerSpace.getIpProtocols(), equalTo(ImmutableSortedSet.of(IpProtocol.TCP)));
   }
 
   /** Tests for {@link SnmpCommunity} */
