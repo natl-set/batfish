@@ -294,4 +294,78 @@ public class HuaweiControlPlaneExtractorTest {
     assertThat(config.getHostname(), nullValue());
     assertThat(config.getInterfaces().size(), equalTo(0));
   }
+
+  // Additional tests for improved coverage
+
+  @Test
+  public void testExtractBgpNetwork() {
+    String configText =
+        "sysname Router1\n" + "bgp 65001\n" + " network 10.0.0.0 255.255.255.0\n" + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    HuaweiBgpProcess bgp = config.getBgpProcess();
+    assertThat(bgp.getNetworks().size(), equalTo(1));
+  }
+
+  @Test
+  public void testExtractInterfaceWithBothIpAndDescription() {
+    String configText =
+        "sysname Router1\n"
+            + "interface GigabitEthernet0/0/0\n"
+            + " description Uplink to core\n"
+            + " ip address 192.168.1.1 255.255.255.0\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface.getDescription(), equalTo("Uplink to core"));
+    assertThat(iface.getAddress(), notNullValue());
+    assertThat(iface.getAddress().getIp(), equalTo(Ip.parse("192.168.1.1")));
+  }
+
+  @Test
+  public void testExtractBgpWithMultiplePeers() {
+    String configText =
+        "sysname Router1\n"
+            + "bgp 65001\n"
+            + " peer 10.0.0.1 as-number 65002\n"
+            + " peer 10.0.0.2 as-number 65003\n"
+            + " peer 10.0.0.3 as-number 65004\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    HuaweiBgpProcess bgp = config.getBgpProcess();
+    assertThat(bgp.getNeighbors().size(), equalTo(3));
+    assertThat(bgp.getNeighbors(), hasKey(Ip.parse("10.0.0.1")));
+    assertThat(bgp.getNeighbors(), hasKey(Ip.parse("10.0.0.2")));
+    assertThat(bgp.getNeighbors(), hasKey(Ip.parse("10.0.0.3")));
+  }
+
+  @Test
+  public void testExtractMultipleRoutePolicies() {
+    String configText =
+        "sysname Router1\n"
+            + "route-policy POLICY1 permit node 10\n"
+            + "route-policy POLICY2 deny node 10\n"
+            + "route-policy POLICY3 permit node 10\n"
+            + "return\n";
+
+    HuaweiCombinedParser parser = new HuaweiCombinedParser(configText, getSettings());
+    Warnings warnings = new Warnings();
+    HuaweiConfiguration config = HuaweiControlPlaneExtractor.extract(configText, parser, warnings);
+
+    assertThat(config.getRoutePolicies().size(), equalTo(3));
+    assertThat(config.getRoutePolicies(), hasKey("POLICY1"));
+    assertThat(config.getRoutePolicies(), hasKey("POLICY2"));
+    assertThat(config.getRoutePolicies(), hasKey("POLICY3"));
+  }
 }
