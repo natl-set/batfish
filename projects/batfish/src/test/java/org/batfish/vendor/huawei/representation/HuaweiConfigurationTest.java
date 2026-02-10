@@ -14,6 +14,8 @@ import java.util.SortedMap;
 import org.batfish.common.VendorConversionException;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
+import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.Prefix;
 import org.junit.Test;
 
 /** Tests for {@link HuaweiConfiguration}. */
@@ -159,9 +161,8 @@ public class HuaweiConfigurationTest {
   public void testAddStaticRoute() {
     HuaweiConfiguration config = new HuaweiConfiguration();
 
-    HuaweiStaticRoute route =
-        new HuaweiStaticRoute(org.batfish.datamodel.Prefix.parse("10.0.0.0/24"));
-    route.setNextHopIp(org.batfish.datamodel.Ip.parse("192.168.1.1"));
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route.setNextHopIp(Ip.parse("192.168.1.1"));
 
     config.addStaticRoute(route);
 
@@ -174,14 +175,12 @@ public class HuaweiConfigurationTest {
     HuaweiConfiguration config = new HuaweiConfiguration();
 
     List<HuaweiStaticRoute> routes = new java.util.ArrayList<>();
-    HuaweiStaticRoute route1 =
-        new HuaweiStaticRoute(org.batfish.datamodel.Prefix.parse("10.0.0.0/24"));
-    route1.setNextHopIp(org.batfish.datamodel.Ip.parse("192.168.1.1"));
+    HuaweiStaticRoute route1 = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route1.setNextHopIp(Ip.parse("192.168.1.1"));
     routes.add(route1);
 
-    HuaweiStaticRoute route2 =
-        new HuaweiStaticRoute(org.batfish.datamodel.Prefix.parse("10.1.0.0/24"));
-    route2.setNextHopIp(org.batfish.datamodel.Ip.parse("192.168.1.2"));
+    HuaweiStaticRoute route2 = new HuaweiStaticRoute(Prefix.parse("10.1.0.0/24"));
+    route2.setNextHopIp(Ip.parse("192.168.1.2"));
     routes.add(route2);
 
     config.setStaticRoutes(routes);
@@ -473,9 +472,8 @@ public class HuaweiConfigurationTest {
     config.addVlan(100, new HuaweiVlan(100));
 
     // Add static route
-    HuaweiStaticRoute staticRoute =
-        new HuaweiStaticRoute(org.batfish.datamodel.Prefix.parse("10.0.0.0/24"));
-    staticRoute.setNextHopIp(org.batfish.datamodel.Ip.parse("192.168.1.1"));
+    HuaweiStaticRoute staticRoute = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    staticRoute.setNextHopIp(Ip.parse("192.168.1.1"));
     config.addStaticRoute(staticRoute);
 
     // Set BGP process

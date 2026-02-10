@@ -13,6 +13,7 @@ import java.util.TreeSet;
 import org.batfish.common.Warnings;
 import org.batfish.config.Settings;
 import org.batfish.datamodel.ConcreteInterfaceAddress;
+import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.LongSpace;
 import org.batfish.vendor.huawei.representation.HuaweiAcl;
@@ -89,8 +90,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getHostname(), equalTo("Router1"));
     assertThat(config.getInterfaces().size(), equalTo(1));
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface, notNullValue());
     assertThat(iface.getDescription(), equalTo("Uplink to core"));
     assertThat(iface.getAddress(), notNullValue());
@@ -108,8 +108,7 @@ public class HuaweiGrammarTest {
 
     assertThat(config, notNullValue());
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface, notNullValue());
     assertThat(iface.getShutdown(), equalTo(true));
   }
@@ -125,8 +124,7 @@ public class HuaweiGrammarTest {
 
     assertThat(config, notNullValue());
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface, notNullValue());
     assertThat(iface.getShutdown(), equalTo(false));
   }
@@ -186,8 +184,7 @@ public class HuaweiGrammarTest {
     HuaweiVlan vlan = config.getVlan(100);
     assertThat(vlan, notNullValue());
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("Vlanif100");
+    HuaweiInterface iface = config.getInterfaces().get("Vlanif100");
     assertThat(iface, notNullValue());
     assertThat(iface.getDescription(), equalTo("Management Interface"));
     assertThat(iface.getAddress(), notNullValue());
@@ -210,8 +207,7 @@ public class HuaweiGrammarTest {
     assertThat(config, notNullValue());
     assertThat(config.getInterfaces().size(), equalTo(1));
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0.100");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0.100");
     assertThat(iface, notNullValue());
     assertThat(iface.getAddress(), notNullValue());
     assertThat(iface.getAddress().getIp().toString(), equalTo("10.0.0.1"));
@@ -234,8 +230,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getVlans().size(), equalTo(1));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1")); // Hostnames are lowercased
@@ -337,8 +332,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getStaticRoutes().size(), equalTo(1));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -488,8 +482,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getBgpProcess(), notNullValue());
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -1177,8 +1170,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getAcls().size(), equalTo(1));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -1288,8 +1280,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getNatRules().size(), equalTo(1));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -1360,14 +1351,12 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(2));
 
     // Check first network
-    org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network1 =
-        config.getOspfProcess().getNetworks().get(0);
+    HuaweiOspfProcess.HuaweiOspfNetwork network1 = config.getOspfProcess().getNetworks().get(0);
     assertThat(network1.getNetwork().toString(), equalTo("10.0.0.0/24"));
     assertThat(network1.getAreaId(), equalTo(0L));
 
     // Check second network
-    org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network2 =
-        config.getOspfProcess().getNetworks().get(1);
+    HuaweiOspfProcess.HuaweiOspfNetwork network2 = config.getOspfProcess().getNetworks().get(1);
     assertThat(network2.getNetwork().toString(), equalTo("192.168.1.0/24"));
     assertThat(network2.getAreaId(), equalTo(1L));
   }
@@ -1393,8 +1382,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(2));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -1491,8 +1479,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getVrfs().size(), equalTo(1));
 
     // Convert to vendor-independent configuration
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -1852,8 +1839,7 @@ public class HuaweiGrammarTest {
 
     assertThat(config, notNullValue());
     assertThat(config.getInterfaces().size(), equalTo(1));
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface, notNullValue());
     assertThat(iface.getDescription(), equalTo("Test interface"));
     assertThat(iface.getAddress(), equalTo(null));
@@ -1911,8 +1897,7 @@ public class HuaweiGrammarTest {
     assertThat(config, notNullValue());
     assertThat(config.getInterfaces().size(), equalTo(1));
     // Second definition should override first
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface.getAddress().getIp().toString(), equalTo("192.168.2.1"));
   }
 
@@ -2178,8 +2163,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getHostname(), equalTo("Router1"));
     assertThat(config.getInterfaces().size(), equalTo(1));
 
-    org.batfish.vendor.huawei.representation.HuaweiInterface iface =
-        config.getInterfaces().get("GigabitEthernet0/0/0");
+    HuaweiInterface iface = config.getInterfaces().get("GigabitEthernet0/0/0");
     assertThat(iface, notNullValue());
     assertThat(iface.getDescription(), equalTo("Uplink"));
     assertThat(iface.getAddress(), notNullValue());
@@ -4412,8 +4396,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess(), notNullValue());
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(1));
 
-    org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network =
-        config.getOspfProcess().getNetworks().get(0);
+    HuaweiOspfProcess.HuaweiOspfNetwork network = config.getOspfProcess().getNetworks().get(0);
     assertThat(network.getNetwork().toString(), equalTo("192.168.1.0/24"));
     assertThat(network.getAreaId(), equalTo(0L));
   }
@@ -4466,8 +4449,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess(), notNullValue());
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(1));
 
-    org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network =
-        config.getOspfProcess().getNetworks().get(0);
+    HuaweiOspfProcess.HuaweiOspfNetwork network = config.getOspfProcess().getNetworks().get(0);
     assertThat(network.getNetwork().toString(), equalTo("10.0.0.1/32"));
     assertThat(network.getAreaId(), equalTo(0L));
   }
@@ -4491,8 +4473,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess(), notNullValue());
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(3));
 
-    for (org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network :
-        config.getOspfProcess().getNetworks()) {
+    for (HuaweiOspfProcess.HuaweiOspfNetwork network : config.getOspfProcess().getNetworks()) {
       assertThat(network.getAreaId(), equalTo(0L));
     }
   }
@@ -4974,8 +4955,7 @@ public class HuaweiGrammarTest {
     assertThat(config.getOspfProcess().getAreas().containsKey(0L), equalTo(true));
     assertThat(config.getOspfProcess().getNetworks().size(), equalTo(2));
 
-    for (org.batfish.vendor.huawei.representation.HuaweiOspfProcess.HuaweiOspfNetwork network :
-        config.getOspfProcess().getNetworks()) {
+    for (HuaweiOspfProcess.HuaweiOspfNetwork network : config.getOspfProcess().getNetworks()) {
       assertThat(network.getAreaId(), equalTo(0L));
     }
   }
@@ -5948,8 +5928,7 @@ public class HuaweiGrammarTest {
     assertThat(config, notNullValue());
     assertThat(config.getAcls().size(), equalTo(1));
 
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getHostname(), equalTo("router1"));
@@ -5972,8 +5951,7 @@ public class HuaweiGrammarTest {
 
     assertThat(config, notNullValue());
 
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
     assertThat(viConfig.getIpAccessLists().containsKey("WEB-IN"), equalTo(true));
@@ -5993,8 +5971,7 @@ public class HuaweiGrammarTest {
 
     assertThat(config, notNullValue());
 
-    org.batfish.datamodel.Configuration viConfig =
-        HuaweiConversions.toVendorIndependentConfiguration(config);
+    Configuration viConfig = HuaweiConversions.toVendorIndependentConfiguration(config);
 
     assertThat(viConfig, notNullValue());
   }
