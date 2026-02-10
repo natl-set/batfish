@@ -3683,9 +3683,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
     // Check for SNMP configuration issues
     validateSnmpConfiguration();
-
-    // Check for interface configuration issues
-    validateInterfaceConfiguration();
   }
 
   private void validateSnmpConfiguration() {
@@ -3698,16 +3695,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
         if (community.getSource() != null && community.getSource().isEmpty()) {
           _w.redFlag(String.format("SNMP community '%s' has empty source address", entry.getKey()));
         }
-      }
-    }
-  }
-
-  private void validateInterfaceConfiguration() {
-    for (Map.Entry<String, Interface> entry : _c.getInterfaces().entrySet()) {
-      Interface iface = entry.getValue();
-      // Basic validation - check if interface has required properties
-      if (iface.getName() == null || iface.getName().isEmpty()) {
-        _w.redFlag(String.format("Interface has empty name: %s", entry.getKey()));
       }
     }
   }
