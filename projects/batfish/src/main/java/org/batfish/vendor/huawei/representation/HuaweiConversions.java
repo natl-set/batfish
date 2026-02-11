@@ -1728,7 +1728,7 @@ public class HuaweiConversions {
       // In Batfish, this is SetAdministrativeCost
       statements.add(
           new org.batfish.datamodel.routing_policy.statement.SetAdministrativeCost(
-              new LiteralInt(actions.getPreference())));
+              new LiteralInt(actions.getPreference().intValue())));
     }
 
     // Set tag (apply tag)
