@@ -3713,11 +3713,9 @@ public final class F5BigipStructuredGrammarTest {
     batfish.getSettings().setThrowOnParserError(false);
 
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
-    // SSHD, SYSLOG are now explicitly ignored (metadata blocks)
-    // SNMP disk/process monitors generate warnings
-    assertThat(
-        initAns.getParseStatus().get("configs/" + hostname),
-        equalTo(ParseStatus.PARTIALLY_UNRECOGNIZED));
+    // SSHD, SYSLOG, LOG_CONFIG are now explicitly parsed
+    // SNMP disk/process monitors are properly parsed
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
 
   @Test

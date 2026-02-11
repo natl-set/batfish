@@ -85,6 +85,8 @@ AUTOMAP: 'automap';
 
 AUTO_SYNC: 'auto-sync';
 
+ATTRIBUTE: 'attribute';
+
 BASE_MAC: 'base-mac';
 
 BGP: 'bgp';
@@ -116,6 +118,8 @@ CENT_REPORT_DESTINATION_TYPE: 'cent-report-destination-type';
 CERT: 'cert';
 
 CERTIFICATE_AUTHORITY: 'certificate-authority';
+
+CLI: 'cli';
 
 CERT_EXTENSION_INCLUDES: 'cert-extension-includes';
 
@@ -167,6 +171,8 @@ CREATION_TIME: 'creation-time';
 
 DATA_GROUP: 'data-group';
 
+DAG_ADJUSTMENT: 'dag-adjustment';
+
 DEFAULT: 'default';
 
 DEFAULTS_FROM: 'defaults-from';
@@ -195,6 +201,8 @@ DEVICE_CONFIG: 'device-config';
 DOS_DEVICE_VECTOR: 'dos-device-vector';
 
 DEVICE_GROUP: 'device-group';
+
+DEVICE_ID: 'device-id';
 
 DIAMETER: 'diameter';
 
@@ -266,6 +274,12 @@ FALL_OVER: 'fall-over';
 
 FALSE: 'false';
 
+FAILSAFE: 'failsafe';
+
+FAILSAFE_ACTION: 'failsafe-action';
+
+FAILSAFE_TIMEOUT: 'failsafe-timeout';
+
 FASTHTTP: 'fasthttp';
 
 FDB: 'fdb';
@@ -286,6 +300,8 @@ FORWARD_ERROR_CORRECTION: 'forward-error-correction';
 FPGA: 'fpga';
 
 FTP: 'ftp';
+
+FULL_LOAD_ON_SYNC: 'full-load-on-sync';
 
 FW_ENFORCED_POLICY: 'fw-enforced-policy';
 
@@ -312,6 +328,8 @@ GW: 'gw';
 HANDSHAKE_TIMEOUT: 'handshake-timeout';
 
 HA_GROUP: 'ha-group';
+
+HA_ORDER: 'ha-order';
 
 HTTP2: 'http2';
 
@@ -851,7 +869,7 @@ UNIT_ID: 'unit-id';
 
 UPDATE_SOURCE: 'update-source';
 
-// SNMP-related tokens
+// Common value tokens
 USERNAME: 'username';
 VALUE: 'value';
 VERSION: 'version';
@@ -1669,7 +1687,7 @@ M_VariableSubstitution_CHARS
 
 M_VariableSubstitution_DOLLAR
 :
-// kinda screwed here
+  // Nested variable substitution requires special handling
   '$' -> type(DOLLAR), popMode
 ;
 

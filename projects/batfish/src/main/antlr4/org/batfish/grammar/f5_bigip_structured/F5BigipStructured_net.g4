@@ -179,7 +179,11 @@ net_vlan
   (
     NEWLINE
     (
-      nv_interfaces
+      nv_dag_adjustment
+      | nv_failsafe
+      | nv_failsafe_action
+      | nv_failsafe_timeout
+      | nv_interfaces
       | nv_tag
       | unrecognized
     )*
@@ -234,6 +238,30 @@ nv_interfaces
 nv_tag
 :
   TAG tag = vlan_id NEWLINE
+;
+
+nv_dag_adjustment
+:
+  DAG_ADJUSTMENT ignored
+;
+
+nv_failsafe
+:
+  FAILSAFE
+  (
+    DISABLED
+    | ENABLED
+  ) NEWLINE
+;
+
+nv_failsafe_action
+:
+  FAILSAFE_ACTION ignored
+;
+
+nv_failsafe_timeout
+:
+  FAILSAFE_TIMEOUT timeout = uint NEWLINE
 ;
 
 nvi_interface

@@ -54,7 +54,7 @@ sys_ha_group
 
 sh_active_bonus
 :
-  ACTIVE_BONUS bonus = uint16 NEWLINE 
+  ACTIVE_BONUS bonus = uint16 NEWLINE
 ;
 
 sh_pools
@@ -161,14 +161,15 @@ sys_sshd
   SSHD ignored_block
 ;
 
-sys_ecm
-:
-  ECM CLOUD_PROVIDER ignored
-;
-
 sys_log_config
 :
-  LOG_CONFIG ignored
+  LOG_CONFIG DESTINATION word structure_name BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored_content
+    )*
+  )? BRACE_RIGHT NEWLINE
 ;
 
 sys_syslog
@@ -383,11 +384,6 @@ s_sys
 sys_ecm
 :
   ECM CLOUD_PROVIDER ignored_block
-;
-
-sys_log_config
-:
-  LOG_CONFIG ignored_block
 ;
 
 sys_software_update

@@ -999,11 +999,6 @@ lprof_app_service
   APP_SERVICE structure_name NEWLINE
 ;
 
-lprof_ftp_allow_ftps
-:
-  WORD_ID (ENABLED | DISABLED) NEWLINE
-;
-
 lprof_ftp_defaults_from
 :
   DEFAULTS_FROM name = structure_name NEWLINE
@@ -2245,11 +2240,6 @@ lva_spanning
   SPANNING (ENABLED | DISABLED) NEWLINE
 ;
 
-lva_route_advertisement
-:
-  ROUTE_ADVERTISEMENT ramode = route_advertisement_mode NEWLINE
-;
-
 lva_address
 :
   ADDRESS address = ip_address NEWLINE
@@ -2305,11 +2295,6 @@ lva_inherited_traffic_group
     TRUE
     | FALSE
   ) NEWLINE
-;
-
-lva_route_advertisement
-:
-  ROUTE_ADVERTISEMENT ramode = route_advertisement_mode NEWLINE
 ;
 
 lva_traffic_group

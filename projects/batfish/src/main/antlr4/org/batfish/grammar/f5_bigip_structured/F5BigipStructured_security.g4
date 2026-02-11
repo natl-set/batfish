@@ -146,19 +146,7 @@ sec_dos_udp_entry_item
 // Security Firewall configuration
 sec_firewall_config_change_log
 :
-  FIREWALL CONFIG_CHANGE_LOG BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_firewall_log_publisher_null
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sec_firewall_log_publisher_null
-:
-  LOG_PUBLISHER structure_name NEWLINE
+  FIREWALL CONFIG_CHANGE_LOG ignored_block
 ;
 
 // Security Firewall rule-list configuration
@@ -225,96 +213,9 @@ sec_null
 
 sec_log_profile
 :
-  WORD_ID PROFILE (PARTITION? word_id | DOUBLE_QUOTED_STRING) BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_log_profile_category
-      | sec_log_profile_setting_null
-      | ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  WORD_ID PROFILE (PARTITION? word_id | DOUBLE_QUOTED_STRING) ignored_block
 ;
 
-sec_log_profile_category
-:
-  WORD_ID DOUBLE_QUOTED_STRING BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_log_profile_category_item
-      | sec_log_profile_category_nested
-      | sec_log_profile_publisher_null
-      | ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-  | word_id BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_log_profile_category_item
-      | sec_log_profile_category_nested
-      | sec_log_profile_publisher_null
-      | ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sec_log_profile_setting_null
-:
-  word ignored
-;
-
-sec_log_profile_category_item
-:
-  word (word_id | uint) NEWLINE
-  | word BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_log_profile_category_item
-      | ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sec_log_profile_category_nested
-:
-  DOUBLE_QUOTED_STRING BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-  | PARTITION word_id? BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-  | WORD_ID list NEWLINE
-  | WORD_ID BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sec_log_profile_publisher_null
-:
-  LOG_PUBLISHER structure_name NEWLINE
-;
 
 // Scrubber profile configuration
 sec_scrubber_profile
@@ -338,7 +239,8 @@ s_security
 :
   SECURITY
   (
-    sec_log_profile
+    sec_device_id
+    | sec_log_profile
     | sec_protocol_inspection
     | sec_scrubber_profile
     | sec_dos_device_config
@@ -356,18 +258,11 @@ s_security
 
 sec_protocol_inspection
 :
-  PROTOCOL_INSPECTION WORD_ID structure_name BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sec_protocol_inspection_item
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  PROTOCOL_INSPECTION WORD_ID structure_name ignored_block
 ;
 
-sec_protocol_inspection_item
+sec_device_id
 :
-  DESCRIPTION description_text NEWLINE
-  | word ignored
+  DEVICE_ID ATTRIBUTE structure_name ignored
 ;
+

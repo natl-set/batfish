@@ -4,6 +4,7 @@ parser grammar F5BigipStructuredParser;
 import
   F5BigipStructured_analytics,
   F5BigipStructured_asm,
+  F5BigipStructured_cli,
   F5BigipStructured_common,
   F5BigipStructured_cm,
   F5BigipStructured_ltm,
@@ -40,6 +41,7 @@ statement
   | s_apm
   | s_asm
   | s_auth
+  | s_cli
   | s_cm
   | s_ilx
   | s_ltm
