@@ -62,7 +62,7 @@ import org.batfish.datamodel.routing_policy.expr.BooleanExprs;
 import org.batfish.datamodel.routing_policy.expr.Conjunction;
 import org.batfish.datamodel.routing_policy.expr.DestinationNetwork;
 import org.batfish.datamodel.routing_policy.expr.ExplicitPrefixSet;
-import org.batfish.datamodel.routing_policy.expr.LiteralInt;
+import org.batfish.datamodel.routing_policy.expr.LiteralAdministrativeCost;
 import org.batfish.datamodel.routing_policy.expr.LiteralLong;
 import org.batfish.datamodel.routing_policy.expr.MatchPrefixSet;
 import org.batfish.datamodel.routing_policy.expr.MatchProtocol;
@@ -1726,7 +1726,9 @@ public class HuaweiConversions {
     if (actions.getPreference() != null) {
       // Preference in Huawei is administrative distance
       // In Batfish, this is SetAdministrativeCost
-      statements.add(new SetAdministrativeCost(new LiteralInt(actions.getPreference().intValue())));
+      statements.add(
+          new SetAdministrativeCost(
+              new LiteralAdministrativeCost(actions.getPreference().longValue())));
     }
 
     // Set tag (apply tag)
