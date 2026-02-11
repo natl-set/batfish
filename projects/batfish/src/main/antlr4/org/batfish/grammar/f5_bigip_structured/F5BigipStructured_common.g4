@@ -95,6 +95,49 @@ ignored
   u_word* list? NEWLINE
 ;
 
+/*
+ * Content inside profile/persist blocks that should be ignored.
+ * Matches simple lines OR nested braced blocks.
+ * Pattern: word { word* }
+ */
+ignored_content
+:
+  ignored                           // simple line
+  | word BRACE_LEFT                // nested block start: "method {"
+  | BRACE_RIGHT NEWLINE            // nested block end: "}"
+;
+
+/*
+ * An ignored multi-line braced block.
+ * Used for metadata blocks where we don't need to parse the contents.
+ * Generates NO warnings, unlike blocks using 'unrecognized'.
+ *
+ * Matches: BRACE_LEFT ... BRACE_RIGHT
+ * Matches: token BRACE_LEFT ... BRACE_RIGHT (e.g., MANAGEMENT_IP 10.0.0.1 { })
+ * Matches: name BRACE_LEFT ... BRACE_RIGHT (e.g., CERT /Common/name { })
+ */
+ignored_block
+:
+  (
+    structure_name
+    | ip_prefix
+    | ip_address
+    | word_id
+    | word
+  )? BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored_line
+    )*
+  )? BRACE_RIGHT NEWLINE
+;
+
+ignored_line
+:
+  ~NEWLINE* NEWLINE
+;
+
 /* An unrecognized fragment of syntax. When used, MUST be LAST alternative */
 unrecognized
 :

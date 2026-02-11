@@ -12,7 +12,8 @@ pem_global_settings
   (
     NEWLINE
     (
-      unrecognized
+      ignored
+      | unrecognized
     )*
   )? BRACE_RIGHT NEWLINE
 ;

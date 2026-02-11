@@ -2054,7 +2054,7 @@ lvp_persistence
 :
   name = structure_name BRACE_LEFT
   (
-    NEWLINE ignored*
+    NEWLINE ignored_content*
   )? BRACE_RIGHT NEWLINE
 ;
 
@@ -2075,7 +2075,7 @@ lv_profiles_profile
 :
   name = structure_name BRACE_LEFT
   (
-    NEWLINE ignored*
+    NEWLINE ignored_content*
   )? BRACE_RIGHT NEWLINE
 ;
 

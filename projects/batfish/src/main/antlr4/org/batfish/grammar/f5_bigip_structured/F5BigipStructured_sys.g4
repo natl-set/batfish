@@ -22,7 +22,7 @@ sgs_null
 
 sys_dns
 :
-  DNS ignored
+  DNS ignored_block
 ;
 
 sys_global_settings
@@ -109,12 +109,12 @@ shtt_weight
 
 sys_management_ip
 :
-  MANAGEMENT_IP ignored
+  MANAGEMENT_IP ignored_block
 ;
 
 sys_management_route
 :
-  MANAGEMENT_ROUTE ignored
+  MANAGEMENT_ROUTE ignored_block
 ;
 
 sys_ntp
@@ -156,70 +156,24 @@ sys_null
   ) ignored
 ;
 
-sshd_inactivity_timeout
-:
-  INACTIVITY_TIMEOUT timeout = uint NEWLINE
-;
-
 sys_sshd
 :
-  SSHD BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sshd_banner
-      | sshd_inactivity_timeout
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  SSHD ignored_block
 ;
 
-sshd_banner
+sys_ecm
 :
-  BANNER (ENABLED | DISABLED) NEWLINE
+  ECM CLOUD_PROVIDER ignored
+;
+
+sys_log_config
+:
+  LOG_CONFIG ignored
 ;
 
 sys_syslog
 :
-  SYSLOG BRACE_LEFT
-  (
-    NEWLINE
-    (
-      syslog_remote_servers
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_remote_servers
-:
-  REMOTE_SERVERS BRACE_LEFT
-  (
-    NEWLINE syslog_remote_server*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_remote_server
-:
-  name = structure_name BRACE_LEFT
-  (
-    NEWLINE
-    (
-      syslog_host
-      | syslog_local_ip
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_host
-:
-  HOST host = word NEWLINE
-;
-
-syslog_local_ip
-:
-  LOCAL_IP ip = word NEWLINE
+  SYSLOG ignored_block
 ;
 
 sys_snmp
@@ -410,10 +364,13 @@ s_sys
     | sys_dns
     | sys_global_settings
     | sys_ha_group
+    | sys_httpd
     | sys_management_ip
     | sys_management_route
     | sys_ntp
     | sys_null
+    | sys_outbound_smtp
+    | sys_provision
     | sys_snmp
     | sys_software_update
     | sys_sshd
@@ -425,149 +382,50 @@ s_sys
 
 sys_ecm
 :
-  ECM CLOUD_PROVIDER name = structure_name BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sys_ecm_description
-      | sys_ecm_property_template
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sys_ecm_description
-:
-  DESCRIPTION description_text NEWLINE
-;
-
-sys_ecm_property_template
-:
-  PROPERTY_TEMPLATE BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ecm_property_item
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-ecm_property_item
-:
-  word BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ecm_property_setting
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-ecm_property_setting
-:
-  WORD_ID NEWLINE
-  | DESCRIPTION description_text NEWLINE
-  | VALID_VALUES BRACE_LEFT word+ BRACE_RIGHT NEWLINE
+  ECM CLOUD_PROVIDER ignored_block
 ;
 
 sys_log_config
 :
-  LOG_CONFIG
-  (
-    PUBLISHER structure_name ignored
-    | DESTINATION (MANAGEMENT_PORT | REMOTE_HIGH_SPEED_LOG | REMOTE_SYSLOG) name = structure_name BRACE_LEFT
-    (
-      NEWLINE
-      (
-        slc_format
-        | slc_protocol
-        | slc_remote_high_speed_log
-        | ignored
-        | unrecognized
-      )*
-    )? BRACE_RIGHT NEWLINE
-  )
+  LOG_CONFIG ignored_block
 ;
 
 sys_software_update
 :
-  SOFTWARE UPDATE BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sys_software_update_settings
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sys_software_update_settings
-:
-  AUTO_CHECK (ENABLED | DISABLED) NEWLINE
-  | AUTO_PHONEHOME (ENABLED | DISABLED) NEWLINE
-  | FREQUENCY word_id NEWLINE
-  | ignored
+  SOFTWARE UPDATE ignored_block
 ;
 
 sys_wom_deduplication
 :
-  WOM DEDUPLICATION ignored
+  WOM DEDUPLICATION ignored_block
+;
+
+sys_httpd
+:
+  HTTPD ignored_block
+;
+
+sys_outbound_smtp
+:
+  OUTBOUND_SMTP ignored_block
+;
+
+sys_provision
+:
+  PROVISION structure_name ignored_block
 ;
 
 sys_diags_ihealth
 :
-  DIAGS IHEALTH BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  DIAGS IHEALTH ignored_block
 ;
 
 sys_management_ovsdb
 :
-  MANAGEMENT_OVSDB BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ignored
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  MANAGEMENT_OVSDB ignored_block
 ;
 
 sys_compatibility_level
 :
-  COMPATIBILITY_LEVEL BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sysc_level
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sysc_level
-:
-  LEVEL uint NEWLINE
-;
-
-slc_format
-:
-  FORMAT format_value = word NEWLINE
-;
-
-slc_protocol
-:
-  PROTOCOL protocol_value = word NEWLINE
-;
-
-slc_remote_high_speed_log
-:
-  REMOTE_HIGH_SPEED_LOG pool_name = structure_name NEWLINE
+  COMPATIBILITY_LEVEL ignored_block
 ;

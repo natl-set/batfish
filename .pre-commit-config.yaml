@@ -12,10 +12,11 @@ repos:
         pass_filenames: true
       - id: buildifier
         name: buildifier
-        entry: bazel --noblock_for_lock run //:buildifier.fix
+        entry: buildifier
         language: system
         require_serial: true
-        pass_filenames: false # this is a global check, only run it once
+        files: '(.*\.bzl$|BUILD\.bazel$)'
+        pass_filenames: true
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:

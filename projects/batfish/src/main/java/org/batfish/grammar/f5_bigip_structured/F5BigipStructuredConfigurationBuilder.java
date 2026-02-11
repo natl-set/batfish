@@ -747,6 +747,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private HaGroupPool _currentHaGroupPool;
   private HaGroupTrunk _currentHaGroupTrunk;
   private IgnoredContext _currentIgnored;
+  private @Nullable F5BigipStructuredParser.Ignored_blockContext _currentIgnoredBlock;
+  private boolean _inMetadataBlock = false;
   private @Nullable Interface _currentInterface;
   private @Nullable Node _currentNode;
   private @Nullable Pool _currentPool;
@@ -760,6 +762,9 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private @Nullable Snat _currentSnat;
   private @Nullable SnatPool _currentSnatPool;
   private @Nullable SnatTranslation _currentSnatTranslation;
+  private @Nullable SnmpCommunity _currentSnmpCommunity;
+  private @Nullable SnmpDiskMonitor _currentSnmpDiskMonitor;
+  private @Nullable SnmpProcessMonitor _currentSnmpProcessMonitor;
   private TrafficGroup _currentTrafficGroup;
   private @Nullable Trunk _currentTrunk;
   private UnicastAddress _currentUnicastAddress;
@@ -767,9 +772,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private @Nullable Virtual _currentVirtual;
   private @Nullable VirtualAddress _currentVirtualAddress;
   private @Nullable Vlan _currentVlan;
-  private @Nullable SnmpCommunity _currentSnmpCommunity;
-  private @Nullable SnmpDiskMonitor _currentSnmpDiskMonitor;
-  private @Nullable SnmpProcessMonitor _currentSnmpProcessMonitor;
   private @Nullable FirewallRuleList _currentFirewallRuleList;
   private @Nullable FirewallRule _currentFirewallRule;
   private @Nullable Integer _imishConfigurationLine;
@@ -965,7 +967,22 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void enterCm_key(Cm_keyContext ctx) {
-    todo(ctx.getParent());
+    _inMetadataBlock = true;
+  }
+
+  @Override
+  public void exitCm_key(Cm_keyContext ctx) {
+    _inMetadataBlock = false;
+  }
+
+  @Override
+  public void enterCm_cert(F5BigipStructuredParser.Cm_certContext ctx) {
+    _inMetadataBlock = true;
+  }
+
+  @Override
+  public void exitCm_cert(F5BigipStructuredParser.Cm_certContext ctx) {
+    _inMetadataBlock = false;
   }
 
   @Override
@@ -3108,12 +3125,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   }
 
   @Override
-  public void exitNtp_servers(Ntp_serversContext ctx) {
-    _c.setNtpServers(
-        ctx.servers.stream().map(WordContext::getText).collect(ImmutableList.toImmutableList()));
-  }
-
-  @Override
   public void exitNv_tag(Nv_tagContext ctx) {
     _currentVlan.setTag(toInteger(ctx.tag));
   }
@@ -3141,6 +3152,28 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   public void exitSys_dns(Sys_dnsContext ctx) {
     // Parsed, but semantics are not yet extracted into the vendor model.
     todo(ctx);
+  }
+
+  @Override
+  public void exitNtp_servers(Ntp_serversContext ctx) {
+    _c.setNtpServers(
+        ctx.servers.stream().map(WordContext::getText).collect(ImmutableList.toImmutableList()));
+  }
+
+  @Override
+  public void exitSys_ntp(Sys_ntpContext ctx) {
+    // NTP servers are already extracted in exitNtp_servers
+  }
+
+  @Override
+  public void enterSys_snmp(Sys_snmpContext ctx) {
+    // Initialize SNMP structures if needed
+    _c.defineStructure(F5BigipStructureType.SNMP, "snmp", ctx.getParent());
+  }
+
+  @Override
+  public void exitSys_snmp(Sys_snmpContext ctx) {
+    // SNMP processing completed
   }
 
   @Override
@@ -3203,22 +3236,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   public void exitSys_management_route(Sys_management_routeContext ctx) {
     // Parsed, but semantics are not yet extracted into the vendor model.
     todo(ctx);
-  }
-
-  @Override
-  public void exitSys_ntp(Sys_ntpContext ctx) {
-    // NTP servers are already extracted in exitNtp_servers
-  }
-
-  @Override
-  public void enterSys_snmp(Sys_snmpContext ctx) {
-    // Initialize SNMP structures if needed
-    _c.defineStructure(F5BigipStructureType.SNMP, "snmp", ctx.getParent());
-  }
-
-  @Override
-  public void exitSys_snmp(Sys_snmpContext ctx) {
-    // SNMP processing completed
   }
 
   // SNMP Communities parsing
@@ -3430,8 +3447,24 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   }
 
   @Override
+  public void enterIgnored_block(F5BigipStructuredParser.Ignored_blockContext ctx) {
+    if (_currentIgnoredBlock != null) {
+      return;
+    }
+    _currentIgnoredBlock = ctx;
+  }
+
+  @Override
+  public void exitIgnored_block(F5BigipStructuredParser.Ignored_blockContext ctx) {
+    if (_currentIgnoredBlock != ctx) {
+      return;
+    }
+    _currentIgnoredBlock = null;
+  }
+
+  @Override
   public void enterUnrecognized(UnrecognizedContext ctx) {
-    if (_currentIgnored != null || _currentUnrecognized != null) {
+    if (_currentIgnored != null || _currentIgnoredBlock != null || _currentUnrecognized != null) {
       return;
     }
     _c.setUnrecognized(true);
@@ -3440,7 +3473,12 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
 
   @Override
   public void exitUnrecognized(UnrecognizedContext ctx) {
-    if (_currentIgnored != null || _currentUnrecognized != ctx) {
+    if (_currentIgnored != null || _currentIgnoredBlock != null || _currentUnrecognized != ctx) {
+      return;
+    }
+    // Skip warnings for unrecognized content inside metadata blocks
+    if (_inMetadataBlock) {
+      _currentUnrecognized = null;
       return;
     }
     unrecognized(ctx);
