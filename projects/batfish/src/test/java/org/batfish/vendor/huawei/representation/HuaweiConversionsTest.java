@@ -3259,4 +3259,614 @@ public class HuaweiConversionsTest {
     assertTrue(iface.getDhcpRelayAddresses().contains(Ip.parse("192.168.1.10")));
     assertTrue(iface.getDhcpRelayAddresses().contains(Ip.parse("192.168.1.11")));
   }
+
+  // BGP Advanced Features Tests
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpRouteReflectorClient() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with route reflector client
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer group with route reflector client setting
+    HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgp.getOrCreatePeerGroup("RR_CLIENTS");
+    peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.INTERNAL);
+    peerGroup.setRemoteAs(65001L);
+    peerGroup.setRouteReflectorClient(true);
+
+    // Create a peer that references the peer group
+    Ip peerIp = Ip.parse("10.0.0.2");
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder().setPeerAddress(peerIp).setGroup("RR_CLIENTS").build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Check that route reflector client setting is inherited from peer group
+    assertThat(convertedPeer, notNullValue());
+    assertThat(convertedPeer.getIpv4UnicastAddressFamily(), notNullValue());
+    assertThat(
+        convertedPeer.getIpv4UnicastAddressFamily().getRouteReflectorClient(),
+        equalTo(Boolean.TRUE));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpEbgpMultihop() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with eBGP multihop peer
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer with eBGP multihop enabled
+    Ip peerIp = Ip.parse("192.168.1.2");
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(peerIp)
+            .setRemoteAsns(LongSpace.of(65002L))
+            .setEbgpMultihop(true)
+            .build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Check that eBGP multihop is preserved
+    assertThat(convertedPeer, notNullValue());
+    assertThat(convertedPeer.getEbgpMultihop(), equalTo(true));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpEbgpMultihopDisabled() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with eBGP peer (multihop disabled)
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer with eBGP multihop explicitly disabled
+    Ip peerIp = Ip.parse("192.168.1.2");
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(peerIp)
+            .setRemoteAsns(LongSpace.of(65002L))
+            .setEbgpMultihop(false)
+            .build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Check that eBGP multihop disabled is preserved
+    assertThat(convertedPeer, notNullValue());
+    assertThat(convertedPeer.getEbgpMultihop(), equalTo(false));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeerGroupMultiplePeers() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with multiple peers in same peer group
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer group with comprehensive settings
+    HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgp.getOrCreatePeerGroup("EXTERNAL_PEERS");
+    peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
+    peerGroup.setRemoteAs(65002L);
+    peerGroup.setPassword("shared-secret");
+    peerGroup.setRoutePolicyIn("IMPORT_POLICY");
+    peerGroup.setRoutePolicyOut("EXPORT_POLICY");
+    peerGroup.setRouteReflectorClient(false);
+
+    // Create multiple peers in the same group
+    Ip peerIp1 = Ip.parse("192.168.1.2");
+    BgpActivePeerConfig peer1 =
+        BgpActivePeerConfig.builder().setPeerAddress(peerIp1).setGroup("EXTERNAL_PEERS").build();
+    bgp.addNeighbor(peerIp1, peer1);
+
+    Ip peerIp2 = Ip.parse("192.168.1.3");
+    BgpActivePeerConfig peer2 =
+        BgpActivePeerConfig.builder().setPeerAddress(peerIp2).setGroup("EXTERNAL_PEERS").build();
+    bgp.addNeighbor(peerIp2, peer2);
+
+    Ip peerIp3 = Ip.parse("192.168.1.4");
+    BgpActivePeerConfig peer3 =
+        BgpActivePeerConfig.builder().setPeerAddress(peerIp3).setGroup("EXTERNAL_PEERS").build();
+    bgp.addNeighbor(peerIp3, peer3);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+
+    // All peers should inherit settings from the peer group
+    for (Ip peerIp : new Ip[] {peerIp1, peerIp2, peerIp3}) {
+      BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+      assertThat(convertedPeer, notNullValue());
+      assertThat(convertedPeer.getGroup(), equalTo("EXTERNAL_PEERS"));
+      assertThat(convertedPeer.getRemoteAsns(), notNullValue());
+      assertThat(convertedPeer.getRemoteAsns().contains(65002L), equalTo(true));
+      assertThat(convertedPeer.getIpv4UnicastAddressFamily(), notNullValue());
+      assertThat(
+          convertedPeer.getIpv4UnicastAddressFamily().getImportPolicy(), equalTo("IMPORT_POLICY"));
+      assertThat(
+          convertedPeer.getIpv4UnicastAddressFamily().getExportPolicy(), equalTo("EXPORT_POLICY"));
+    }
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeerGroupOverridePolicies() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process where peer overrides peer group policies
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer group with policies
+    HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgp.getOrCreatePeerGroup("PEERS");
+    peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
+    peerGroup.setRemoteAs(65002L);
+    peerGroup.setRoutePolicyIn("GROUP_IMPORT_POLICY");
+    peerGroup.setRoutePolicyOut("GROUP_EXPORT_POLICY");
+
+    // Create a peer with its own policies
+    Ip peerIp = Ip.parse("192.168.1.2");
+
+    // Create IPv4 unicast address family with peer-specific policies
+    org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily peerAf =
+        org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily.builder()
+            .setImportPolicy("PEER_IMPORT_POLICY")
+            .setExportPolicy("PEER_EXPORT_POLICY")
+            .build();
+
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(peerIp)
+            .setGroup("PEERS")
+            .setRemoteAsns(LongSpace.of(65002L))
+            .setIpv4UnicastAddressFamily(peerAf)
+            .build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Peer group policies override peer-specific policies (based on implementation)
+    assertThat(convertedPeer.getIpv4UnicastAddressFamily(), notNullValue());
+    assertThat(
+        convertedPeer.getIpv4UnicastAddressFamily().getImportPolicy(),
+        equalTo("GROUP_IMPORT_POLICY"));
+    assertThat(
+        convertedPeer.getIpv4UnicastAddressFamily().getExportPolicy(),
+        equalTo("GROUP_EXPORT_POLICY"));
+  }
+
+  // OSPF Edge Cases Tests
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfInterfaceWithoutArea() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add interface
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface.setShutdown(false);
+    iface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Add interface settings WITHOUT explicit area ID
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings.setCost(100);
+    settings.setHelloInterval(10);
+    settings.setDeadInterval(40);
+    settings.setPassive(false);
+    // areaId is not set
+    ospf.addInterface("GigabitEthernet0/0/0", settings);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    Interface convertedIface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings = convertedIface.getOspfSettings();
+
+    // OSPF settings should still be set, but areaName will be null
+    assertThat(ospfSettings, notNullValue());
+    assertThat(ospfSettings.getAreaName(), nullValue());
+    assertThat(ospfSettings.getCost(), equalTo(100));
+    assertThat(ospfSettings.getHelloInterval(), equalTo(10));
+    assertThat(ospfSettings.getDeadInterval(), equalTo(40));
+    assertThat(ospfSettings.getPassive(), equalTo(false));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfPassiveInterfaceWithoutArea() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add interface
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface.setShutdown(false);
+    iface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Add interface settings - passive without area
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings.setPassive(true);
+    settings.setCost(100);
+    // areaId is not set
+    ospf.addInterface("GigabitEthernet0/0/0", settings);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    Interface convertedIface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings = convertedIface.getOspfSettings();
+
+    // Passive interface should be set even without area
+    assertThat(ospfSettings, notNullValue());
+    assertThat(ospfSettings.getPassive(), equalTo(true));
+    assertThat(ospfSettings.getCost(), equalTo(100));
+    assertThat(ospfSettings.getAreaName(), nullValue());
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfInterfaceCost() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add multiple interfaces with different costs
+    HuaweiInterface iface1 = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface1.setShutdown(false);
+    iface1.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    HuaweiInterface iface2 = new HuaweiInterface("GigabitEthernet0/0/1");
+    iface2.setShutdown(false);
+    iface2.setAddress(ConcreteInterfaceAddress.parse("10.0.0.1/24"));
+
+    HuaweiInterface iface3 = new HuaweiInterface("Loopback0");
+    iface3.setShutdown(false);
+    iface3.setAddress(ConcreteInterfaceAddress.parse("1.1.1.1/32"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface1);
+    interfaces.put("GigabitEthernet0/0/1", iface2);
+    interfaces.put("Loopback0", iface3);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Add interface settings with explicit costs
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings1 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings1.setAreaId(0L);
+    settings1.setCost(10);
+    ospf.addInterface("GigabitEthernet0/0/0", settings1);
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings2 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings2.setAreaId(0L);
+    settings2.setCost(100);
+    ospf.addInterface("GigabitEthernet0/0/1", settings2);
+
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings3 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings3.setAreaId(0L);
+    // No cost set for loopback - should default to 0
+    ospf.addInterface("Loopback0", settings3);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    // Check first interface cost
+    Interface convertedIface1 = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings1 = convertedIface1.getOspfSettings();
+    assertThat(ospfSettings1.getCost(), equalTo(10));
+
+    // Check second interface cost (as Integer)
+    Interface convertedIface2 = config.getAllInterfaces().get("GigabitEthernet0/0/1");
+    OspfInterfaceSettings ospfSettings2 = convertedIface2.getOspfSettings();
+    assertThat(ospfSettings2.getCost(), equalTo(100));
+
+    // Check loopback default cost
+    Interface convertedIface3 = config.getAllInterfaces().get("Loopback0");
+    OspfInterfaceSettings ospfSettings3 = convertedIface3.getOspfSettings();
+    assertThat(ospfSettings3.getCost(), equalTo(0));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfHelloDeadIntervals() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add interface
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface.setShutdown(false);
+    iface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Add interface settings with custom hello/dead intervals
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings.setAreaId(0L);
+    settings.setHelloInterval(3);
+    settings.setDeadInterval(12);
+    ospf.addInterface("GigabitEthernet0/0/0", settings);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    Interface convertedIface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings = convertedIface.getOspfSettings();
+
+    // Check custom intervals
+    assertThat(ospfSettings.getHelloInterval(), equalTo(3));
+    assertThat(ospfSettings.getDeadInterval(), equalTo(12));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfDefaultHelloDeadIntervals() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add interface
+    HuaweiInterface iface = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface.setShutdown(false);
+    iface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Add interface settings without explicit hello/dead intervals
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings.setAreaId(0L);
+    // helloInterval and deadInterval not set - should use defaults
+    ospf.addInterface("GigabitEthernet0/0/0", settings);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    Interface convertedIface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings = convertedIface.getOspfSettings();
+
+    // Check default intervals (10 and 40)
+    assertThat(ospfSettings.getHelloInterval(), equalTo(10));
+    assertThat(ospfSettings.getDeadInterval(), equalTo(40));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithOspfMultipleInterfacesMixedSettings() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add multiple interfaces with mixed OSPF settings
+    HuaweiInterface iface1 = new HuaweiInterface("GigabitEthernet0/0/0");
+    iface1.setShutdown(false);
+    iface1.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+
+    HuaweiInterface iface2 = new HuaweiInterface("GigabitEthernet0/0/1");
+    iface2.setShutdown(false);
+    iface2.setAddress(ConcreteInterfaceAddress.parse("10.0.0.1/24"));
+
+    HuaweiInterface iface3 = new HuaweiInterface("Loopback0");
+    iface3.setShutdown(false);
+    iface3.setAddress(ConcreteInterfaceAddress.parse("1.1.1.1/32"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", iface1);
+    interfaces.put("GigabitEthernet0/0/1", iface2);
+    interfaces.put("Loopback0", iface3);
+    huaweiConfig.setInterfaces(interfaces);
+
+    // Add OSPF process
+    HuaweiOspfProcess ospf = new HuaweiOspfProcess(1L);
+    ospf.setRouterId(Ip.parse("1.1.1.1"));
+
+    HuaweiOspfProcess.HuaweiOspfArea area = new HuaweiOspfProcess.HuaweiOspfArea(0L);
+    ospf.getAreas().put(0L, area);
+
+    // Interface 1: Full settings
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings1 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings1.setAreaId(0L);
+    settings1.setCost(10);
+    settings1.setHelloInterval(5);
+    settings1.setDeadInterval(20);
+    settings1.setPassive(false);
+    settings1.setNetworkType("P2P");
+    ospf.addInterface("GigabitEthernet0/0/0", settings1);
+
+    // Interface 2: Passive with defaults
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings2 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings2.setAreaId(0L);
+    settings2.setPassive(true);
+    ospf.addInterface("GigabitEthernet0/0/1", settings2);
+
+    // Interface 3: Loopback with minimal settings
+    HuaweiOspfProcess.HuaweiOspfInterfaceSettings settings3 =
+        new HuaweiOspfProcess.HuaweiOspfInterfaceSettings();
+    settings3.setAreaId(0L);
+    ospf.addInterface("Loopback0", settings3);
+
+    huaweiConfig.setOspfProcess(ospf);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    // Check interface 1 - full settings
+    Interface convertedIface1 = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    OspfInterfaceSettings ospfSettings1 = convertedIface1.getOspfSettings();
+    assertThat(ospfSettings1.getCost(), equalTo(10));
+    assertThat(ospfSettings1.getHelloInterval(), equalTo(5));
+    assertThat(ospfSettings1.getDeadInterval(), equalTo(20));
+    assertThat(ospfSettings1.getPassive(), equalTo(false));
+    assertThat(ospfSettings1.getNetworkType(), equalTo(OspfNetworkType.POINT_TO_POINT));
+
+    // Check interface 2 - passive with defaults
+    Interface convertedIface2 = config.getAllInterfaces().get("GigabitEthernet0/0/1");
+    OspfInterfaceSettings ospfSettings2 = convertedIface2.getOspfSettings();
+    assertThat(ospfSettings2.getPassive(), equalTo(true));
+    assertThat(ospfSettings2.getHelloInterval(), equalTo(10));
+    assertThat(ospfSettings2.getDeadInterval(), equalTo(40));
+    assertThat(ospfSettings2.getNetworkType(), equalTo(OspfNetworkType.BROADCAST));
+
+    // Check interface 3 - loopback defaults
+    Interface convertedIface3 = config.getAllInterfaces().get("Loopback0");
+    OspfInterfaceSettings ospfSettings3 = convertedIface3.getOspfSettings();
+    assertThat(ospfSettings3.getCost(), equalTo(0));
+    assertThat(ospfSettings3.getHelloInterval(), equalTo(10));
+    assertThat(ospfSettings3.getDeadInterval(), equalTo(40));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeerGroupWithLocalAs() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with local AS override
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer group with local AS
+    HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgp.getOrCreatePeerGroup("PEERS_WITH_LOCAL_AS");
+    peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
+    peerGroup.setRemoteAs(65002L);
+    peerGroup.setLocalAs(65003);
+
+    // Create a peer that references the peer group
+    Ip peerIp = Ip.parse("192.168.1.2");
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(peerIp)
+            .setGroup("PEERS_WITH_LOCAL_AS")
+            .build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Check that local AS is inherited from peer group
+    assertThat(convertedPeer.getLocalAs(), equalTo(65003L));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithBgpPeerGroupWithPassword() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Add BGP process with password authentication
+    HuaweiBgpProcess bgp = new HuaweiBgpProcess(65001);
+    bgp.setRouterId(Ip.parse("1.1.1.1"));
+
+    // Create a peer group with password
+    HuaweiBgpProcess.HuaweiBgpPeerGroup peerGroup = bgp.getOrCreatePeerGroup("AUTHENTICATED_PEERS");
+    peerGroup.setType(HuaweiBgpProcess.HuaweiBgpPeerGroup.PeerType.EXTERNAL);
+    peerGroup.setRemoteAs(65002L);
+    peerGroup.setPassword("md5-secret-key");
+
+    // Create a peer that references the peer group
+    Ip peerIp = Ip.parse("192.168.1.2");
+    BgpActivePeerConfig peer =
+        BgpActivePeerConfig.builder()
+            .setPeerAddress(peerIp)
+            .setGroup("AUTHENTICATED_PEERS")
+            .build();
+    bgp.addNeighbor(peerIp, peer);
+
+    huaweiConfig.setBgpProcess(bgp);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    BgpProcess bgpProcess = config.getVrfs().get("default").getBgpProcess();
+    BgpActivePeerConfig convertedPeer = bgpProcess.getActiveNeighbors().get(peerIp);
+
+    // Check that password/authentication is inherited from peer group
+    assertThat(convertedPeer.getAuthenticationSettings(), notNullValue());
+    assertThat(
+        convertedPeer.getAuthenticationSettings().getAuthenticationAlgorithm(),
+        equalTo(BgpAuthenticationAlgorithm.TCP_SIGNATURE_MD5));
+    assertThat(
+        convertedPeer.getAuthenticationSettings().getAuthenticationKey(),
+        equalTo("md5-secret-key"));
+  }
 }
