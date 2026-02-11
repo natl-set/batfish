@@ -3008,6 +3008,146 @@ public class HuaweiConversionsTest {
   }
 
   @Test
+  public void testToVendorIndependentConfigurationWithStaticRouteVrf() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route.setNextHopIp(Ip.parse("192.168.1.1"));
+    route.setPreference(100);
+    route.setVrfName("VRF1");
+    huaweiConfig.getStaticRoutes().add(route);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("VRF1");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getStaticRoutes().size(), equalTo(1));
+
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
+    assertThat(staticRoute.getNextHopIp(), equalTo(Ip.parse("192.168.1.1")));
+    assertThat(staticRoute.getAdministrativeCost(), equalTo(100L));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithMultipleStaticRoutes() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiStaticRoute route1 = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route1.setNextHopIp(Ip.parse("192.168.1.1"));
+    route1.setPreference(100);
+    huaweiConfig.getStaticRoutes().add(route1);
+
+    HuaweiStaticRoute route2 = new HuaweiStaticRoute(Prefix.parse("172.16.0.0/16"));
+    route2.setNextHopIp(Ip.parse("192.168.1.2"));
+    route2.setPreference(50);
+    huaweiConfig.getStaticRoutes().add(route2);
+
+    HuaweiStaticRoute route3 = new HuaweiStaticRoute(Prefix.parse("0.0.0.0/0"));
+    route3.setNextHopIp(Ip.parse("192.168.1.254"));
+    route3.setPreference(10);
+    huaweiConfig.getStaticRoutes().add(route3);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getStaticRoutes().size(), equalTo(3));
+
+    // Verify all routes are present
+    assertThat(
+        vrf.getStaticRoutes().stream()
+            .filter(r -> r.getNetwork().equals(Prefix.parse("10.0.0.0/24")))
+            .count(),
+        equalTo(1L));
+    assertThat(
+        vrf.getStaticRoutes().stream()
+            .filter(r -> r.getNetwork().equals(Prefix.parse("172.16.0.0/16")))
+            .count(),
+        equalTo(1L));
+    assertThat(
+        vrf.getStaticRoutes().stream()
+            .filter(r -> r.getNetwork().equals(Prefix.parse("0.0.0.0/0")))
+            .count(),
+        equalTo(1L));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithDefaultRoute() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("0.0.0.0/0"));
+    route.setNextHopIp(Ip.parse("192.168.1.254"));
+    route.setPreference(10);
+    route.setDefaultRoute(true);
+    huaweiConfig.getStaticRoutes().add(route);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getStaticRoutes().size(), equalTo(1));
+
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("0.0.0.0/0")));
+    assertThat(staticRoute.getNextHopIp(), equalTo(Ip.parse("192.168.1.254")));
+    assertThat(staticRoute.getAdministrativeCost(), equalTo(10L));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithStaticRouteDefaultPreference() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Create route without setting preference (should use default of 60)
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route.setNextHopIp(Ip.parse("192.168.1.1"));
+    huaweiConfig.getStaticRoutes().add(route);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getStaticRoutes().size(), equalTo(1));
+
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
+    assertThat(staticRoute.getNextHopIp(), equalTo(Ip.parse("192.168.1.1")));
+    assertThat(staticRoute.getAdministrativeCost(), equalTo(60L)); // Default preference
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithStaticRouteInterfaceOnly() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    // Static route with only next-hop interface (no next-hop IP)
+    HuaweiStaticRoute route = new HuaweiStaticRoute(Prefix.parse("10.0.0.0/24"));
+    route.setNextHopInterface("GigabitEthernet0/0/0");
+    route.setPreference(100);
+    huaweiConfig.getStaticRoutes().add(route);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Vrf vrf = config.getVrfs().get("default");
+    assertThat(vrf, notNullValue());
+    assertThat(vrf.getStaticRoutes().size(), equalTo(1));
+
+    StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
+    assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
+    assertThat(staticRoute.getNextHopInterface(), equalTo("GigabitEthernet0/0/0"));
+    assertThat(staticRoute.getAdministrativeCost(), equalTo(100L));
+  }
+
+  @Test
   public void testToVendorIndependentConfigurationWithOspfDefaultOriginate() {
     HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
     huaweiConfig.setHostname("test-router");
