@@ -106,7 +106,7 @@ public class HuaweiConversionsTest {
     StaticRoute staticRoute = vrf.getStaticRoutes().iterator().next();
     assertThat(staticRoute.getNetwork(), equalTo(Prefix.parse("10.0.0.0/24")));
     assertThat(staticRoute.getNextHopIp(), equalTo(Ip.parse("192.168.1.1")));
-    assertThat(staticRoute.getAdministrativeCost(), equalTo(100));
+    assertThat(staticRoute.getAdministrativeCost(), equalTo(100L));
   }
 
   @Test
