@@ -22,7 +22,13 @@ s_cm
 
 cm_cert
 :
-  CERT name = structure_name ignored
+  CERT name = structure_name BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored
+    )*
+  )? BRACE_RIGHT NEWLINE
 ;
 
 cm_device
@@ -154,6 +160,7 @@ cm_device_group
     (
       cmdg_auto_sync
       | cmdg_devices
+      | cmdg_full_load_on_sync
       | cmdg_hidden
       | cmdg_network_failover
       | cmdg_type
@@ -219,6 +226,15 @@ cmdg_type
   TYPE type = device_group_type NEWLINE
 ;
 
+cmdg_full_load_on_sync
+:
+  FULL_LOAD_ON_SYNC
+  (
+    DISABLED
+    | ENABLED
+  ) NEWLINE
+;
+
 device_group_type
 :
   SYNC_FAILOVER
@@ -227,7 +243,13 @@ device_group_type
 
 cm_key
 :
-  KEY name = structure_name ignored
+  KEY name = structure_name BRACE_LEFT
+  (
+    NEWLINE
+    (
+      ignored
+    )*
+  )? BRACE_RIGHT NEWLINE
 ;
 
 cm_traffic_group
@@ -237,6 +259,7 @@ cm_traffic_group
     NEWLINE
     (
       cmtg_ha_group
+      | cmtg_ha_order
       | cmtg_mac
       | cmtg_unit_id
       | unrecognized
@@ -247,6 +270,11 @@ cm_traffic_group
 cmtg_ha_group
 :
   HA_GROUP name = structure_name NEWLINE
+;
+
+cmtg_ha_order
+:
+  HA_ORDER ignored
 ;
 
 cmtg_mac

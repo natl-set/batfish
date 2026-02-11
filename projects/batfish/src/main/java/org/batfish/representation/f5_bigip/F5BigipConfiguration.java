@@ -156,13 +156,15 @@ public class F5BigipConfiguration extends VendorConfiguration {
   private static final int DEFAULT_IBGP_ADMIN = 200;
   private static final int DEFAULT_LOCAL_ADMIN = 200;
 
-  private static boolean appliesToVlan(Snat snat, String vlanName) {
+  @VisibleForTesting
+  static boolean appliesToVlan(Snat snat, String vlanName) {
     return !snat.getVlansEnabled()
         || snat.getVlans().isEmpty()
         || snat.getVlans().contains(vlanName);
   }
 
-  private static boolean appliesToVlan(Virtual virtual, String vlanName) {
+  @VisibleForTesting
+  static boolean appliesToVlan(Virtual virtual, String vlanName) {
     return !virtual.getVlansEnabled()
         || virtual.getVlans().isEmpty()
         || virtual.getVlans().contains(vlanName);
@@ -268,6 +270,10 @@ public class F5BigipConfiguration extends VendorConfiguration {
   private transient SortedMap<String, SimpleTransformation> _virtualOutgoingTransformations;
   private final @Nonnull Map<String, Virtual> _virtuals;
   private final @Nonnull Map<String, Vlan> _vlans;
+  private final @Nonnull Map<String, SnmpCommunity> _snmpCommunities;
+  private final @Nonnull Map<String, SnmpDiskMonitor> _snmpDiskMonitors;
+  private final @Nonnull Map<String, SnmpProcessMonitor> _snmpProcessMonitors;
+  private final @Nonnull Map<String, FirewallRuleList> _firewallRuleLists;
 
   public F5BigipConfiguration() {
     _accessLists = new HashMap<>();
@@ -293,6 +299,10 @@ public class F5BigipConfiguration extends VendorConfiguration {
     _virtualAddresses = new HashMap<>();
     _virtuals = new HashMap<>();
     _vlans = new HashMap<>();
+    _snmpCommunities = new HashMap<>();
+    _snmpDiskMonitors = new HashMap<>();
+    _snmpProcessMonitors = new HashMap<>();
+    _firewallRuleLists = new HashMap<>();
   }
 
   private void addActivePeer(
@@ -378,6 +388,51 @@ public class F5BigipConfiguration extends VendorConfiguration {
                 .collect(ImmutableList.toImmutableList()))
         .setName(acl.getName())
         .build();
+  }
+
+  private void addFirewallRuleList(FirewallRuleList ruleList) {
+    // Convert firewall rule-list to IpAccessList
+    List<AclLine> lines =
+        ruleList.getRules().stream()
+            .map(this::toIpAccessListLine)
+            .collect(ImmutableList.toImmutableList());
+
+    IpAccessList.builder().setOwner(_c).setLines(lines).setName(ruleList.getName()).build();
+  }
+
+  private ExprAclLine toIpAccessListLine(FirewallRule rule) {
+    ExprAclLine.Builder builder = ExprAclLine.builder();
+
+    // Set action based on rule action
+    if ("accept".equals(rule.getAction())) {
+      builder.setAction(LineAction.PERMIT);
+    } else {
+      // For drop, reject, or any other action, default to deny
+      builder.setAction(LineAction.DENY);
+    }
+
+    // Build header space with IP protocol if specified
+    HeaderSpace.Builder headerSpace = HeaderSpace.builder();
+
+    if (rule.getIpProtocol() != null) {
+      try {
+        IpProtocol ipProtocol = IpProtocol.fromString(rule.getIpProtocol());
+        headerSpace.setIpProtocols(ImmutableSortedSet.of(ipProtocol));
+      } catch (IllegalArgumentException e) {
+        // If protocol is not recognized, log a warning and leave it empty
+        if (_w != null) {
+          _w.redFlag(
+              String.format(
+                  "Unrecognized IP protocol '%s' in firewall rule '%s'",
+                  rule.getIpProtocol(), rule.getName()));
+        }
+      }
+    }
+
+    builder.setMatchCondition(new MatchHeaderSpace(headerSpace.build()));
+    builder.setName(rule.getName());
+
+    return builder.build();
   }
 
   private void addNatRules(org.batfish.datamodel.Interface vlanInterface) {
@@ -939,6 +994,22 @@ public class F5BigipConfiguration extends VendorConfiguration {
 
   public @Nonnull Map<String, Vlan> getVlans() {
     return _vlans;
+  }
+
+  public @Nonnull Map<String, SnmpCommunity> getSnmpCommunities() {
+    return _snmpCommunities;
+  }
+
+  public @Nonnull Map<String, SnmpDiskMonitor> getSnmpDiskMonitors() {
+    return _snmpDiskMonitors;
+  }
+
+  public @Nonnull Map<String, SnmpProcessMonitor> getSnmpProcessMonitors() {
+    return _snmpProcessMonitors;
+  }
+
+  public @Nonnull Map<String, FirewallRuleList> getFirewallRuleLists() {
+    return _firewallRuleLists;
   }
 
   private void initInterfaceIncomingFilterLines() {
@@ -1808,6 +1879,9 @@ public class F5BigipConfiguration extends VendorConfiguration {
     // Add access-lists
     _accessLists.values().forEach(this::addIpAccessList);
 
+    // Add firewall rule-lists as access-lists
+    _firewallRuleLists.values().forEach(this::addFirewallRuleList);
+
     // Convert access-lists referenced by route-maps to RouteFilterLists
     _accessLists.forEach(
         (name, acl) -> {
@@ -1903,6 +1977,7 @@ public class F5BigipConfiguration extends VendorConfiguration {
     _c.getDefaultVrf()
         .setStaticRoutes(
             _routes.values().stream()
+                .sorted(Comparator.comparing(Route::getLine))
                 .map(this::toStaticRoute)
                 .filter(Objects::nonNull)
                 .collect(ImmutableSortedSet.toImmutableSortedSet(Comparator.naturalOrder())));

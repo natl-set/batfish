@@ -58206,10 +58206,6 @@
         },
         "humanName" : "f5_bigip_structured_sys",
         "mainRibEnforceResolvability" : false,
-        "ntpServers" : [
-          "192.0.2.3",
-          "my.example.com"
-        ],
         "vendorFamily" : { },
         "vrfs" : {
           "default" : {

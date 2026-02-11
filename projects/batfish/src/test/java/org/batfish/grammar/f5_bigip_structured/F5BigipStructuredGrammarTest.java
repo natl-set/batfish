@@ -249,11 +249,14 @@ import org.batfish.representation.f5_bigip.DeviceGroup;
 import org.batfish.representation.f5_bigip.DeviceGroupDevice;
 import org.batfish.representation.f5_bigip.F5BigipConfiguration;
 import org.batfish.representation.f5_bigip.F5BigipStructureType;
+import org.batfish.representation.f5_bigip.FirewallRule;
+import org.batfish.representation.f5_bigip.FirewallRuleList;
 import org.batfish.representation.f5_bigip.HaGroup;
 import org.batfish.representation.f5_bigip.HaGroupPool;
 import org.batfish.representation.f5_bigip.HaGroupTrunk;
 import org.batfish.representation.f5_bigip.ManagementIp;
 import org.batfish.representation.f5_bigip.Route;
+import org.batfish.representation.f5_bigip.SnmpCommunity;
 import org.batfish.representation.f5_bigip.TrafficGroup;
 import org.batfish.representation.f5_bigip.UnicastAddress;
 import org.batfish.representation.f5_bigip.Virtual;
@@ -2734,6 +2737,20 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testVirtualProfilesAndPersistExtraction() {
+    F5BigipConfiguration vc = parseVendorConfig("f5_bigip_structured_ltm_references");
+    Virtual virtual = vc.getVirtuals().get("/Common/virtual_used");
+
+    assertThat(virtual.getProfiles(), hasItem("/Common/http"));
+    assertThat(virtual.getProfiles(), hasItem("/Common/profile_http_used"));
+    assertThat(virtual.getProfiles(), hasItem("/Common/profile_http_undefined"));
+
+    assertThat(virtual.getPersistences(), hasItem("/Common/cookie"));
+    assertThat(virtual.getPersistences(), hasItem("/Common/persistence_cookie_used"));
+    assertThat(virtual.getPersistences(), hasItem("/Common/persistence_cookie_undefined"));
+  }
+
+  @Test
   public void testSelfReferences() throws IOException {
     String hostname = "f5_bigip_structured_self_references";
     String file = "configs/" + hostname;
@@ -3536,6 +3553,28 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testDc1ConfigParse() throws IOException {
+    // Test parsing of DC1-bigip.conf configuration
+    Batfish batfish = getBatfishForConfigurationNames("DC1-bigip");
+    Map<String, Configuration> configs = batfish.loadConfigurations(batfish.getSnapshot());
+    assertThat("Configuration map not empty", configs.isEmpty(), equalTo(false));
+    Configuration c = configs.values().iterator().next();
+    assertThat("Configuration parsed successfully", c, notNullValue());
+    assertThat("Hostname extracted", c.getHostname(), notNullValue());
+  }
+
+  @Test
+  public void testDc2ConfigParse() throws IOException {
+    // Test parsing of DC2-bigip.conf configuration
+    Batfish batfish = getBatfishForConfigurationNames("DC2-bigip");
+    Map<String, Configuration> configs = batfish.loadConfigurations(batfish.getSnapshot());
+    assertThat("Configuration map not empty", configs.isEmpty(), equalTo(false));
+    Configuration c = configs.values().iterator().next();
+    assertThat("Configuration parsed successfully", c, notNullValue());
+    assertThat("Hostname extracted", c.getHostname(), notNullValue());
+  }
+
+  @Test
   public void testVirtualRejectFilter() throws IOException {
     // Test that:
     // - Traffic matching a 'virtual' in 'ip-forward' is not filtered at ingress
@@ -3639,5 +3678,213 @@ public final class F5BigipStructuredGrammarTest {
 
     // detect all structure references
     assertThat(ans, hasNumReferrers(file, VLAN, used, 3));
+  }
+
+  @Test
+  public void testSnmpConversion() throws IOException {
+    String hostname = "f5_bigip_structured_snmp";
+    F5BigipConfiguration vc = parseVendorConfig(hostname);
+
+    // Test SNMP communities
+    assertThat(vc.getSnmpCommunities(), hasKey("/Common/public"));
+    assertThat(vc.getSnmpCommunities(), hasKey("/Common/private"));
+
+    // Verify public community
+    {
+      SnmpCommunity publicComm = vc.getSnmpCommunities().get("/Common/public");
+      assertThat(publicComm.getCommunityName(), equalTo("public"));
+      assertThat(publicComm.getSource(), equalTo("default"));
+    }
+
+    // Verify private community
+    {
+      SnmpCommunity privateComm = vc.getSnmpCommunities().get("/Common/private");
+      assertThat(privateComm.getCommunityName(), equalTo("private"));
+      assertThat(privateComm.getSource(), nullValue());
+    }
+  }
+
+  @Test
+  public void testSnmpExtendedSectionsParse() throws IOException {
+    String hostname = "f5_bigip_structured_sys_new";
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    batfish.getSettings().setDisableUnrecognized(false);
+    batfish.getSettings().setThrowOnLexerError(false);
+    batfish.getSettings().setThrowOnParserError(false);
+
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    // SSHD, SYSLOG, LOG_CONFIG are now explicitly parsed
+    // SNMP disk/process monitors are properly parsed
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testHaGroupConversion() throws IOException {
+    String hostname = "f5_bigip_structured_sys_ha_group";
+    F5BigipConfiguration vc = parseVendorConfig(hostname);
+
+    // Test HA group configuration
+    assertThat(vc.getHaGroups(), hasKey("g1"));
+
+    HaGroup haGroup = vc.getHaGroups().get("g1");
+    assertThat(haGroup.getActiveBonus(), equalTo(12));
+
+    // Test HA group pools
+    assertThat(haGroup.getPools(), hasKey("/Common/p1"));
+    HaGroupPool pool = haGroup.getPools().get("/Common/p1");
+    assertThat(pool.getWeight(), equalTo(34));
+
+    // Test HA group trunks
+    assertThat(haGroup.getTrunks(), hasKey("t1"));
+    HaGroupTrunk trunk = haGroup.getTrunks().get("t1");
+    assertThat(trunk.getWeight(), equalTo(56));
+  }
+
+  @Test
+  public void testSecurityFirewallRuleListNumericIpProtocol() throws IOException {
+    String hostname = "f5_bigip_structured_security_firewall_numeric_ip_protocol";
+    F5BigipConfiguration vc = parseVendorConfig(hostname);
+
+    assertThat(vc.getFirewallRuleLists(), hasKey("/Common/rl1"));
+    FirewallRuleList ruleList = vc.getFirewallRuleLists().get("/Common/rl1");
+    assertThat(ruleList.getRules(), hasSize(1));
+
+    FirewallRule rule = ruleList.getRules().get(0);
+    assertThat(rule.getName(), equalTo("/Common/rule1"));
+    assertThat(rule.getAction(), equalTo("accept"));
+    assertThat(rule.getIpProtocol(), equalTo("6"));
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testVirtualAddressWildcardNoFalseInvalidIpWarning() throws IOException {
+    String hostname = "f5_bigip_structured_virtual_address_wildcard";
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    Warnings warnings =
+        batfish.initInfo(batfish.getSnapshot(), false, true).getWarnings().get(hostname);
+    if (warnings == null) {
+      return;
+    }
+
+    assertFalse(
+        "Wildcard virtual-address should not be flagged as invalid IP",
+        warnings.getRedFlagWarnings().stream()
+            .map(Warning::getText)
+            .anyMatch(Predicates.containsPattern("invalid or empty IP address")));
+  }
+
+  @Test
+  public void testKeywordTokensAsValues() throws IOException {
+    String filename = "f5_bigip_structured_keyword_values";
+    String hostname = "f5_bigip_structured_keyword_values";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that keyword tokens can be used as property values without warnings
+    // This verifies the fix for u_word rule that includes: ACTIVE, ALL, ANY,
+    // DISABLED, ENABLED, FALSE, SELF, TRUE
+
+    // Should have parsed without errors and have the config
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+  }
+
+  @Test
+  public void testDescriptionExtractionWithQuotedAndEscaped() throws IOException {
+    String filename = "f5_bigip_structured_keyword_values";
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Test that descriptions are extracted correctly for:
+    // - Quoted strings
+    // - Unquoted values (including keywords)
+    // - Escaped quotes within quoted strings
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_quoted"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_quoted").getDescription(),
+        equalTo("this is a quoted description"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_escaped_quotes"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_escaped_quotes").getDescription(),
+        equalTo("she said \"hello world\" to the pool"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_disabled"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_disabled").getDescription(), equalTo("disabled"));
+
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_mixed"));
+    assertThat(
+        vc.getPools().get("/Common/test_pool_mixed").getDescription(),
+        equalTo("pool with disabled status"));
+  }
+
+  @Test
+  public void testMetadataBlocksIgnored() throws IOException {
+    String filename = "f5_bigip_structured_metadata_blocks";
+    String hostname = "f5_bigip_structured_metadata_blocks";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that metadata blocks with new/unknown fields don't generate parse warnings
+    // This verifies the fix for:
+    // - cm cert/cm key blocks using _inMetadataBlock flag
+    // - sys blocks using ignored_block
+    // - analytics blocks using ignored_block
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+
+    // Verify that device was extracted from cm blocks
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+    assertThat(vc.getDevices(), hasKey("/Common/f5_bigip_structured_metadata_blocks"));
+  }
+
+  @Test
+  public void testProfilePersistNestedContentIgnored() throws IOException {
+    String filename = "f5_bigip_structured_profile_persist_nested";
+    String hostname = "f5_bigip_structured_profile_persist_nested";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that nested braced content in profiles and persist don't generate warnings
+    // This verifies the fix for ignored_content handling:
+    // - profile { ... nested-option { ... } ... }
+    // - persist { ... method { ssl passive } ... }
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+
+    // Verify virtual servers were extracted
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-virtual-1"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-virtual-2"));
+
+    // Verify profile references were extracted
+    Virtual v1 = vc.getVirtuals().get("/Common/test-virtual-1");
+    assertThat(v1.getProfiles(), hasSize(3)); // fastL4, http, tcp
+
+    // Verify persist entries were extracted
+    assertThat(v1.getPersistences(), notNullValue());
+    assertThat(v1.getPersistences(), hasSize(2)); // source_addr and cookie
   }
 }

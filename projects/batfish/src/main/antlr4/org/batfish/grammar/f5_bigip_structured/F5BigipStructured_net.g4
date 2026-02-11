@@ -40,6 +40,7 @@ net_route
       | nroute_gw6
       | nroute_network
       | nroute_network6
+      | nroute_pool
       | unrecognized
     )*
   )? BRACE_RIGHT NEWLINE
@@ -67,6 +68,11 @@ nroute_network
 nroute_network6
 :
   NETWORK network6 = ipv6_prefix NEWLINE
+;
+
+nroute_pool
+:
+  POOL pool = structure_name NEWLINE
 ;
 
 net_routing
@@ -173,7 +179,11 @@ net_vlan
   (
     NEWLINE
     (
-      nv_interfaces
+      nv_dag_adjustment
+      | nv_failsafe
+      | nv_failsafe_action
+      | nv_failsafe_timeout
+      | nv_interfaces
       | nv_tag
       | unrecognized
     )*
@@ -230,6 +240,30 @@ nv_tag
   TAG tag = vlan_id NEWLINE
 ;
 
+nv_dag_adjustment
+:
+  DAG_ADJUSTMENT ignored
+;
+
+nv_failsafe
+:
+  FAILSAFE
+  (
+    DISABLED
+    | ENABLED
+  ) NEWLINE
+;
+
+nv_failsafe_action
+:
+  FAILSAFE_ACTION ignored
+;
+
+nv_failsafe_timeout
+:
+  FAILSAFE_TIMEOUT timeout = uint NEWLINE
+;
+
 nvi_interface
 :
   name = structure_name BRACE_LEFT NEWLINE? BRACE_RIGHT NEWLINE
@@ -239,7 +273,9 @@ s_net
 :
   NET
   (
-    net_interface
+    net_dns_resolver
+    | net_interface
+    | net_ipsec
     | net_null
     | net_route
     | net_route_domain
@@ -251,6 +287,25 @@ s_net
     | net_vlan
     | unrecognized
   )
+;
+
+net_dns_resolver
+:
+  DNS_RESOLVER ignored
+;
+
+net_ipsec
+:
+  (IPSEC | IPSECALG)
+  (
+    ipsec_ike_daemon
+    | unrecognized
+  )
+;
+
+ipsec_ike_daemon
+:
+  IKE_DAEMON ignored
 ;
 
 net_null

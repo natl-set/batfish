@@ -18,9 +18,11 @@ public final class Route implements Serializable {
   private final @Nonnull String _name;
   private @Nullable Prefix _network;
   private @Nullable Prefix6 _network6;
+  private int _line;
 
   public Route(String name) {
     _name = name;
+    _line = -1;
   }
 
   public @Nullable Ip getGw() {
@@ -57,5 +59,13 @@ public final class Route implements Serializable {
 
   public void setNetwork6(@Nullable Prefix6 network6) {
     _network6 = network6;
+  }
+
+  public int getLine() {
+    return _line;
+  }
+
+  public void setLine(int line) {
+    _line = line;
   }
 }
