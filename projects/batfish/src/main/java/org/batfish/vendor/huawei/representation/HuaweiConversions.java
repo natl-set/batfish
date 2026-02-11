@@ -22,6 +22,7 @@ import org.batfish.datamodel.BgpAuthenticationAlgorithm;
 import org.batfish.datamodel.BgpAuthenticationSettings;
 import org.batfish.datamodel.BgpPeerConfig;
 import org.batfish.datamodel.BgpProcess;
+import org.batfish.datamodel.ConcreteInterfaceAddress;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.ExprAclLine;
@@ -43,14 +44,18 @@ import org.batfish.datamodel.SubRange;
 import org.batfish.datamodel.Vrf;
 import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.MatchHeaderSpace;
+import org.batfish.datamodel.acl.TrueExpr;
 import org.batfish.datamodel.bgp.Ipv4UnicastAddressFamily;
 import org.batfish.datamodel.bgp.Ipv6UnicastAddressFamily;
 import org.batfish.datamodel.bgp.RouteDistinguisher;
+import org.batfish.datamodel.ospf.NssaSettings;
 import org.batfish.datamodel.ospf.OspfArea;
 import org.batfish.datamodel.ospf.OspfAreaSummary;
+import org.batfish.datamodel.ospf.OspfDefaultOriginateType;
 import org.batfish.datamodel.ospf.OspfInterfaceSettings;
 import org.batfish.datamodel.ospf.OspfNetworkType;
 import org.batfish.datamodel.ospf.OspfProcess;
+import org.batfish.datamodel.ospf.StubSettings;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.BooleanExpr;
 import org.batfish.datamodel.routing_policy.expr.BooleanExprs;
@@ -64,8 +69,10 @@ import org.batfish.datamodel.routing_policy.expr.MatchProtocol;
 import org.batfish.datamodel.routing_policy.expr.NamedPrefixSet;
 import org.batfish.datamodel.routing_policy.statement.CallStatement;
 import org.batfish.datamodel.routing_policy.statement.If;
+import org.batfish.datamodel.routing_policy.statement.SetAdministrativeCost;
 import org.batfish.datamodel.routing_policy.statement.SetLocalPreference;
 import org.batfish.datamodel.routing_policy.statement.SetMetric;
+import org.batfish.datamodel.routing_policy.statement.SetTag;
 import org.batfish.datamodel.routing_policy.statement.Statement;
 import org.batfish.datamodel.routing_policy.statement.Statements;
 import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily;
@@ -92,7 +99,7 @@ public class HuaweiConversions {
     Configuration c = new Configuration(huaweiConfig.getHostname(), ConfigurationFormat.HUAWEI);
 
     // Set Huawei vendor family
-    c.getVendorFamily().setHuawei(new org.batfish.datamodel.vendor_family.huawei.HuaweiFamily());
+    c.getVendorFamily().setHuawei(new HuaweiFamily());
 
     // Convert interfaces
     toConfigurationInterfaces(huaweiConfig, c);
@@ -100,8 +107,7 @@ public class HuaweiConversions {
     // Set default VRF
     c.getVrfs()
         .computeIfAbsent(
-            DEFAULT_VRF_NAME,
-            vrfName -> org.batfish.datamodel.Vrf.builder().setName(DEFAULT_VRF_NAME).build());
+            DEFAULT_VRF_NAME, vrfName -> Vrf.builder().setName(DEFAULT_VRF_NAME).build());
 
     // Convert static routes
     toConfigurationStaticRoutes(c, huaweiConfig);
@@ -407,9 +413,8 @@ public class HuaweiConversions {
                         .map(
                             iface -> {
                               InterfaceAddress addr = iface.getAddress();
-                              if (addr instanceof org.batfish.datamodel.ConcreteInterfaceAddress) {
-                                return ((org.batfish.datamodel.ConcreteInterfaceAddress) addr)
-                                    .getIp();
+                              if (addr instanceof ConcreteInterfaceAddress) {
+                                return ((ConcreteInterfaceAddress) addr).getIp();
                               }
                               return Ip.ZERO;
                             })
@@ -884,8 +889,8 @@ public class HuaweiConversions {
               .map(
                   iface -> {
                     InterfaceAddress addr = iface.getAddress();
-                    if (addr instanceof org.batfish.datamodel.ConcreteInterfaceAddress) {
-                      return ((org.batfish.datamodel.ConcreteInterfaceAddress) addr).getIp();
+                    if (addr instanceof ConcreteInterfaceAddress) {
+                      return ((ConcreteInterfaceAddress) addr).getIp();
                     }
                     return Ip.ZERO;
                   })
@@ -1213,7 +1218,7 @@ public class HuaweiConversions {
     // Combine all conditions with AND
     if (conditions.isEmpty()) {
       // No specific conditions, match all
-      matchCondition = org.batfish.datamodel.acl.TrueExpr.INSTANCE;
+      matchCondition = TrueExpr.INSTANCE;
     } else if (conditions.size() == 1) {
       matchCondition = conditions.get(0);
     } else {
@@ -1483,18 +1488,15 @@ public class HuaweiConversions {
         // For stub area, use StubSettings with suppressType3 based on configuration
         if (huaweiArea.isNoSummary()) {
           // Totally stubby area - suppress Type 3 summary LSAs
-          builder.setStub(
-              org.batfish.datamodel.ospf.StubSettings.builder().setSuppressType3(true).build());
+          builder.setStub(StubSettings.builder().setSuppressType3(true).build());
         } else {
           // Regular stub area - allow Type 3 summary LSAs
-          builder.setStub(
-              org.batfish.datamodel.ospf.StubSettings.builder().setSuppressType3(false).build());
+          builder.setStub(StubSettings.builder().setSuppressType3(false).build());
         }
         break;
       case NSSA:
         // For NSSA area, use NssaSettings with suppressType3 based on configuration
-        org.batfish.datamodel.ospf.NssaSettings.Builder nssaBuilder =
-            org.batfish.datamodel.ospf.NssaSettings.builder();
+        NssaSettings.Builder nssaBuilder = NssaSettings.builder();
         if (huaweiArea.isNoSummary()) {
           // Totally stubby NSSA - suppress Type 3 summary LSAs
           nssaBuilder.setSuppressType3(true);
@@ -1502,12 +1504,10 @@ public class HuaweiConversions {
         // Set default originate type based on Huawei default-information-originate configuration
         if (huaweiArea.isDefaultOriginate()) {
           // NSSA with default-information-originate configured
-          nssaBuilder.setDefaultOriginateType(
-              org.batfish.datamodel.ospf.OspfDefaultOriginateType.INTER_AREA);
+          nssaBuilder.setDefaultOriginateType(OspfDefaultOriginateType.INTER_AREA);
         } else {
           // Default behavior - no default originate
-          nssaBuilder.setDefaultOriginateType(
-              org.batfish.datamodel.ospf.OspfDefaultOriginateType.NONE);
+          nssaBuilder.setDefaultOriginateType(OspfDefaultOriginateType.NONE);
         }
         builder.setNssa(nssaBuilder.build());
         break;
@@ -1726,16 +1726,12 @@ public class HuaweiConversions {
     if (actions.getPreference() != null) {
       // Preference in Huawei is administrative distance
       // In Batfish, this is SetAdministrativeCost
-      statements.add(
-          new org.batfish.datamodel.routing_policy.statement.SetAdministrativeCost(
-              new LiteralInt(actions.getPreference().intValue())));
+      statements.add(new SetAdministrativeCost(new LiteralInt(actions.getPreference().intValue())));
     }
 
     // Set tag (apply tag)
     if (actions.getTag() != null) {
-      statements.add(
-          new org.batfish.datamodel.routing_policy.statement.SetTag(
-              new LiteralLong(actions.getTag())));
+      statements.add(new SetTag(new LiteralLong(actions.getTag())));
     }
 
     return statements;
