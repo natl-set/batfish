@@ -10,6 +10,7 @@ import static org.junit.Assert.assertTrue;
 import org.batfish.common.Warnings;
 import org.batfish.config.Settings;
 import org.batfish.datamodel.Ip;
+import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
 import org.batfish.vendor.huawei.representation.HuaweiAcl;
 import org.batfish.vendor.huawei.representation.HuaweiBgpProcess;
 import org.batfish.vendor.huawei.representation.HuaweiCommunityFilter;
@@ -226,11 +227,7 @@ public class HuaweiControlPlaneExtractorTest {
     Warnings warnings = new Warnings();
 
     HuaweiControlPlaneExtractor extractor =
-        new HuaweiControlPlaneExtractor(
-            configText,
-            parser,
-            warnings,
-            new org.batfish.grammar.silent_syntax.SilentSyntaxCollection());
+        new HuaweiControlPlaneExtractor(configText, parser, warnings, new SilentSyntaxCollection());
 
     assertThat(extractor.getInputText(), equalTo(configText));
   }
@@ -242,11 +239,7 @@ public class HuaweiControlPlaneExtractorTest {
     Warnings warnings = new Warnings();
 
     HuaweiControlPlaneExtractor extractor =
-        new HuaweiControlPlaneExtractor(
-            configText,
-            parser,
-            warnings,
-            new org.batfish.grammar.silent_syntax.SilentSyntaxCollection());
+        new HuaweiControlPlaneExtractor(configText, parser, warnings, new SilentSyntaxCollection());
 
     assertThat(extractor.getParser(), equalTo(parser));
   }
@@ -258,11 +251,7 @@ public class HuaweiControlPlaneExtractorTest {
     Warnings warnings = new Warnings();
 
     HuaweiControlPlaneExtractor extractor =
-        new HuaweiControlPlaneExtractor(
-            configText,
-            parser,
-            warnings,
-            new org.batfish.grammar.silent_syntax.SilentSyntaxCollection());
+        new HuaweiControlPlaneExtractor(configText, parser, warnings, new SilentSyntaxCollection());
 
     assertThat(extractor.getWarnings(), equalTo(warnings));
   }
@@ -274,11 +263,7 @@ public class HuaweiControlPlaneExtractorTest {
     Warnings warnings = new Warnings();
 
     HuaweiControlPlaneExtractor extractor =
-        new HuaweiControlPlaneExtractor(
-            configText,
-            parser,
-            warnings,
-            new org.batfish.grammar.silent_syntax.SilentSyntaxCollection());
+        new HuaweiControlPlaneExtractor(configText, parser, warnings, new SilentSyntaxCollection());
 
     assertThat(extractor.getVendorConfiguration(), notNullValue());
     assertTrue(extractor.getVendorConfiguration() instanceof HuaweiConfiguration);
