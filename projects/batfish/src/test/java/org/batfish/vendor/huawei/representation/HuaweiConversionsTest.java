@@ -3171,4 +3171,92 @@ public class HuaweiConversionsTest {
     assertTrue(area0.getInjectDefaultRoute());
     assertThat(area0.getMetricOfDefaultRoute(), equalTo(10));
   }
+
+  @Test
+  public void testToInterfaceWithNullBandwidth() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface huaweiIface = new HuaweiInterface("GigabitEthernet0/0/0");
+    huaweiIface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+    huaweiIface.setBandwidth(null); // Explicitly null bandwidth
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", huaweiIface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface iface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    // Should use default bandwidth for GigabitEthernet
+    assertThat(iface.getSpeed(), notNullValue());
+  }
+
+  @Test
+  public void testToInterfaceWithZeroBandwidth() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface huaweiIface = new HuaweiInterface("GigabitEthernet0/0/0");
+    huaweiIface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+    huaweiIface.setBandwidth(0.0); // Zero bandwidth
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", huaweiIface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface iface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    // Should use default bandwidth for GigabitEthernet
+    assertThat(iface.getSpeed(), notNullValue());
+  }
+
+  @Test
+  public void testToInterfaceWithNoAddress() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface huaweiIface = new HuaweiInterface("GigabitEthernet0/0/0");
+    // Don't set an address
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", huaweiIface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface iface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    assertThat(iface.getAddress(), nullValue());
+  }
+
+  @Test
+  public void testToInterfaceWithDhcpRelay() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiInterface huaweiIface = new HuaweiInterface("GigabitEthernet0/0/0");
+    huaweiIface.setAddress(ConcreteInterfaceAddress.parse("192.168.1.1/24"));
+    huaweiIface.getDhcpRelayAddresses().add(Ip.parse("192.168.1.10"));
+    huaweiIface.getDhcpRelayAddresses().add(Ip.parse("192.168.1.11"));
+
+    SortedMap<String, HuaweiInterface> interfaces = new TreeMap<>();
+    interfaces.put("GigabitEthernet0/0/0", huaweiIface);
+    huaweiConfig.setInterfaces(interfaces);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    Interface iface = config.getAllInterfaces().get("GigabitEthernet0/0/0");
+    assertThat(iface, notNullValue());
+    assertThat(iface.getDhcpRelayAddresses().size(), equalTo(2));
+    assertTrue(iface.getDhcpRelayAddresses().contains(Ip.parse("192.168.1.10")));
+    assertTrue(iface.getDhcpRelayAddresses().contains(Ip.parse("192.168.1.11")));
+  }
 }
