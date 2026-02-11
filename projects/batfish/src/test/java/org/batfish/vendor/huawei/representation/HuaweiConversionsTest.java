@@ -36,6 +36,8 @@ import org.batfish.datamodel.ospf.OspfInterfaceSettings;
 import org.batfish.datamodel.ospf.OspfNetworkType;
 import org.batfish.datamodel.ospf.OspfProcess;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
+import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily;
+import org.batfish.datamodel.vendor_family.huawei.HuaweiFamily.HuaweiVrfData;
 import org.junit.Test;
 
 /** Tests for HuaweiConversions */
@@ -3868,5 +3870,488 @@ public class HuaweiConversionsTest {
     assertThat(
         convertedPeer.getAuthenticationSettings().getAuthenticationKey(),
         equalTo("md5-secret-key"));
+  }
+
+  // ===========================================================================
+  // ACL Complex Scenarios
+  // ===========================================================================
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclNeqPort() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("3010", HuaweiAcl.AclType.ADVANCED);
+
+    HuaweiAclLine line = new HuaweiAclLine(10, "permit");
+    line.setProtocol("tcp");
+    line.setSource("10.0.0.0/24");
+    line.setDestinationPort("neq 22"); // Not equal to port 22
+    acl.getLines().add(line);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("3010", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("3010"));
+    IpAccessList ipAccessList = config.getIpAccessLists().get("3010");
+    assertThat(ipAccessList.getLines().size(), equalTo(1));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclBothWildcards() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("3011", HuaweiAcl.AclType.ADVANCED);
+
+    HuaweiAclLine line = new HuaweiAclLine(10, "permit");
+    line.setProtocol("ip");
+    line.setSource("0.0.0.0 255.255.255.255"); // Any source
+    line.setDestination("0.0.0.0 255.255.255.255"); // Any destination
+    acl.getLines().add(line);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("3011", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("3011"));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclDenyAction() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("3012", HuaweiAcl.AclType.ADVANCED);
+
+    HuaweiAclLine line1 = new HuaweiAclLine(10, "deny");
+    line1.setProtocol("tcp");
+    line1.setSource("192.168.1.0/24");
+    line1.setDestinationPort("eq 23");
+
+    HuaweiAclLine line2 = new HuaweiAclLine(20, "permit");
+    line2.setProtocol("ip");
+    line2.setSource("10.0.0.0/24");
+
+    acl.getLines().add(line1);
+    acl.getLines().add(line2);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("3012", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("3012"));
+    IpAccessList ipAccessList = config.getIpAccessLists().get("3012");
+    assertThat(ipAccessList.getLines().size(), equalTo(2));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclTcpExplicit() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("3013", HuaweiAcl.AclType.ADVANCED);
+
+    HuaweiAclLine line = new HuaweiAclLine(10, "permit");
+    line.setProtocol("tcp");
+    line.setSource("10.0.0.0 0.0.0.255");
+    line.setDestination("172.16.0.0 0.0.255.255");
+    line.setDestinationPort("range 2000 3000");
+    acl.getLines().add(line);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("3013", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("3013"));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithAclUdpExplicit() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiAcl acl = new HuaweiAcl("3014", HuaweiAcl.AclType.ADVANCED);
+
+    HuaweiAclLine line = new HuaweiAclLine(10, "permit");
+    line.setProtocol("udp");
+    line.setSource("10.0.0.0/24");
+    line.setDestinationPort("eq 53");
+    acl.getLines().add(line);
+
+    SortedMap<String, HuaweiAcl> acls = new TreeMap<>();
+    acls.put("3014", acl);
+    huaweiConfig.setAcls(acls);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getIpAccessLists(), hasKey("3014"));
+  }
+
+  // ===========================================================================
+  // Route Policy Edge Cases
+  // ===========================================================================
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyOnlySetActions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("ONLY_SET_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.PERMIT);
+    // No match conditions, only set actions
+    node.getSetActions().setLocalPreference(200L);
+    node.getSetActions().setCost(100);
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("ONLY_SET_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("ONLY_SET_POLICY"));
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("ONLY_SET_POLICY");
+    assertThat(convertedPolicy, notNullValue());
+    assertThat(convertedPolicy.getStatements().size(), equalTo(1));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyNoSetActions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("NO_SET_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.PERMIT);
+    // Only match conditions, no set actions
+    node.getMatchConditions().setIpPrefix("PREFIX_LIST");
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("NO_SET_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("NO_SET_POLICY"));
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("NO_SET_POLICY");
+    assertThat(convertedPolicy, notNullValue());
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyMultipleSetActions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("MULTI_SET_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.PERMIT);
+    // Multiple consecutive set actions
+    node.getSetActions().setLocalPreference(300L);
+    node.getSetActions().setCost(50);
+    node.getSetActions().setPreference(100);
+    node.getSetActions().setTag(999L);
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("MULTI_SET_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("MULTI_SET_POLICY"));
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("MULTI_SET_POLICY");
+    assertThat(convertedPolicy, notNullValue());
+    assertThat(convertedPolicy.getStatements().size(), equalTo(1));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyEmptyMatchConditions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("EMPTY_MATCH_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.DENY);
+    // Match conditions object exists but is empty (no specific conditions set)
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("EMPTY_MATCH_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("EMPTY_MATCH_POLICY"));
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("EMPTY_MATCH_POLICY");
+    assertThat(convertedPolicy, notNullValue());
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithRoutePolicyDenyNoConditions() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiRoutePolicy routePolicy = new HuaweiRoutePolicy("DENY_ALL_POLICY");
+    HuaweiRoutePolicy.HuaweiRoutePolicyNode node =
+        new HuaweiRoutePolicy.HuaweiRoutePolicyNode(
+            10, HuaweiRoutePolicy.HuaweiRoutePolicyNode.Action.DENY);
+    // DENY with no match conditions - should reject everything
+    routePolicy.addNode(node);
+
+    SortedMap<String, HuaweiRoutePolicy> routePolicies = new TreeMap<>();
+    routePolicies.put("DENY_ALL_POLICY", routePolicy);
+    huaweiConfig.setRoutePolicies(routePolicies);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getRoutingPolicies(), hasKey("DENY_ALL_POLICY"));
+    RoutingPolicy convertedPolicy = config.getRoutingPolicies().get("DENY_ALL_POLICY");
+    assertThat(convertedPolicy, notNullValue());
+    assertThat(convertedPolicy.getStatements().size(), equalTo(1));
+  }
+
+  // ===========================================================================
+  // VRF Advanced Configuration
+  // ===========================================================================
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfImportRouteTargets() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_IMPORT");
+    vrf.setRouteDistinguisher("65000:100");
+    vrf.addImportRouteTarget("65000:100");
+    vrf.addImportRouteTarget("65001:200");
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_IMPORT", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_IMPORT"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    assertThat(huaweiFamily, notNullValue());
+    assertThat(huaweiFamily.getVrfs(), hasKey("VRF_IMPORT"));
+
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_IMPORT");
+    assertThat(vrfData, notNullValue());
+    assertThat(vrfData.getName(), equalTo("VRF_IMPORT"));
+    assertThat(vrfData.getImportRouteTargets().size(), equalTo(2));
+    assertThat(vrfData.getImportRouteTargets().contains("65000:100"), equalTo(true));
+    assertThat(vrfData.getImportRouteTargets().contains("65001:200"), equalTo(true));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfExportRouteTargets() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_EXPORT");
+    vrf.setRouteDistinguisher("65000:101");
+    vrf.addExportRouteTarget("65000:101");
+    vrf.addExportRouteTarget("65002:300");
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_EXPORT", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_EXPORT"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_EXPORT");
+    assertThat(vrfData, notNullValue());
+    assertThat(vrfData.getExportRouteTargets().size(), equalTo(2));
+    assertThat(vrfData.getExportRouteTargets().contains("65000:101"), equalTo(true));
+    assertThat(vrfData.getExportRouteTargets().contains("65002:300"), equalTo(true));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfBothRouteTargets() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_BOTH");
+    vrf.setRouteDistinguisher("65000:102");
+    vrf.addImportRouteTarget("65000:102");
+    vrf.addImportRouteTarget("65003:400");
+    vrf.addExportRouteTarget("65000:102");
+    vrf.addExportRouteTarget("65004:500");
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_BOTH", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_BOTH"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_BOTH");
+    assertThat(vrfData, notNullValue());
+    assertThat(vrfData.getImportRouteTargets().size(), equalTo(2));
+    assertThat(vrfData.getExportRouteTargets().size(), equalTo(2));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfIpv4AddressFamily() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_IPV4");
+    vrf.setRouteDistinguisher("65000:103");
+    vrf.setIpv4Enabled(true);
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_IPV4", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_IPV4"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_IPV4");
+    assertThat(vrfData, notNullValue());
+    assertThat(vrfData.isIpv4Enabled(), equalTo(true));
+    assertThat(vrfData.isIpv6Enabled(), equalTo(false));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfIpv6AddressFamily() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_IPV6");
+    vrf.setRouteDistinguisher("65000:104");
+    vrf.setIpv6Enabled(true);
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_IPV6", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_IPV6"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_IPV6");
+    assertThat(vrfData, notNullValue());
+    assertThat(vrfData.isIpv4Enabled(), equalTo(false));
+    assertThat(vrfData.isIpv6Enabled(), equalTo(true));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithMultipleVrfs() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf1 = new HuaweiVrf("VRF_A");
+    vrf1.setRouteDistinguisher("65000:1");
+    vrf1.addImportRouteTarget("65000:1");
+    vrf1.setIpv4Enabled(true);
+
+    HuaweiVrf vrf2 = new HuaweiVrf("VRF_B");
+    vrf2.setRouteDistinguisher("65000:2");
+    vrf2.addExportRouteTarget("65000:2");
+    vrf2.setIpv6Enabled(true);
+
+    HuaweiVrf vrf3 = new HuaweiVrf("VRF_C");
+    vrf3.setRouteDistinguisher("65000:3");
+    vrf3.addBothRouteTarget("65000:3");
+    vrf3.setIpv4Enabled(true);
+    vrf3.setIpv6Enabled(true);
+    vrf3.setDescription("Customer VRF");
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_A", vrf1);
+    vrfs.put("VRF_B", vrf2);
+    vrfs.put("VRF_C", vrf3);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_A"));
+    assertThat(config.getVrfs(), hasKey("VRF_B"));
+    assertThat(config.getVrfs(), hasKey("VRF_C"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    assertThat(huaweiFamily.getVrfs().size(), equalTo(3));
+
+    HuaweiVrfData vrfData1 = huaweiFamily.getVrfs().get("VRF_A");
+    assertThat(vrfData1.isIpv4Enabled(), equalTo(true));
+    assertThat(vrfData1.isIpv6Enabled(), equalTo(false));
+
+    HuaweiVrfData vrfData2 = huaweiFamily.getVrfs().get("VRF_B");
+    assertThat(vrfData2.isIpv4Enabled(), equalTo(false));
+    assertThat(vrfData2.isIpv6Enabled(), equalTo(true));
+
+    HuaweiVrfData vrfData3 = huaweiFamily.getVrfs().get("VRF_C");
+    assertThat(vrfData3.isIpv4Enabled(), equalTo(true));
+    assertThat(vrfData3.isIpv6Enabled(), equalTo(true));
+    assertThat(vrfData3.getDescription(), equalTo("Customer VRF"));
+  }
+
+  @Test
+  public void testToVendorIndependentConfigurationWithVrfDescription() {
+    HuaweiConfiguration huaweiConfig = new HuaweiConfiguration();
+    huaweiConfig.setHostname("test-router");
+
+    HuaweiVrf vrf = new HuaweiVrf("VRF_WITH_DESC");
+    vrf.setRouteDistinguisher("65000:200");
+    vrf.setDescription("Production VRF for Customer A");
+
+    SortedMap<String, HuaweiVrf> vrfs = new TreeMap<>();
+    vrfs.put("VRF_WITH_DESC", vrf);
+    huaweiConfig.setVrfs(vrfs);
+
+    Configuration config = toVendorIndependentConfiguration(huaweiConfig);
+
+    assertThat(config, notNullValue());
+    assertThat(config.getVrfs(), hasKey("VRF_WITH_DESC"));
+
+    Vrf convertedVrf = config.getVrfs().get("VRF_WITH_DESC");
+    assertThat(convertedVrf, notNullValue());
+    assertThat(convertedVrf.getDescription(), equalTo("Production VRF for Customer A"));
+
+    HuaweiFamily huaweiFamily = config.getVendorFamily().getHuawei();
+    HuaweiVrfData vrfData = huaweiFamily.getVrfs().get("VRF_WITH_DESC");
+    assertThat(vrfData.getDescription(), equalTo("Production VRF for Customer A"));
   }
 }
