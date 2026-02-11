@@ -1,0 +1,14 @@
+#TMSH-VERSION: 17.1.0
+
+sys global-settings {
+    hostname f5_bigip_structured_security_firewall_numeric_ip_protocol
+}
+
+security firewall rule-list /Common/rl1 {
+    rules {
+        /Common/rule1 {
+            action accept
+            ip-protocol 6
+        }
+    }
+}
