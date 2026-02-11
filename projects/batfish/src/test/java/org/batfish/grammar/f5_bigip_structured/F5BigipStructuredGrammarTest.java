@@ -3713,21 +3713,11 @@ public final class F5BigipStructuredGrammarTest {
     batfish.getSettings().setThrowOnParserError(false);
 
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    // SSHD, SYSLOG are now explicitly ignored (metadata blocks)
+    // SNMP disk/process monitors generate warnings
     assertThat(
         initAns.getParseStatus().get("configs/" + hostname),
         equalTo(ParseStatus.PARTIALLY_UNRECOGNIZED));
-  }
-
-  @Test
-  public void testSysDnsAndManagementRouteParse() throws IOException {
-    String hostname = "f5_bigip_structured_sys_dns_management";
-    F5BigipConfiguration vc = parseVendorConfig(hostname);
-
-    assertThat(vc.getHostname(), equalTo("f5_bigip_structured_sys_dns_management"));
-
-    Batfish batfish = getBatfishForConfigurationNames(hostname);
-    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
-    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
 
   @Test

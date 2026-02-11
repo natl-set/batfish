@@ -156,70 +156,24 @@ sys_null
   ) ignored
 ;
 
-sshd_inactivity_timeout
-:
-  INACTIVITY_TIMEOUT timeout = uint NEWLINE
-;
-
 sys_sshd
 :
-  SSHD BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sshd_banner
-      | sshd_inactivity_timeout
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
+  SSHD ignored_block
 ;
 
-sshd_banner
+sys_ecm
 :
-  BANNER (ENABLED | DISABLED) NEWLINE
+  ECM CLOUD_PROVIDER ignored
+;
+
+sys_log_config
+:
+  LOG_CONFIG ignored
 ;
 
 sys_syslog
 :
-  SYSLOG BRACE_LEFT
-  (
-    NEWLINE
-    (
-      syslog_remote_servers
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_remote_servers
-:
-  REMOTE_SERVERS BRACE_LEFT
-  (
-    NEWLINE syslog_remote_server*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_remote_server
-:
-  name = structure_name BRACE_LEFT
-  (
-    NEWLINE
-    (
-      syslog_host
-      | syslog_local_ip
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-syslog_host
-:
-  HOST host = word NEWLINE
-;
-
-syslog_local_ip
-:
-  LOCAL_IP ip = word NEWLINE
+  SYSLOG ignored_block
 ;
 
 sys_snmp
@@ -428,70 +382,12 @@ s_sys
 
 sys_ecm
 :
-  ECM CLOUD_PROVIDER name = structure_name BRACE_LEFT
-  (
-    NEWLINE
-    (
-      sys_ecm_description
-      | sys_ecm_property_template
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-sys_ecm_description
-:
-  DESCRIPTION description_text NEWLINE
-;
-
-sys_ecm_property_template
-:
-  PROPERTY_TEMPLATE BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ecm_property_item
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-ecm_property_item
-:
-  word BRACE_LEFT
-  (
-    NEWLINE
-    (
-      ecm_property_setting
-      | unrecognized
-    )*
-  )? BRACE_RIGHT NEWLINE
-;
-
-ecm_property_setting
-:
-  WORD_ID NEWLINE
-  | DESCRIPTION description_text NEWLINE
-  | VALID_VALUES BRACE_LEFT word+ BRACE_RIGHT NEWLINE
+  ECM CLOUD_PROVIDER ignored_block
 ;
 
 sys_log_config
 :
-  LOG_CONFIG
-  (
-    PUBLISHER structure_name ignored
-    | DESTINATION (MANAGEMENT_PORT | REMOTE_HIGH_SPEED_LOG | REMOTE_SYSLOG) name = structure_name BRACE_LEFT
-    (
-      NEWLINE
-      (
-        slc_format
-        | slc_protocol
-        | slc_remote_high_speed_log
-        | ignored
-        | unrecognized
-      )*
-    )? BRACE_RIGHT NEWLINE
-  )
+  LOG_CONFIG ignored_block
 ;
 
 sys_software_update
@@ -532,19 +428,4 @@ sys_management_ovsdb
 sys_compatibility_level
 :
   COMPATIBILITY_LEVEL ignored_block
-;
-
-slc_format
-:
-  FORMAT format_value = word NEWLINE
-;
-
-slc_protocol
-:
-  PROTOCOL protocol_value = word NEWLINE
-;
-
-slc_remote_high_speed_log
-:
-  REMOTE_HIGH_SPEED_LOG pool_name = structure_name NEWLINE
 ;

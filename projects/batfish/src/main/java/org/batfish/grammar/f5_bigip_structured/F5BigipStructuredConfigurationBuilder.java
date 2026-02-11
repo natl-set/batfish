@@ -762,6 +762,9 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private @Nullable Snat _currentSnat;
   private @Nullable SnatPool _currentSnatPool;
   private @Nullable SnatTranslation _currentSnatTranslation;
+  private @Nullable SnmpCommunity _currentSnmpCommunity;
+  private @Nullable SnmpDiskMonitor _currentSnmpDiskMonitor;
+  private @Nullable SnmpProcessMonitor _currentSnmpProcessMonitor;
   private TrafficGroup _currentTrafficGroup;
   private @Nullable Trunk _currentTrunk;
   private UnicastAddress _currentUnicastAddress;
@@ -769,9 +772,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private @Nullable Virtual _currentVirtual;
   private @Nullable VirtualAddress _currentVirtualAddress;
   private @Nullable Vlan _currentVlan;
-  private @Nullable SnmpCommunity _currentSnmpCommunity;
-  private @Nullable SnmpDiskMonitor _currentSnmpDiskMonitor;
-  private @Nullable SnmpProcessMonitor _currentSnmpProcessMonitor;
   private @Nullable FirewallRuleList _currentFirewallRuleList;
   private @Nullable FirewallRule _currentFirewallRule;
   private @Nullable Integer _imishConfigurationLine;
@@ -3125,12 +3125,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   }
 
   @Override
-  public void exitNtp_servers(Ntp_serversContext ctx) {
-    _c.setNtpServers(
-        ctx.servers.stream().map(WordContext::getText).collect(ImmutableList.toImmutableList()));
-  }
-
-  @Override
   public void exitNv_tag(Nv_tagContext ctx) {
     _currentVlan.setTag(toInteger(ctx.tag));
   }
@@ -3158,6 +3152,28 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   public void exitSys_dns(Sys_dnsContext ctx) {
     // Parsed, but semantics are not yet extracted into the vendor model.
     todo(ctx);
+  }
+
+  @Override
+  public void exitNtp_servers(Ntp_serversContext ctx) {
+    _c.setNtpServers(
+        ctx.servers.stream().map(WordContext::getText).collect(ImmutableList.toImmutableList()));
+  }
+
+  @Override
+  public void exitSys_ntp(Sys_ntpContext ctx) {
+    // NTP servers are already extracted in exitNtp_servers
+  }
+
+  @Override
+  public void enterSys_snmp(Sys_snmpContext ctx) {
+    // Initialize SNMP structures if needed
+    _c.defineStructure(F5BigipStructureType.SNMP, "snmp", ctx.getParent());
+  }
+
+  @Override
+  public void exitSys_snmp(Sys_snmpContext ctx) {
+    // SNMP processing completed
   }
 
   @Override
@@ -3220,22 +3236,6 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   public void exitSys_management_route(Sys_management_routeContext ctx) {
     // Parsed, but semantics are not yet extracted into the vendor model.
     todo(ctx);
-  }
-
-  @Override
-  public void exitSys_ntp(Sys_ntpContext ctx) {
-    // NTP servers are already extracted in exitNtp_servers
-  }
-
-  @Override
-  public void enterSys_snmp(Sys_snmpContext ctx) {
-    // Initialize SNMP structures if needed
-    _c.defineStructure(F5BigipStructureType.SNMP, "snmp", ctx.getParent());
-  }
-
-  @Override
-  public void exitSys_snmp(Sys_snmpContext ctx) {
-    // SNMP processing completed
   }
 
   // SNMP Communities parsing
