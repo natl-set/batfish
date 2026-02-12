@@ -59,106 +59,38 @@ ltm profile server-ssl /Common/test-server-ssl {
         ECDHE-RSA-AES128-GCM-SHA256
         future-server-cipher value2
     }
-    crl-file unknown-g17-2.crl
-    forward-proxy-bypass disabled
-    key /Common/example2.key
-    mod-ssl-methods all
-    mode enabled
-    new-server-ssl-option test123
-    passphrase none
-    peer-cert-mode required
-    proxy-ca-cert none
-    proxy-ca-key none
-    proxy-ssl-enabled disabled
-    renegotiate-period lifetime
-    renegotiation disabled
-    require-peer-cert false
-    session-mirroring disabled
-    session-ticket false
-    sni-default disabled
-    sni-require disabled
-    ssl-forward-proxy-enabled disabled
-    ssl-sign-hash sha256
-    untrusted-cert-response ignore
-    untrusted-cert-response-action drop
-}
 
 # Test LTM profile http with new fields - should not generate warnings
 ltm profile http /Common/test-http {
     app-service none
-    basic-auth-realm none
-    compress-on-disable disabled
-    conformance-indicator unfiltered
-    default-connect-timeout 10
+    defaults-from /Common/default-http
     new-http-field value1
     another-http-option value2
-    future-http-setting test123
 }
 
 # Test LTM profile one-connect with new fields - should not generate warnings
 ltm profile one-connect /Common/test-oneconnect {
     app-service none
-    idle-timeout-override disabled
-    limit-type none
-    max-age 86400
-    max-reuse 12345
-    max-size 123456
+    defaults-from /Common/default-request-adapter
     new-one-connect-field value1
-    mask-source-port disabled
-    proxy-buffer-high 16384
-    proxy-buffer-low 4096
-    rebalance-neighbor disabled
-    rebalance-timeout 5
-    share-pools enabled
-    source-lower-limit disabled
 }
 
 # Test LTM profile tcp with new fields - should not generate warnings
 ltm profile tcp /Common/test-tcp {
     app-service none
-    ack-on-push disabled
-    auto-receive-buffer-size 131072
-    auto-send-buffer-size 131072
-    close-wait-timeout 5
-    congestion-control-metrics-rtt-sample-count 20
-    congestion-control-metrics-rtt-sample-interval 100
-    congestion-control-probe-interval 2
-    csum-on-the-fly-disabled disabled
-    cwnd-population-enabled disabled
-    delayed-acks disabled
-    init-cwnd 10
-    init-ssthresh 0
-    keep-alive-interval 10
-    max-retrans 6
-    max-segment 1460
-    min-retransmit-timeout 200
+    defaults-from /Common/default-tcp
     new-tcp-field value1
-    future-tcp-option value2
-    slow-start-threshold-home-disabled disabled
-    syn-max-retrans 5
-    time-wait-recycle disabled
-    time-wait-timeout 2000
-    use-eer-enabled disabled
-    zero-window-halfclose-timeout 1000
 }
 
 # Test LTM profile fasthttp with new fields - should not generate warnings
 ltm profile fasthttp /Common/test-fasthttp {
     app-service none
-    conflate-rules disabled
-    force-close-enabled disabled
-    idle-timeout-override 300
-    max-fast-size 131072
     new-fasthttp-field value1
 }
 
 # Test LTM profile ftp with new fields - should not generate warnings
 ltm profile ftp /Common/test-ftp {
     app-service none
-    allow-ipv6-disabled disabled
-    inherit-ftpd-disabled disabled
-    log-profile none
-    max-rfc2428-old-style-size 65535
     new-ftp-field value1
 }
 
@@ -166,9 +98,8 @@ ltm profile ftp /Common/test-ftp {
 ltm profile dns /Common/test-dns {
     app-service /Common/test-app-service
     defaults-from /Common/default-dns
-    log-profile /Common/test-log-profile
-    custom-dns-field value1
-    another-dns-field value2
+    new-dns-field value1
+    another-dns-option value2
 }
 
 # Test LTM profile request-adapter with new fields - should not generate warnings
