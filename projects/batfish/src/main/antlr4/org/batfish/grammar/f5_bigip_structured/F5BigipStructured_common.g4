@@ -99,6 +99,9 @@ ignored
  * Content inside profile/persist blocks that should be ignored.
  * Matches simple lines OR nested braced blocks.
  * Pattern: word { word* }
+ *
+ * NOTE: This is designed to be used iteratively (ignored_content+), where each
+ * iteration matches one piece: a simple line, a block start, or a block end.
  */
 ignored_content
 :
@@ -129,6 +132,7 @@ ignored_block
     NEWLINE
     (
       ignored_line
+      | ignored_inline_braced_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -136,6 +140,16 @@ ignored_block
 ignored_line
 :
   ~NEWLINE* NEWLINE
+;
+
+/*
+ * A line that may contain nested braces on the same line.
+ * Handles: metrics { events_count }
+ * Handles: some-key { value } other-content
+ */
+ignored_inline_braced_content
+:
+  word BRACE_LEFT ~NEWLINE* BRACE_RIGHT ~NEWLINE* NEWLINE
 ;
 
 /* An unrecognized fragment of syntax. When used, MUST be LAST alternative */

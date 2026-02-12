@@ -1,0 +1,90 @@
+#TMSH-VERSION: 15.1.10.3
+
+sys global-settings {
+    hostname f5_bigip_structured_analytics_inline_braces
+}
+
+# Test analytics gui-widget blocks with inline braces
+# These should not generate parser warnings when using ignored_inline_braced_content
+
+# Single inline brace with single value
+analytics gui-widget /Common/test-inline-single {
+    metrics { events_count }
+    module asm
+    username admin
+}
+
+# Single inline brace with multiple values
+analytics gui-widget /Common/test-inline-multiple {
+    metrics { events_count requests_count errors_count }
+    view-by asm_repev_request_type
+    period 86400
+}
+
+# Multiple inline braces on same line
+analytics gui-widget /Common/test-multiple-inline {
+    filters { src_ip } destinations { dst_pool }
+    gui-pagecode _ov_summary
+}
+
+# Mixed: inline braces and regular content
+analytics gui-widget /Common/test-mixed-content {
+    cent-report-destination-type self
+    metrics { throughput latency }
+    module security
+    order-on-page 3
+    cache-path /config/filestore/files_d/Common_d/
+    username admin
+    enabled true
+}
+
+# Inline brace with complex path
+analytics gui-widget /Common/test-inline-complex {
+    cache-path { /config/filestore/files_d/Common_d/trust_certificate_d/ }
+    description "Test widget with complex inline brace"
+}
+
+# Inline brace with quoted strings
+analytics gui-widget /Common/test-inline-quoted {
+    description "Widget with { nested } content"
+    gui-pagecode _ov_summary
+}
+
+# Empty inline braces
+analytics gui-widget /Common/test-empty-inline {
+    filters { }
+    options { }
+    module ltm
+}
+
+# Inline brace with special characters
+analytics gui-widget /Common/test-inline-special {
+    metrics { cpu/memory:5min avg-latency:1h }
+    view-by protocol:tcp
+}
+
+# Nested profile-style content (like the original issue)
+analytics gui-widget /Common/test-profile-style {
+    ltm-profile { /Common/test-http }
+    app-service { none }
+    cert-chain { /Common/example.crt }
+}
+
+# Multiple inline braces with different separators
+analytics gui-widget /Common/test-separators {
+    allowed-sources { 10.0.0.0/24 10.0.1.0/24 }
+    excluded-destinations { 192.168.0.0/16 }
+    widget-type 5
+}
+
+# Real-world example from reported issue
+analytics gui-widget /Common/uwid5a1911f77cfa3 {
+    cent-report-destination-type self
+    gui-pagecode _ov_summary
+    metrics { events_count }
+    module asm
+    period 86400
+    username admin
+    view-by asm_repev_request_type
+    widget-type 3
+}

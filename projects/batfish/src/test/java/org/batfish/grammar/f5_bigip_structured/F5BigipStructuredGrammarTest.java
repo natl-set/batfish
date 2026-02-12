@@ -3831,6 +3831,61 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testAnalyticsInlineBracesIgnored() throws IOException {
+    String filename = "f5_bigip_structured_analytics_inline_braces";
+    String hostname = "f5_bigip_structured_analytics_inline_braces";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that analytics gui-widget blocks with inline braces don't generate parse warnings
+    // This verifies the fix for ignored_inline_braced_content which handles:
+    // - metrics { events_count }  - inline braces on single line
+    // - filters { src_ip } destinations { dst_pool }  - multiple inline braces
+    // - { /path/to/file }  - inline braces with complex values
+    // - ltm-profile { /Common/test-http }  - profile-style inline braces
+    //
+    // The ignored_inline_braced_content rule prevents parser warnings like:
+    // "line 21920: } Syntax error detected"
+    // "line 21922: cache-path ... Syntax error detected"
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify that config parsed successfully without warnings
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testSysIgnoredBlockInlineBraces() throws IOException {
+    String filename = "f5_bigip_structured_sys_inline_braces";
+    String hostname = "f5_bigip_structured_sys_inline_braces";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that sys blocks with inline braces don't generate parse warnings
+    // This verifies the fix for ignored_inline_braced_content in sys blocks:
+    // - login { test } in sshd block
+    // - name-servers { ... } in dns block
+    // - remote-servers { ... { ... } ... } in syslog block
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify that config parsed successfully without warnings
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
   public void testProfilePersistNestedContentIgnored() throws IOException {
     String filename = "f5_bigip_structured_profile_persist_nested";
     String hostname = "f5_bigip_structured_profile_persist_nested";
