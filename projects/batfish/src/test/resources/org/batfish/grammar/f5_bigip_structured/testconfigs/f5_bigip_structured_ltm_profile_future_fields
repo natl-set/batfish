@@ -1,0 +1,224 @@
+#TMSH-VERSION: 13.1.1
+
+sys global-settings {
+  hostname f5_bigip_structured_ltm_profile_future_fields
+}
+
+# Test LTM profile client-ssl with new fields - should not generate warnings
+ltm profile client-ssl /Common/test-client-ssl {
+    alert-timeout indefinite
+    allow-dynamic-record-sizing disabled
+    allow-non-ssl disabled
+    app-service none
+    cache-size 262144
+    cache-timeout 3600
+    cert /Common/example1.crt
+    cert-extension-includes { basic-constraints subject-alternative-name }
+    cert-key-chain {
+       chain1 {
+          cert /Common/example2.crt
+          key /Common/example2.key
+          new-chain-field value1
+       }
+    }
+    cert-include-chain enabled
+    cert-lifetime-in-secs 123456
+    cipher-list {
+        DEFAULT
+        ECDHE-RSA-AES128-GCM-SHA256
+        new-cipher-entry test123
+    }
+    ciphers {
+        DEFAULT
+        ECDHE-RSA-AES128-GCM-SHA256
+        another-new-cipher test456
+    }
+    client-cert-ca unknown-g17-1.crt
+    client-cert-crl unknown-g17-1.crl
+    new-client-ssl-field value1
+    another-ssl-option value2
+}
+
+# Test LTM profile server-ssl with new fields - should not generate warnings
+ltm profile server-ssl /Common/test-server-ssl {
+    alert-timeout indefinite
+    app-service none
+    auth-name disabled
+    cache-size 262144
+    cache-timeout 3600
+    cert /Common/example1.crt
+    cert-extension-includes { basic-constraints subject-alternative-name }
+    chain unknown-g17-2.crt
+    cipher-list {
+        DEFAULT
+        ECDHE-RSA-AES128-GCM-SHA256
+        new-server-cipher value1
+    }
+    ciphers {
+        DEFAULT
+        ECDHE-RSA-AES128-GCM-SHA256
+        future-server-cipher value2
+    }
+    crl-file unknown-g17-2.crl
+    forward-proxy-bypass disabled
+    key /Common/example2.key
+    mod-ssl-methods all
+    mode enabled
+    new-server-ssl-option test123
+    passphrase none
+    peer-cert-mode required
+    proxy-ca-cert none
+    proxy-ca-key none
+    proxy-ssl-enabled disabled
+    renegotiate-period lifetime
+    renegotiation disabled
+    require-peer-cert false
+    session-mirroring disabled
+    session-ticket false
+    sni-default disabled
+    sni-require disabled
+    ssl-forward-proxy-enabled disabled
+    ssl-sign-hash sha256
+    untrusted-cert-response ignore
+    untrusted-cert-response-action drop
+}
+
+# Test LTM profile http with new fields - should not generate warnings
+ltm profile http /Common/test-http {
+    app-service none
+    basic-auth-realm none
+    compress-on-disable disabled
+    conformance-indicator unfiltered
+    default-connect-timeout 10
+    new-http-field value1
+    another-http-option value2
+    future-http-setting test123
+}
+
+# Test LTM profile one-connect with new fields - should not generate warnings
+ltm profile one-connect /Common/test-oneconnect {
+    app-service none
+    idle-timeout-override disabled
+    limit-type none
+    max-age 86400
+    max-reuse 12345
+    max-size 123456
+    new-one-connect-field value1
+    mask-source-port disabled
+    proxy-buffer-high 16384
+    proxy-buffer-low 4096
+    rebalance-neighbor disabled
+    rebalance-timeout 5
+    share-pools enabled
+    source-lower-limit disabled
+}
+
+# Test LTM profile tcp with new fields - should not generate warnings
+ltm profile tcp /Common/test-tcp {
+    app-service none
+    ack-on-push disabled
+    auto-receive-buffer-size 131072
+    auto-send-buffer-size 131072
+    close-wait-timeout 5
+    congestion-control-metrics-rtt-sample-count 20
+    congestion-control-metrics-rtt-sample-interval 100
+    congestion-control-probe-interval 2
+    csum-on-the-fly-disabled disabled
+    cwnd-population-enabled disabled
+    delayed-acks disabled
+    init-cwnd 10
+    init-ssthresh 0
+    keep-alive-interval 10
+    max-retrans 6
+    max-segment 1460
+    min-retransmit-timeout 200
+    new-tcp-field value1
+    future-tcp-option value2
+    slow-start-threshold-home-disabled disabled
+    syn-max-retrans 5
+    time-wait-recycle disabled
+    time-wait-timeout 2000
+    use-eer-enabled disabled
+    zero-window-halfclose-timeout 1000
+}
+
+# Test LTM profile fasthttp with new fields - should not generate warnings
+ltm profile fasthttp /Common/test-fasthttp {
+    app-service none
+    conflate-rules disabled
+    force-close-enabled disabled
+    idle-timeout-override 300
+    max-fast-size 131072
+    new-fasthttp-field value1
+}
+
+# Test LTM profile ftp with new fields - should not generate warnings
+ltm profile ftp /Common/test-ftp {
+    app-service none
+    allow-ipv6-disabled disabled
+    inherit-ftpd-disabled disabled
+    log-profile none
+    max-rfc2428-old-style-size 65535
+    new-ftp-field value1
+}
+
+# Test LTM profile dns with new fields - should not generate warnings
+ltm profile dns /Common/test-dns {
+    app-service /Common/test-app-service
+    defaults-from /Common/default-dns
+    log-profile /Common/test-log-profile
+    custom-dns-field value1
+    another-dns-field value2
+}
+
+# Test LTM profile request-adapter with new fields - should not generate warnings
+ltm profile request-adapter /Common/test-request-adapter {
+    app-service none
+    defaults-from /Common/default-request-adapter
+    new-request-adapter-field value1
+}
+
+# Test LTM profile response-adapter with new fields - should not generate warnings
+ltm profile response-adapter /Common/test-response-adapter {
+    app-service none
+    defaults-from /Common/default-response-adapter
+    new-response-adapter-field value1
+}
+
+# Test LTM profile statistics with new fields - should not generate warnings
+ltm profile statistics /Common/test-statistics {
+    app-service none
+    new-statistics-field value1
+}
+
+# Test LTM profile web-acceleration with new fields - should not generate warnings
+ltm profile web-acceleration /Common/test-web-acceleration {
+    app-service none
+    new-web-acceleration-field value1
+}
+
+# Test LTM profile wan-optimization with new fields - should not generate warnings
+ltm profile wan-optimization /Common/test-wan-optimization {
+    app-service none
+    new-wan-optimization-field value1
+}
+
+# Test LTM profile http-compression with new fields - should not generate warnings
+ltm profile http-compression /Common/test-http-compression {
+    app-service none
+    new-http-compression-field value1
+}
+
+# Test LTM profile request-log with new fields - should not generate warnings
+ltm profile request-log /Common/test-request-log {
+    app-service none
+    new-request-log-field value1
+}
+
+# Test LTM profile persistence with new fields - should not generate warnings
+ltm persistence cookie /Common/test-persistence {
+    app-service none
+    defaults-from /Common/cookie
+    expiration 3600
+    new-persistence-field value1
+}

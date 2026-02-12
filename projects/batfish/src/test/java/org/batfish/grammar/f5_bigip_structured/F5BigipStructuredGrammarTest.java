@@ -3865,4 +3865,30 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(v1.getPersistences(), notNullValue());
     assertThat(v1.getPersistences(), hasSize(2)); // source_addr and cookie
   }
+
+  @Test
+  public void testLtmProfileFutureFieldsIgnored() throws IOException {
+    String filename = "f5_bigip_structured_ltm_profile_future_fields";
+    String hostname = "f5_bigip_structured_ltm_profile_future_fields";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that LTM profiles with new/unknown fields don't generate parse warnings
+    // This verifies the fix for using ignored_content in all LTM profile types:
+    // - client-ssl, server-ssl, http, one-connect, tcp
+    // - fasthttp, ftp, dns, sip, rtsp
+    // - request-adapter, response-adapter, statistics
+    // - ssl-ocsp, web-acceleration, wan-optimization
+    // - http-compression, request-log, persistence
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }

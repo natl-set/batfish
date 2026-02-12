@@ -43,7 +43,6 @@ nrre_entry
 nrree_action
 :
   ACTION action = route_map_action NEWLINE
-  | ignored
 ;
 
 nrree_match
@@ -65,7 +64,7 @@ nreem_ipv4
     NEWLINE
     (
       nreem4_address
-      | ignored
+      | unrecognized
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -114,13 +113,11 @@ nrrees_community
 nreesc_value
 :
   VALUE BRACE_LEFT communities += standard_community+ BRACE_RIGHT NEWLINE
-  | ignored
 ;
 
 nrr_route_domain
 :
   ROUTE_DOMAIN name = structure_name NEWLINE
-  | ignored
 ;
 
 route_map_action
