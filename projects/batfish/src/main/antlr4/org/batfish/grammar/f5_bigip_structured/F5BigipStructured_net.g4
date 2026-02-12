@@ -41,7 +41,7 @@ net_route
       | nroute_network
       | nroute_network6
       | nroute_pool
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
