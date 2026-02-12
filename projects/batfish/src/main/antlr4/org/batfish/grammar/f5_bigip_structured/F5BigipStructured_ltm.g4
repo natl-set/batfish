@@ -91,7 +91,7 @@ lm_http
     (
       lmh_defaults_from
       | lmh_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -125,7 +125,7 @@ lm_https
       lmhs_defaults_from
       | lmhs_null
       | lmhs_ssl_profile
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -394,7 +394,7 @@ l_persistence
     lper_cookie
     | lper_source_addr
     | lper_ssl
-    | unrecognized
+    | ignored_content
   )
 ;
 
@@ -406,7 +406,7 @@ lper_cookie
     (
       lper_cookie_defaults_from
       | lper_cookie_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -432,7 +432,7 @@ lper_source_addr
     (
       lpersa_defaults_from
       | lpersa_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -458,7 +458,7 @@ lper_ssl
     (
       lperss_defaults_from
       | lperss_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -490,7 +490,7 @@ l_pool
       | lp_members
       | lp_monitor
       | lp_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -648,7 +648,7 @@ l_profile
     | lprof_web_security
     | lprof_websocket
     | lprof_xml
-    | unrecognized
+    | ignored_content
   )
 ;
 
@@ -693,7 +693,7 @@ lprof_classification
     NEWLINE
     (
       lprof_classification_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -710,7 +710,7 @@ lprof_client_ldap
     NEWLINE
     (
       lprof_client_ldap_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -728,7 +728,7 @@ lprof_client_ssl
     (
       lprof_client_ssl_defaults_from
       | lprof_client_ssl_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -799,7 +799,7 @@ lprof_dhcpv4
     NEWLINE
     (
       lprof_dhcpv4_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -816,7 +816,7 @@ lprof_dhcpv6
     NEWLINE
     (
       lprof_dhcpv6_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -833,7 +833,7 @@ lprof_diameter
     NEWLINE
     (
       lprof_diameter_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -908,7 +908,7 @@ lprof_fasthttp
     NEWLINE
     (
       lprof_fasthttp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -925,7 +925,7 @@ lprof_fastl4
     NEWLINE
     (
       lprof_fastl4_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -942,7 +942,7 @@ lprof_fix
     NEWLINE
     (
       lprof_fix_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -964,7 +964,7 @@ lprof_ftp
       | lprof_ftp_log_profile
       | lprof_ftp_log_publisher
       | lprof_ftp_port
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1011,7 +1011,7 @@ lprof_gtp
     NEWLINE
     (
       lprof_gtp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1028,7 +1028,7 @@ lprof_html
     NEWLINE
     (
       lprof_html_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1045,7 +1045,7 @@ lprof_http2
     NEWLINE
     (
       lprof_http2_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1062,7 +1062,7 @@ lprof_http_compression
     NEWLINE
     (
       lprof_http_compression_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1079,7 +1079,7 @@ lprof_http
     NEWLINE
     (
       lprof_http_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1096,7 +1096,7 @@ lprof_http_proxy_connect
     NEWLINE
     (
       lprof_http_proxy_connect_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1113,7 +1113,7 @@ lprof_icap
     NEWLINE
     (
       lprof_icap_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1130,7 +1130,7 @@ lprof_ilx
     NEWLINE
     (
       lprof_ilx_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1147,7 +1147,7 @@ lprof_ipother
     NEWLINE
     (
       lprof_ipother_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1164,7 +1164,7 @@ lprof_ipsecalg
     NEWLINE
     (
       lprof_ipsecalg_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1181,7 +1181,7 @@ lprof_map_t
     NEWLINE
     (
       lprof_map_t_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1198,7 +1198,7 @@ lprof_mqtt
     NEWLINE
     (
       lprof_mqtt_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1215,7 +1215,7 @@ lprof_netflow
     NEWLINE
     (
       lprof_netflow_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1233,7 +1233,7 @@ lprof_ocsp_stapling_params
     (
       lprof_ocsp_stapling_params_defaults_from
       | lprof_ocsp_stapling_params_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1262,7 +1262,7 @@ lprof_one_connect
     (
       lprof_one_connect_defaults_from
       | lprof_one_connect_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;

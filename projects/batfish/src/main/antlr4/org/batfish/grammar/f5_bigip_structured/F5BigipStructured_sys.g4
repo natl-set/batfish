@@ -33,7 +33,7 @@ sys_global_settings
     (
       sgs_hostname
       | sgs_null
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -47,7 +47,7 @@ sys_ha_group
       sh_active_bonus
       | sh_pools
       | sh_trunks
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -72,7 +72,7 @@ shp_pool
     NEWLINE
     (
       shpp_weight
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -97,7 +97,7 @@ sht_trunk
     NEWLINE
     (
       shtt_weight
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -125,7 +125,7 @@ sys_ntp
     (
       ntp_null
       | ntp_servers
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -254,7 +254,7 @@ snmp_disk_monitor
     (
       snmp_minspace_null
       | snmp_disk_path_null
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT
 ;
@@ -294,7 +294,7 @@ snmp_process_monitor
     (
       snmp_max_processes_null
       | snmp_process_name_null
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT
 ;
@@ -338,7 +338,7 @@ snmp_trap
     (
       snmp_trap_community
       | snmp_trap_host
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;

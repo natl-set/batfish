@@ -122,7 +122,7 @@ cmdua_address
     | cmduaa_effective_port
     | cmduaa_ip
     | cmduaa_port
-    | unrecognized
+    | ignored
   )* BRACE_RIGHT NEWLINE
 ;
 
@@ -193,7 +193,7 @@ cmdgd_device
     NEWLINE
     (
       cmdgdd_set_sync_leader
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -262,7 +262,7 @@ cm_traffic_group
       | cmtg_ha_order
       | cmtg_mac
       | cmtg_unit_id
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -299,7 +299,7 @@ cm_trust_domain
       | cmtd_ca_key
       | cmtd_null
       | cmtd_trust_group
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
