@@ -19,7 +19,7 @@ nr_bgp
       | nrb_profile
       | nrb_router_id
       | nrb_router_id6
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -32,7 +32,7 @@ nrb_address_family
     (
       nrbaf_ipv4
       | nrbaf_ipv6
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -73,7 +73,7 @@ nrbafc_redistribute
     NEWLINE
     (
       nrbafcr_kernel
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -136,7 +136,7 @@ nrbnn_address_family
     (
       nrbnnaf_ipv4
       | nrbnnaf_ipv6
-      | unrecognized
+      | ignored
     )*
   )? BRACE_RIGHT NEWLINE
 ;
