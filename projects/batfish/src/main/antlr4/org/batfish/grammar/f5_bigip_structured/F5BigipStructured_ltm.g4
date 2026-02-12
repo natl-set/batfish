@@ -1292,7 +1292,7 @@ lprof_pcp
     NEWLINE
     (
       lprof_pcp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1309,7 +1309,7 @@ lprof_pptp
     NEWLINE
     (
       lprof_pptp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1326,7 +1326,7 @@ lprof_qoe
     NEWLINE
     (
       lprof_qoe_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1343,7 +1343,7 @@ lprof_radius
     NEWLINE
     (
       lprof_radius_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1360,7 +1360,7 @@ lprof_request_adapt
     NEWLINE
     (
       lprof_request_adapt_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1377,7 +1377,7 @@ lprof_request_log
     NEWLINE
     (
       lprof_request_log_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1394,7 +1394,7 @@ lprof_response_adapt
     NEWLINE
     (
       lprof_response_adapt_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1411,7 +1411,7 @@ lprof_rewrite
     NEWLINE
     (
       lprof_rewrite_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1428,7 +1428,7 @@ lprof_rtsp
     NEWLINE
     (
       lprof_rtsp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1445,7 +1445,7 @@ lprof_sctp
     NEWLINE
     (
       lprof_sctp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1462,7 +1462,7 @@ lprof_server_ldap
     NEWLINE
     (
       lprof_server_ldap_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1481,7 +1481,7 @@ lprof_server_ssl
       lprof_app_service
       | lprof_server_ssl_defaults_from
       | lprof_server_ssl_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1535,7 +1535,7 @@ lprof_sip
     NEWLINE
     (
       lprof_sip_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1552,7 +1552,7 @@ lprof_smtps
     NEWLINE
     (
       lprof_smtps_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1569,7 +1569,7 @@ lprof_socks
     NEWLINE
     (
       lprof_socks_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1586,7 +1586,7 @@ lprof_splitsessionclient
     NEWLINE
     (
       lprof_splitsessionclient_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1603,7 +1603,7 @@ lprof_splitsessionserver
     NEWLINE
     (
       lprof_splitsessionserver_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1620,7 +1620,7 @@ lprof_statistics
     NEWLINE
     (
       lprof_statistics_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1637,7 +1637,7 @@ lprof_stream
     NEWLINE
     (
       lprof_stream_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1654,7 +1654,7 @@ lprof_tcp_analytics
     NEWLINE
     (
       lprof_tcp_analytics_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1671,7 +1671,7 @@ lprof_tcp
     NEWLINE
     (
       lprof_tcp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1688,7 +1688,7 @@ lprof_tftp
     NEWLINE
     (
       lprof_tftp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1705,7 +1705,7 @@ lprof_traffic_acceleration
     NEWLINE
     (
       lprof_traffic_acceleration_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1722,7 +1722,7 @@ lprof_udp
     NEWLINE
     (
       lprof_udp_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1739,7 +1739,7 @@ lprof_web_acceleration
     NEWLINE
     (
       lprof_web_acceleration_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1756,7 +1756,7 @@ lprof_web_security
     NEWLINE
     (
       lprof_web_security_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1773,7 +1773,7 @@ lprof_websocket
     NEWLINE
     (
       lprof_websocket_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -1790,7 +1790,7 @@ lprof_xml
     NEWLINE
     (
       lprof_xml_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
