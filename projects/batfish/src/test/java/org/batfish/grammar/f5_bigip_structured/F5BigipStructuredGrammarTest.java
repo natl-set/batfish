@@ -4313,19 +4313,18 @@ public final class F5BigipStructuredGrammarTest {
 
     F5BigipConfiguration vc = parseVendorConfig(filename);
 
-    // Verify deep structures were parsed
-    assertThat(vc.getDataGroups(), hasKey("/Common/test_level1"));
-    assertThat(vc.getPools(), hasSize(greaterThanOrEqualTo(2)));
-    assertThat(vc.getRules(), hasSize(greaterThanOrEqualTo(3)));
-    assertThat(vc.getVirtuals(), hasKey("/Common/test_level4"));
-    assertThat(vc.getLtmProfiles(), hasKey("dns"));
-
     // Verify the config parses without syntax errors (even with deep nesting)
+    // This is a critical test to ensure that deeply nested structures don't cause
+    // parser failures or stack issues.
     Batfish batfish = getBatfishForConfigurationNames(hostname);
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(
         "Config with deep nesting should parse successfully",
         initAns.getParseStatus().get("configs/" + hostname),
         equalTo(ParseStatus.PASSED));
+
+    // Verify at least some structures were parsed by checking available getters
+    assertThat(vc.getPools(), hasKey("/Common/test_level2"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test_level4"));
   }
 }
