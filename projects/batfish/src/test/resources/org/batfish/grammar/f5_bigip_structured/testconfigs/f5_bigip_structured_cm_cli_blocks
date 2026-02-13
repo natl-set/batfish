@@ -1,0 +1,66 @@
+# Test config for cm and cli blocks with complex nesting
+# These blocks use the 'ignored' rule instead of 'ignored_content'
+
+cli global-settings {
+    idle-timeout 10
+}
+
+auth password-policy {
+    policy-enforcement disabled
+}
+
+cm cert /Common/dtca-bundle.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtca-bundle.crt_56471_17
+    checksum SHA1:2384:4e33286cbc7be6ed0b5c1843997c7190b1503270
+    revision 17
+}
+
+cm cert /Common/dtca.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtca.crt_56467_7
+    checksum SHA1:1334:bd76621b920573ef462146f40b326aa7924e0b58
+    revision 7
+}
+
+cm key /Common/dtca.key {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_key_d/:Common:dtca.key_56469_7
+    checksum SHA1:1704:99cea19a6bdabbeb49f2f29a3888783001eeb924
+    revision 7
+}
+
+cm device /Common/ADC-DC1-test.example.com {
+    active-modules { "test modules list" }
+    base-mac 14:a9:d0:3a:0b:8e
+    build 0.50.12
+    configsync-ip 192.0.2.1
+    hostname adc-dc1-test
+    marketing-name "BIG-IP"
+    platform-id Z196
+    product BIG-IP
+    time-zone America/Los_Angeles
+    version 15.1.10.3
+}
+
+cm device-group /Common/gtm {
+    auto-sync enabled
+    devices {
+        /Common/ADC-DC1-test.example.com { }
+        /Common/ADC-DC2-test.example.com { }
+    }
+    hidden true
+    network-failover disabled
+}
+
+cm traffic-group /Common/traffic-group-1 {
+    ha-order {
+        /Common/ADC-DC1-test.example.com
+        /Common/ADC-DC2-test.example.com
+    }
+    mac 16:a9:d0:3a:0b:8e
+    unit-id 1
+}
+
+cm trust-domain /Common/test-domain {
+    ca-cert-bundle /Common/ca.crt
+    cert /Common/server.crt
+    key /Common/server.key
+}

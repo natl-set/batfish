@@ -4077,4 +4077,24 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(vc.getLtmProfiles(), hasKey("analytics"));
     assertThat(vc.getMonitors(), hasKey("/Common/monitor_with_blocks"));
   }
+
+  @Test
+  public void testCmAndCliBlocks() throws IOException {
+    String filename = "f5_bigip_structured_cm_cli_blocks";
+    String hostname = "f5_bigip_structured_cm_cli_blocks";
+
+    // Test cm and cli blocks that use the 'ignored' rule instead of 'ignored_content'.
+    // These blocks should handle nested structures with closing braces correctly.
+    // Tests patterns found in real F5 configs like:
+    // - cli global-settings { ... }
+    // - auth password-policy { ... }
+    // - cm cert, key, device, device-group, traffic-group, trust-domain
+    // - All with various nested content
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }
