@@ -1,0 +1,101 @@
+# Test config for ignored_content patterns with various closing brace formats
+# Tests the fix for handling closing braces with trailing content
+
+ltm profile analytics test_analytics_1 {
+    defaults-from /Common/analytics
+}
+
+ltm profile analytics test_analytics_2 {
+    defaults-from /Common/analytics
+    }
+
+ltm profile analytics test_analytics_3 {
+    defaults-from /Common/analytics
+  # closing brace with leading whitespace
+}
+
+ltm profile certificate-authority test_ca_1 {
+    defaults-from /Common/certificate-authority
+}
+
+ltm profile certificate-authority test_ca_2 {
+    defaults-from /Common/certificate-authority
+    # inline comment before closing
+}
+
+ltm profile dns test_dns_1 {
+    defaults-from /Common/dns
+    log-profile /Common/dns_logging
+}
+
+ltm profile dns test_dns_2 {
+    defaults-from /Common/dns
+    log-profile /Common/dns_logging
+    }
+
+ltm profile dns test_dns_3 {
+    defaults-from /Common/dns
+    log-profile /Common/dns_logging
+  # multi-line nested structure
+  settings {
+    some-setting value
+  }
+}
+
+ltm profile dns-logging test_dns_logging_1 {
+    publisher /Common/local-syslog
+}
+
+ltm profile dns-logging test_dns_logging_2 {
+    publisher /Common/local-syslog
+    }
+
+ltm profile dns-logging test_dns_logging_3 {
+    publisher /Common/local-syslog
+  # with trailing whitespace
+}
+
+# Test nested blocks with closing braces
+ltm persistence source-address test_persist_1 {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+    }
+
+ltm persistence source-address test_persist_2 {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+  # complex nesting scenario
+  custom-metadata {
+    field value
+  }
+}
+
+# Test pool with nested members
+ltm pool test_pool_1 {
+    members {
+        server1:80 {}
+        server2:80 {}
+    }
+}
+
+ltm pool test_pool_2 {
+    members {
+        server1:80 {}
+        server2:80 {}
+    }
+    }
+
+# Test multiple nested levels
+ltm profile fasthttp test_fasthttp {
+    defaults-from /Common/fasthttp
+    nested-block-1 {
+        nested-block-2 {
+            content here
+        }
+    }
+}
+
+# Test with various whitespace patterns
+ltm profile analytics test_analytics_whitespace {
+    defaults-from /Common/analytics
+}

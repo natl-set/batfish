@@ -3944,4 +3944,37 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testIgnoredContentClosingBraces() throws IOException {
+    String filename = "f5_bigip_structured_ignored_content_braces";
+    String hostname = "f5_bigip_structured_ignored_content_braces";
+
+    // Test that profiles with various closing brace formats parse correctly.
+    // This validates the fix for ignored_content rule to handle:
+    // - Closing braces with no trailing content: }
+    // - Closing braces with leading whitespace:   }
+    // - Closing braces with inline comments: } # comment
+    // - Nested blocks with multiple levels
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify all test profiles were successfully parsed
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getLtmProfiles(), hasKey("certificate-authority"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns-logging"));
+
+    // Verify pools were parsed
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_1"));
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_2"));
+
+    // Verify persistence entries were parsed
+    assertThat(vc.getPersistences(), hasKey("/Common/test_persist_1"));
+    assertThat(vc.getPersistences(), hasKey("/Common/test_persist_2"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }
