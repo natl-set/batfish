@@ -1,0 +1,42 @@
+#TMSH-VERSION: 15.1.10.3
+# Test config for various file path patterns found in F5 configs
+# Tests paths with colons, special characters, and complex naming
+
+sys global-settings {
+    hostname f5_bigip_structured_file_paths
+}
+
+# Test 1: CM cert with colon-prefixed cache-path
+cm cert /Common/dtca-bundle.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtca-bundle.crt_56471_17
+    checksum SHA1:2384:4e33286cbc7be6ed0b5c1843997c7190b1503270
+    revision 17
+}
+
+# Test 2: CM key with colon-prefixed cache-path
+cm key /Common/dtca.key {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_key_d/:Common:dtca.key_56469_7
+    checksum SHA1:1704:99cea19a6bdabbeb49f2f29a3888783001eeb924
+    revision 7
+}
+
+# Test 3: Multiple colons in path
+cm cert /Common/test-multi-colon.crt {
+    cache-path /config/filestore/files_d/Common_d/cert_d/:Common:partition:multi-colon.crt_12345_1
+    checksum SHA1:1234:abcdef1234567890
+    revision 1
+}
+
+# Test 4: Path with underscores, numbers, and hyphens
+cm cert /Common/complex-name_123.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:complex-file_name-2024.crt_99999_1
+    checksum SHA1:9999:0000000000000000
+    revision 1
+}
+
+# Test 5: Simple pool to verify config parses
+ltm pool test_pool {
+    members {
+        server1:80 {}
+    }
+}

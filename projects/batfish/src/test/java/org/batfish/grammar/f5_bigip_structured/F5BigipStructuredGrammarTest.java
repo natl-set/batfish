@@ -4258,4 +4258,54 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(vc.getPools(), hasKey("test_level2"));
     assertThat(vc.getVirtuals(), hasKey("test_level4"));
   }
+
+  @Test
+  public void testFilePaths() throws IOException {
+    String filename = "f5_bigip_structured_file_paths";
+    String hostname = "f5_bigip_structured_file_paths";
+
+    // Test various file path patterns found in real F5 configs:
+    // - Cache paths with colon-prefixed segments (:Common:)
+    // - Paths with multiple colons
+    // - Complex file names with underscores, numbers, hyphens
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with complex file paths should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pool was parsed
+    assertThat(vc.getPools(), hasKey("test_pool"));
+  }
+
+  @Test
+  public void testMorePatterns() throws IOException {
+    String filename = "f5_bigip_structured_more_patterns";
+    String hostname = "f5_bigip_structured_more_patterns";
+
+    // Test more patterns from real F5 configs:
+    // - LTM monitors with various fields
+    // - LTM persistence entries (cookie, source-addr, hash)
+    // - LTM virtual-address
+    // - LTM snatpool and snat-translation
+    // - Net route
+    // - Complex virtual with many profiles
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with more patterns should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify structures were parsed
+    assertThat(vc.getPools(), hasKey("test_verify_pool"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-complex-vip"));
+  }
 }
