@@ -3977,4 +3977,41 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testIgnoredContentEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_ignored_content_edge_cases";
+    String hostname = "f5_bigip_structured_ignored_content_edge_cases";
+
+    // Test complex nesting scenarios and edge cases for ignored_content:
+    // - Multiple profiles with various nesting levels
+    // - Persistence entries with complex fields
+    // - Rules with nested braces
+    // - Data groups with nested structures
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify persistence entries were parsed
+    assertThat(
+        vc.getPersistences(),
+        hasKeys(
+            "/Common/test_cookie_complex",
+            "/Common/test_source_addr_nested",
+            "/Common/test_ssl_complex"));
+
+    // Verify profiles were parsed
+    assertThat(
+        vc.getLtmProfiles(),
+        hasKeys("client-ssl", "server-ssl", "persistence-profile", "fasthttp", "dns"));
+
+    // Verify pools were parsed
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_complex"));
+
+    // Verify rules were parsed
+    assertThat(vc.getRules(), hasKeys("/Common/test_rule_1", "/Common/test_rule_2"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }

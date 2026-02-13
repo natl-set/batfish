@@ -1,0 +1,126 @@
+# Edge case tests for ignored_content patterns
+# Tests complex nesting and various whitespace scenarios
+
+ltm persistence cookie test_cookie_complex {
+    defaults-from /Common/cookie
+    cookie-name SESSIONID
+    match-across-services enabled
+    match-across-virtuals enabled
+    override-connection-limit enabled
+    timeout 3600
+}
+
+ltm persistence source-address test_source_addr_nested {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+    match-across-services enabled
+    match-across-virtuals enabled
+    timeout 1800
+}
+
+ltm persistence ssl test_ssl_complex {
+    defaults-from /Common/ssl
+    match-across-pools enabled
+    match-across-services enabled
+    match-across-virtuals enabled
+}
+
+# Test with profiles that have nested structures
+ltm profile client-ssl test_clientssl_complex {
+    defaults-from /Common/clientssl
+    cert /Common/default.crt
+    key /Common/default.key
+    chain /Common/chain.crt
+    ciphers DEFAULT
+    options dont-insert-empty-fragments
+}
+
+# Test with server-ssl profile
+ltm profile server-ssl test_serverssl_complex {
+    defaults-from /Common/serverssl
+    cert /Common/server.crt
+    key /Common/server.key
+    ciphers DEFAULT
+    options dont-insert-empty-fragments
+}
+
+# Test profile persistence with nested blocks
+ltm profile persistence-profile test_persist_profile {
+    defaults-from /Common/persistence-profile
+    match-across-pools enabled
+    timeout 1800
+}
+
+# Test nested blocks at various depths
+ltm pool test_pool_complex {
+    description "Complex pool with multiple members"
+    members {
+        server1.example.com:8080 {
+            address 192.0.2.1
+        }
+        server2.example.com:8080 {
+            address 192.0.2.2
+        }
+        server3.example.com:8080 {
+            address 192.0.2.3
+        }
+    }
+    monitor http
+}
+
+# Test virtual server with complex profiles
+ltm virtual test_virtual_complex {
+    description "Virtual server with multiple profiles"
+    destination 203.0.113.1:443
+    profiles {
+        clientssl { }
+        serverssl { }
+        http { }
+        tcp { }
+    }
+    rules {
+        test_rule_1
+        test_rule_2
+    }
+}
+
+# Test with multiple same-level closing braces
+ltm rule test_rule_1 {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "example.com" } {
+            pool pool1
+        }
+    }
+}
+
+# Test with inline comments and various spacing
+ltm rule test_rule_2 {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "test.com" } {
+            pool pool2
+        }
+    }
+}
+
+# Test profile with future/unknown fields using ignored_content
+ltm profile fasthttp test_fasthttp_future {
+    defaults-from /Common/fasthttp
+    unknown-field-1 value1
+    unknown-field-2 value2
+}
+
+ltm profile dns test_dns_future {
+    defaults-from /Common/dns
+    unknown-dns-field value
+    log-profile /Common/dns_logging
+}
+
+# Test with deeply nested ignored content
+ltm data-group internal test_data_group {
+    type string
+    records {
+        key1 { data value1 }
+        key2 { data value2 }
+        key3 { data value3 }
+    }
+}
