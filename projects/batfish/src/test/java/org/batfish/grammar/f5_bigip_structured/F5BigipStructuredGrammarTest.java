@@ -4181,4 +4181,88 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testCommentPatterns() throws IOException {
+    String filename = "f5_bigip_structured_comment_patterns";
+    String hostname = "f5_bigip_structured_comment_patterns";
+
+    // Test various comment patterns after closing braces:
+    // - No comment (baseline)
+    // - Single character comment: } #
+    // - Comment with single word
+    // - Comment with multiple words
+    // - Comment with numbers and version info
+    // - Comment with dashes, underscores, dots, slashes
+    // - Comment with punctuation marks
+    // - Comment with special F5 syntax references
+    // - Comment with URLs and IP addresses
+    // - Very long comments (simulates real production configs)
+    // - Pseudo-code in comments
+    // - Multiple spaces before comment
+    // - Tab character before comment
+    // - Mixed whitespace before comment
+    // - No space after # character
+    // - Multiple # symbols in comment
+    // - Equals signs in comment
+    // - Curly braces in comment
+    // - Square brackets in comment
+    // - Reference numbers (JIRA IDs)
+    // - Date/time information
+    // - Version compatibility markers
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify various profiles and structures parsed correctly
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+    assertThat(vc.getPools(), hasKey("/Common/test_f5_syntax_comment"));
+    assertThat(vc.getMonitors(), hasKey("/Common/test_pseudo_comment"));
+    assertThat(vc.getRules(), hasKey("/Common/test_spaces_before_comment"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testNestedEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_nested_edge_cases";
+    String hostname = "f5_bigip_structured_nested_edge_cases";
+
+    // Test edge cases in nested block structures:
+    // - Completely empty blocks
+    // - Blocks with only newlines and whitespace
+    // - Single field blocks
+    // - Multiple fields with immediate closing
+    // - Deeply nested empty structures
+    // - Blocks with only ignored_content
+    // - Multiple profiles back-to-back
+    // - Deep nesting levels (3+ levels)
+    // - Virtual servers with minimal config
+    // - Virtual servers with many profiles
+    // - Monitors with minimal vs. full config
+    // - Pools with single vs. many members
+    // - Data groups with single vs. many records
+    // - Persistence entries with minimal vs. full fields
+    // - Device groups with single vs. many devices
+    // - Traffic groups with ordered device lists
+    // - Rules with empty conditionals
+    // - Rules with chained conditionals
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify all structure types parsed
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getPools(), hasSize(greaterThanOrEqualTo(2)));
+    assertThat(vc.getMonitors(), hasSize(greaterThanOrEqualTo(2)));
+    assertThat(vc.getRules(), hasSize(greaterThanOrEqualTo(3)));
+    assertThat(vc.getVirtuals(), hasSize(greaterThanOrEqualTo(2)));
+    assertThat(vc.getDataGroups(), hasSize(greaterThanOrEqualTo(2)));
+    assertThat(vc.getPersistences(), hasSize(greaterThanOrEqualTo(2)));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }

@@ -1,0 +1,142 @@
+# Test config for various comment patterns in closing braces
+# Tests how comments interact with the ignored_content rule
+
+# Test 1: No comment (baseline)
+ltm profile analytics test_no_comment {
+    defaults-from /Common/analytics
+}
+
+# Test 2: Single character comment
+ltm profile analytics test_char_comment {
+    defaults-from /Common/analytics
+} #
+
+# Test 3: Comment with single word
+ltm profile analytics test_word_comment {
+    defaults-from /Common/analytics
+} # comment
+
+# Test 4: Comment with multiple words
+ltm profile dns test_multi_word_comment {
+    defaults-from /Common/dns
+} # this is a comment
+
+# Test 5: Comment with numbers
+ltm profile dns test_number_comment {
+    defaults-from /Common/dns
+} # version 15.1.10
+
+# Test 6: Comment with dashes and underscores
+ltm profile fasthttp test_dash_comment {
+    defaults-from /Common/fasthttp
+} # my-test_comment-here
+
+# Test 7: Comment with dots and slashes
+ltm profile certificate-authority test_path_comment {
+    defaults-from /Common/certificate-authority
+} # /path/to/file.txt
+
+# Test 8: Comment with punctuation
+ltm profile client-ssl test_punctuation_comment {
+    defaults-from /Common/clientssl
+} # Test: this is important!
+
+# Test 9: Comment with special F5 syntax
+ltm pool test_f5_syntax_comment {
+    members {
+        server1:80 { }
+    }
+} # See: ltm profile dns
+
+# Test 10: Comment with URLs/IPs
+ltm persistence cookie test_url_comment {
+    defaults-from /Common/cookie
+} # See https://192.0.2.1 for details
+
+# Test 11: Very long comment line (simulates real configs)
+ltm persistence source-address test_long_comment {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+} # This comment documents why we're using source-address persistence across pools for load balancing
+
+# Test 12: Comment with nested pseudo-code
+ltm monitor http test_pseudo_comment {
+    defaults-from /Common/http
+    recv "200 OK"
+} # check { if status == 200 then ok }
+
+# Test 13: Multiple spaces before comment
+ltm rule test_spaces_before_comment {
+    when HTTP_REQUEST {
+        log "test"
+    }
+}     # multiple spaces
+
+# Test 14: Tab then comment
+ltm virtual test_tab_comment {
+    destination 203.0.113.1:443
+}	# with tab character
+
+# Test 15: Space tab space then comment
+ltm data-group internal test_mixed_whitespace_comment {
+    type string
+    records {
+        key1 { data value1 }
+    }
+} 	 # mixed whitespace
+
+# Test 16: Comment with no space after #
+ltm profile dns-logging test_no_space_comment {
+    publisher /Common/local-syslog
+}#no space comment
+
+# Test 17: Comment with multiple # symbols
+ltm profile dns test_multi_hash {
+    defaults-from /Common/dns
+} # comment #with #multiple #hashes
+
+# Test 18: Comment with equals signs
+ltm rule test_equals_comment {
+    when HTTP_REQUEST {
+        if { 1 } { }
+    }
+} # config item = value
+
+# Test 19: Comment with curly braces in it
+ltm monitor tcp test_braces_comment {
+    defaults-from /Common/tcp
+} # Note: see { config } reference
+
+# Test 20: Comment with square brackets
+ltm persistence ssl test_brackets_comment {
+    defaults-from /Common/ssl
+} # Related to [RFC 5389] standards
+
+# Test 21: Inline block followed by comment
+ltm pool test_inline_block_comment {
+    members {
+        server1:80 {}
+    }
+} # servers configured
+
+# Test 22: Nested structure with comments at each level
+ltm device-group test_nested_comments {
+    devices {
+        /Common/device1 { }
+    }
+} # end of device-group
+
+# Test 23: Comment with reference numbers
+ltm virtual test_reference_comment {
+    destination 203.0.113.1:443
+} # JIRA-1234: Fixed load balancing
+
+# Test 24: Comment with date/time
+ltm profile fasthttp test_datetime_comment {
+    defaults-from /Common/fasthttp
+} # Last updated: 2026-02-13 17:00:00 UTC
+
+# Test 25: Comment with version info
+ltm profile analytics test_version_comment {
+    defaults-from /Common/analytics
+} # v15.1.10.3 compatibility
