@@ -1,0 +1,121 @@
+# Test config for whitespace variations in ignored_content patterns
+# Tests different spacing scenarios that should all be valid
+
+# Test 1: No trailing content (original working case)
+ltm profile analytics test_no_trailing {
+    defaults-from /Common/analytics
+}
+
+# Test 2: Single space before closing brace
+ltm profile analytics test_single_space {
+    defaults-from /Common/analytics
+ }
+
+# Test 3: Multiple spaces before closing brace
+ltm profile analytics test_multiple_spaces {
+    defaults-from /Common/analytics
+        }
+
+# Test 4: Tab before closing brace
+ltm profile analytics test_tab {
+    defaults-from /Common/analytics
+	}
+
+# Test 5: Multiple tabs and spaces mixed
+ltm profile analytics test_mixed_whitespace {
+    defaults-from /Common/analytics
+  	  	  }
+
+# Test 6: Comment after closing brace
+ltm profile dns test_inline_comment {
+    defaults-from /Common/dns
+} # this is a comment
+
+# Test 7: Multiple spaces and comment
+ltm profile dns test_spaces_and_comment {
+    defaults-from /Common/dns
+   } # another comment here
+
+# Test 8: Inline comment with special characters
+ltm profile dns test_special_comment {
+    defaults-from /Common/dns
+} # comment with !@#$%^&*() special chars
+
+# Test 9: Very long comment
+ltm profile fasthttp test_long_comment {
+    defaults-from /Common/fasthttp
+} # this is a very long comment that goes on and on with lots of text to test parsing
+
+# Test 10: Nested blocks with various spacing
+ltm pool test_nested_spacing {
+    members {
+        server1:80 {}
+        server2:80 { }
+        server3:80 {  }
+    }
+}
+
+# Test 11: Multiple nested levels with mixed spacing
+ltm persistence cookie test_deep_nesting {
+    defaults-from /Common/cookie
+    match-across-pools enabled
+    timeout 3600
+}
+
+# Test 12: Empty braces with spacing
+ltm monitor http test_empty_with_spacing {
+    defaults-from /Common/http
+}
+
+# Test 13: Inline blocks with trailing whitespace
+ltm rule test_inline_spacing {
+    when HTTP_REQUEST {
+        if { [HTTP::uri] starts_with "/api" } {
+            pool api_pool
+        }
+    }
+}
+
+# Test 14: Profile with trailing whitespace variations
+ltm profile client-ssl test_ssl_spacing {
+    defaults-from /Common/clientssl
+}
+
+# Test 15: Persistence with various closing patterns
+ltm persistence source-address test_persist_spacing {
+    defaults-from /Common/source-addr
+}
+
+# Test 16: Closing brace with inline comment and extra spaces
+ltm profile certificate-authority test_complex_spacing {
+    defaults-from /Common/certificate-authority
+    }   # comment with spacing
+
+# Test 17: Data group with spacing variations
+ltm data-group internal test_data_group_spacing {
+    type string
+    records {
+        key1 { data value1 }
+        key2 { data value2 }
+    }
+}
+
+# Test 18: Virtual server with spacing
+ltm virtual test_virtual_spacing {
+    destination 203.0.113.1:443
+    pool test_pool
+}
+
+# Test 19: Monitor with complete spacing variations
+ltm monitor http test_monitor_spacing {
+    defaults-from /Common/http
+    recv "200 OK"
+    send "GET / HTTP/1.1"
+}
+
+# Test 20: Rule with complex spacing
+ltm rule test_rule_spacing {
+    when HTTP_REQUEST {
+        log "Request received"
+    }
+}

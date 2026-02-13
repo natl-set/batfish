@@ -4097,4 +4097,88 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testWhitespaceVariations() throws IOException {
+    String filename = "f5_bigip_structured_whitespace_variations";
+    String hostname = "f5_bigip_structured_whitespace_variations";
+
+    // Test various whitespace patterns before closing braces:
+    // - No trailing content: }
+    // - Single space: (space)}
+    // - Multiple spaces: (spaces)}
+    // - Tab character: (tab)}
+    // - Mixed tabs and spaces: (tabs+spaces)}
+    // - Inline comments: } # comment
+    // - Spaces + comment: (spaces)} # comment
+    // - Comments with special characters
+    // - Very long comments
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify multiple profiles and structures parsed
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+    assertThat(vc.getLtmProfiles(), hasKey("fasthttp"));
+    assertThat(vc.getLtmProfiles(), hasKey("client-ssl"));
+
+    // Verify pools and persistence
+    assertThat(vc.getPools(), hasKey("/Common/test_nested_spacing"));
+    assertThat(vc.getPersistences(), hasKey("/Common/test_deep_nesting"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testRealWorldPatterns() throws IOException {
+    String filename = "f5_bigip_structured_real_world_patterns";
+    String hostname = "f5_bigip_structured_real_world_patterns";
+
+    // Test real-world patterns extracted from production F5 BIG-IP configurations.
+    // These patterns match structures found in F5-DC1-bigip.conf and F5-DC2-bigip.conf
+    // that were causing syntax errors with the old grammar:
+    //
+    // - cli global-settings { idle-timeout 10 }
+    // - auth password-policy { policy-enforcement disabled }
+    // - cm cert blocks with cache-path, checksum, revision fields
+    // - cm device blocks with active-modules, base-mac, build
+    // - cm device-group blocks with devices and nested structures
+    // - cm key blocks with complex file paths
+    // - cm traffic-group with ha-order and nested device lists
+    // - LTM profiles (analytics, certificate-authority, dns, dns-logging)
+    // - LTM pools with member lists
+    // - LTM persistence entries with multiple fields
+    // - LTM monitors with configuration
+    // - LTM rules with when/then logic
+    // - LTM virtual servers with profile lists
+    // - SYS configuration blocks (snmp, ntp, global-settings)
+    // - SYS management blocks (management-ip, management-route)
+    // - SYS service blocks (sshd, httpd)
+    // - LTM data groups with nested records
+    // - WOM endpoint discovery blocks
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify cm structures were extracted
+    assertThat(vc.getCertificates(), hasKey("/Common/dtca-bundle.crt"));
+    assertThat(vc.getCertificates(), hasKey("/Common/dtca.crt"));
+    assertThat(vc.getCertificates(), hasKey("/Common/dtdi.crt"));
+
+    // Verify ltm structures
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+    assertThat(vc.getPools(), hasKey("/Common/pool_web"));
+    assertThat(vc.getMonitors(), hasKey("/Common/mon_http"));
+    assertThat(vc.getRules(), hasKey("/Common/rule_web"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/vs_web"));
+
+    // Verify data groups
+    assertThat(vc.getDataGroups(), hasKey("/Common/dg_locations"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }

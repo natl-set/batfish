@@ -1,0 +1,185 @@
+# Test config with patterns extracted from real F5 BIG-IP configurations
+# These patterns match the actual structures found in F5-DC1-bigip.conf and F5-DC2-bigip.conf
+
+# Pattern 1: CLI and AUTH blocks
+cli global-settings {
+    idle-timeout 10
+}
+
+auth password-policy {
+    policy-enforcement disabled
+}
+
+# Pattern 2: CM cert blocks (like lines 21921-21934 in F5-DC1-bigip.conf)
+cm cert /Common/dtca-bundle.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtca-bundle.crt_56471_17
+    checksum SHA1:2384:4e33286cbc7be6ed0b5c1843997c7190b1503270
+    revision 17
+}
+
+cm cert /Common/dtca.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtca.crt_56467_7
+    checksum SHA1:1334:bd76621b920573ef462146f40b326aa7924e0b58
+    revision 7
+}
+
+cm cert /Common/dtdi.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:dtdi.crt_56463_7
+    checksum SHA1:1338:27a0e3b1483b1d1a24c09a8dbd5f460eef99846c
+    revision 7
+}
+
+# Pattern 3: CM device block (like lines 21936-21939)
+cm device /Common/ADC-DC1-Internet.INSET.org {
+    active-modules { "Better Bundle, r4600|Rate Shaping|DNS Services|APM, Limited|Routing Bundle|Advanced Firewall Manager|Protocol Security Manager" }
+    base-mac 14:a9:d0:3a:0b:8e
+    build 0.50.12
+}
+
+# Pattern 4: CM device-group (like lines 22011-22017)
+cm device-group /Common/gtm {
+    devices {
+        /Common/ADC-DC1-Internet.INSET.org { }
+    }
+    hidden true
+    network-failover disabled
+}
+
+# Pattern 5: CM key blocks (like lines 22018-22027)
+cm key /Common/dtca.key {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_key_d/:Common:dtca.key_56469_7
+    checksum SHA1:1704:99cea19a6bdabbeb49f2f29a3888783001eeb924
+    revision 7
+}
+
+cm key /Common/dtdi.key {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_key_d/:Common:dtdi.key_56465_6
+    checksum SHA1:1704:92d3196001ce68805ded7858aadcb615e581b5fe
+    revision 6
+}
+
+# Pattern 6: CM traffic-group (like lines 22028-22034)
+cm traffic-group /Common/traffic-group-1 {
+    ha-order {
+        /Common/ADC-DC1-Internet.INSET.org
+        /Common/ADC-DC2-Internet.INSET.org
+    }
+    mac 16:a9:d0:3a:0b:8e
+    unit-id 1
+}
+
+# Pattern 7: LTM profiles that use ignored_content
+ltm profile analytics /Common/test_analytics {
+    defaults-from /Common/analytics
+}
+
+ltm profile certificate-authority /Common/test_ca {
+    defaults-from /Common/certificate-authority
+}
+
+ltm profile dns /Common/test_dns {
+    defaults-from /Common/dns
+    log-profile /Common/dns_logging
+}
+
+ltm profile dns-logging /Common/test_dns_logging {
+    publisher /Common/local-syslog
+}
+
+# Pattern 8: LTM pools with members
+ltm pool /Common/pool_web {
+    members {
+        web-server1:80 { }
+        web-server2:80 { }
+        web-server3:80 { }
+    }
+}
+
+# Pattern 9: LTM persistence entries
+ltm persistence cookie /Common/persist_session {
+    defaults-from /Common/cookie
+    match-across-pools enabled
+    match-across-services enabled
+}
+
+ltm persistence source-address /Common/persist_source {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+    timeout 1800
+}
+
+# Pattern 10: LTM monitors
+ltm monitor http /Common/mon_http {
+    defaults-from /Common/http
+    recv "200 OK"
+    send "GET / HTTP/1.1"
+}
+
+# Pattern 11: LTM rules
+ltm rule /Common/rule_web {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "web.example.com" } {
+            pool pool_web
+        }
+    }
+}
+
+# Pattern 12: Virtual servers
+ltm virtual /Common/vs_web {
+    destination 203.0.113.1:443
+    pool /Common/pool_web
+    profiles {
+        /Common/clientssl { }
+        /Common/serverssl { }
+    }
+}
+
+# Pattern 13: SYS configuration blocks
+sys snmp {
+    trap-options { all }
+    source-address 0.0.0.0
+}
+
+sys ntp {
+    timezone America/Los_Angeles
+}
+
+sys global-settings {
+    description "Global Settings"
+}
+
+# Pattern 14: SYS management blocks
+sys management-ip 192.168.1.245 {
+    description "Management Interface"
+}
+
+sys management-route 0.0.0.0/0 {
+    gateway 192.168.1.254
+}
+
+# Pattern 15: SYS service blocks
+sys sshd {
+    banner enabled
+}
+
+sys httpd {
+    max-clients 20
+}
+
+# Pattern 16: Complex nested structures
+ltm profile fasthttp /Common/prof_fasthttp {
+    defaults-from /Common/fasthttp
+}
+
+# Pattern 17: Data groups
+ltm data-group internal /Common/dg_locations {
+    type string
+    records {
+        location1 { data 192.0.2.1 }
+        location2 { data 192.0.2.2 }
+        location3 { data 192.0.2.3 }
+    }
+}
+
+# Pattern 18: WOM endpoint discovery
+wom endpoint-discovery { }
