@@ -1403,11 +1403,17 @@ F_Whitespace
 fragment
 F_Word
 :
+  // Standard word: starts and ends with F_WordCharCommon
   F_WordCharCommon
   (
     F_WordChar* F_WordCharCommon
   )?
+  // Word starting with colon: :Common or :Common:value
   | ':' F_WordCharCommon (F_WordChar* F_WordCharCommon)?
+  // Word ending with colon: value: (for paths like /path/value:)
+  | F_WordCharCommon F_WordChar* ':'
+  // Word with leading and trailing colon: :Common: (F5 cache paths)
+  | ':' F_WordCharCommon F_WordChar* ':'
 ;
 
 fragment
