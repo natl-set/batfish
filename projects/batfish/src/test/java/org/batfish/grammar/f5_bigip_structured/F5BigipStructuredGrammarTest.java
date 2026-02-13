@@ -4265,4 +4265,67 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testIgnoredContentInvalidSyntax() throws IOException {
+    String filename = "f5_bigip_structured_invalid_ignored_content";
+    String hostname = "f5_bigip_structured_invalid_ignored_content";
+
+    // Test that INVALID syntax properly FAILS to parse.
+    // This negative test verifies that the parser correctly rejects:
+    // - Unmatched opening braces (no closing brace)
+    // - Unmatched closing braces (orphaned closing brace)
+    // - Invalid syntax in blocks
+    // - Malformed structures
+    //
+    // This is important to ensure the grammar fix doesn't accidentally
+    // accept invalid configurations that should be rejected.
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+
+    // Verify the config FAILED to parse (not PASSED)
+    ParseStatus parseStatus = initAns.getParseStatus().get("configs/" + hostname);
+    assertThat(
+        "Invalid config should fail to parse", parseStatus, not(equalTo(ParseStatus.PASSED)));
+  }
+
+  @Test
+  public void testDeepNesting() throws IOException {
+    String filename = "f5_bigip_structured_deep_nesting";
+    String hostname = "f5_bigip_structured_deep_nesting";
+
+    // Test deeply nested block structures (5+ levels deep).
+    // This stress test verifies that the grammar handles complex nesting:
+    // - Level 1-2: Basic block structures
+    // - Level 3-4: Nested conditionals in rules
+    // - Level 5: Five levels of nested braces
+    // - Level 6: Six levels of nested conditionals (stress test)
+    // - Multiple branches: Complex rule logic with multiple pools
+    //
+    // Nesting patterns tested:
+    // - Data groups with nested records
+    // - Pools with member lists
+    // - Rules with IF/ELSEIF/ELSE chains
+    // - Virtual servers with profile blocks
+    // - Deeply nested settings blocks
+    // - Multiple conditional branches at same level
+
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify deep structures were parsed
+    assertThat(vc.getDataGroups(), hasKey("/Common/test_level1"));
+    assertThat(vc.getPools(), hasSize(greaterThanOrEqualTo(2)));
+    assertThat(vc.getRules(), hasSize(greaterThanOrEqualTo(3)));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test_level4"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+
+    // Verify the config parses without syntax errors (even with deep nesting)
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with deep nesting should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+  }
 }

@@ -1,0 +1,91 @@
+# Test config for very deep nesting (5+ levels)
+# Tests that deeply nested blocks are handled correctly
+
+# Level 1: Basic structure
+ltm data-group internal test_level1 {
+    type string
+    records {
+        key1 { data value1 }
+    }
+}
+
+# Level 2: Two levels of nesting
+ltm pool test_level2 {
+    members {
+        server1:80 {}
+    }
+}
+
+# Level 3: Three levels of nesting
+ltm rule test_level3 {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "example.com" } {
+            pool test_pool
+        }
+    }
+}
+
+# Level 4: Four levels of nesting
+ltm virtual test_level4 {
+    destination 203.0.113.1:443
+    profiles {
+        /Common/clientssl { }
+        /Common/serverssl { }
+    }
+}
+
+# Level 5: Five levels of deep nesting
+ltm profile dns test_level5 {
+    defaults-from /Common/dns
+    settings {
+        nested-level-1 {
+            nested-level-2 {
+                nested-level-3 {
+                    nested-level-4 {
+                        nested-level-5 value
+                    }
+                }
+            }
+        }
+    }
+}
+
+# Level 6: Six levels of deep nesting (stress test)
+ltm rule test_level6 {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "a" } {
+            if { [HTTP::uri] starts_with "/api" } {
+                if { [HTTP::method] equals "POST" } {
+                    if { [HTTP::header "Content-Type"] equals "application/json" } {
+                        log "Deep nesting level 6"
+                    }
+                }
+            }
+        }
+    }
+}
+
+# Test with multiple deep branches
+ltm pool test_deep_branches {
+    members {
+        server1:80 { address 192.0.2.1 }
+        server2:80 { address 192.0.2.2 }
+        server3:80 { address 192.0.2.3 }
+    }
+}
+
+# Combined: Rules with conditionals in blocks
+ltm rule test_deep_combined {
+    when HTTP_REQUEST {
+        set host [HTTP::host]
+        if { $host equals "api.example.com" } {
+            if { [HTTP::method] equals "GET" } {
+                pool api_pool_read
+            } elseif { [HTTP::method] equals "POST" } {
+                pool api_pool_write
+            } else {
+                pool api_pool_default
+            }
+        }
+    }
+}
