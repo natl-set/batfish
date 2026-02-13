@@ -1,0 +1,118 @@
+# Test config for ignored_block patterns
+# Tests metadata blocks that should be ignored without warnings
+
+sys dns {
+    name-servers { 8.8.8.8 8.8.4.4 }
+    search { example.com }
+}
+
+sys management-ip 10.0.0.1 {
+    description "Management Interface"
+}
+
+sys management-route 10.0.0.0/8 {
+    gateway 10.0.0.254
+}
+
+sys sshd {
+    allow { ALL }
+    banner enabled
+}
+
+sys syslog {
+    remote-server { 192.0.2.1 }
+}
+
+sys ecm cloud-provider {
+    cloud-id test
+    access-token secret
+}
+
+sys software update {
+    status idle
+}
+
+sys wom deduplication {
+    enabled
+}
+
+sys httpd {
+    max-clients 20
+}
+
+sys outbound-smtp {
+    smtp-server 192.0.2.1
+}
+
+sys provision analytics {
+    level minimum
+}
+
+sys diags ihealth {
+    enabled
+}
+
+sys management-ovsdb {
+    enabled
+}
+
+sys compatibility-level 12.1.0 {
+    version 12.1.0
+}
+
+# Test ignored_block with various structures
+security firewall config-change-log {
+    publisher none
+}
+
+security word-id profile /Common/DomainProfile {
+    type domainprofile
+}
+
+security protocol-inspection WordID /Common/TLS {
+    profile /Common/TLS
+}
+
+# Test nested ignored blocks
+ltm profile analytics nested_test {
+    defaults-from /Common/analytics
+}
+
+# Test with inline ignored blocks
+ltm monitor http monitor_with_blocks {
+    defaults-from /Common/http
+    recv "HTTP/1.1 200"
+    send "GET / HTTP/1.1"
+    interval 5
+}
+
+# Combinations of sys blocks
+sys snmp {
+    trap-options { all }
+    source-address 0.0.0.0
+}
+
+sys ntp {
+    timezone America/Los_Angeles
+}
+
+sys global-settings {
+    description "Global Settings"
+}
+
+sys ha-group {
+    id 1
+    name ha-group-1
+}
+
+sys event-processing {
+    log-publisher none
+}
+
+sys failure-recovery {
+    enabled
+}
+
+sys session-timeout {
+    timeout 0
+}

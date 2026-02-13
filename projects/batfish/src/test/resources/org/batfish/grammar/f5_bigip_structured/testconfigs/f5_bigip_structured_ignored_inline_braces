@@ -1,0 +1,81 @@
+# Test config for ignored_inline_braced_content patterns
+# Tests nested braces on the same line: key { value } more_content
+
+ltm profile analytics test_inline_1 {
+    defaults-from /Common/analytics
+    nested-setting { value } extra-content
+}
+
+ltm profile analytics test_inline_2 {
+    defaults-from /Common/analytics
+    field1 { nested1 } field2 { nested2 } field3
+}
+
+ltm profile dns test_inline_dns {
+    defaults-from /Common/dns
+    log-profile /Common/dns_logging
+    metrics { events_count } other-field value
+}
+
+# Test multiple inline blocks on same line
+ltm pool test_inline_pool {
+    members {
+        server1:80 { priority 10 } server2:80 { priority 20 }
+    }
+    monitor http inline-monitor { options here }
+}
+
+# Test with whitespace variations
+ltm persistence cookie test_inline_cookie {
+    defaults-from /Common/cookie
+    setting1 { value1 } setting2 { value2 }
+    setting3 {value3}setting4{value4}
+}
+
+# Test inline braces with comments
+ltm profile fasthttp test_inline_fasthttp {
+    defaults-from /Common/fasthttp
+    metric1 { count } metric2 { bytes } # comment
+    profile-ref { definition } config
+}
+
+# Test nested inline structures
+ltm monitor http test_inline_monitor {
+    defaults-from /Common/http
+    recv "200 OK" # pattern match
+    send "GET / HTTP/1.1" pattern { some_value }
+    interval 5 timeout 16
+}
+
+# Test data group with inline braces
+ltm data-group internal test_inline_data_group {
+    type string
+    records {
+        key1 { data inline_value } key2 { data value2 }
+    }
+}
+
+# Test rule with inline braces
+ltm rule test_inline_rule {
+    when HTTP_REQUEST {
+        if { [HTTP::uri] starts_with "/api" } {
+            call my_proc { arg1 value1 }
+        }
+    }
+}
+
+# Test profile with multiple inline patterns
+ltm profile client-ssl test_inline_ssl {
+    defaults-from /Common/clientssl
+    cert /Common/default.crt
+    key { path /Common/default.key } encrypted
+    chain { content here } signed
+    options { dont-insert-empty-fragments } more-options
+}
+
+# Test persistence with mixed patterns
+ltm persistence source-address test_inline_persist {
+    defaults-from /Common/source-addr
+    timeout 1800 settings { complex nested } extra
+    match-across-pools { enabled } match-across-services { enabled }
+}

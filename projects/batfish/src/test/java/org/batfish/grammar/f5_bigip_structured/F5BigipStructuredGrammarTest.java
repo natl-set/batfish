@@ -4014,4 +4014,67 @@ public final class F5BigipStructuredGrammarTest {
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
+
+  @Test
+  public void testIgnoredInlineBracedContent() throws IOException {
+    String filename = "f5_bigip_structured_ignored_inline_braces";
+    String hostname = "f5_bigip_structured_ignored_inline_braces";
+
+    // Test ignored_inline_braced_content patterns for nested braces on same line:
+    // - Single inline braces: key { value } extra
+    // - Multiple inline braces: { val1 } { val2 } text
+    // - Back-to-back inline braces: { val1 }{ val2 }
+    // - Inline braces with comments
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify all test profiles were successfully parsed
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getLtmProfiles(), hasKey("dns"));
+    assertThat(vc.getLtmProfiles(), hasKey("fasthttp"));
+    assertThat(vc.getLtmProfiles(), hasKey("client-ssl"));
+
+    // Verify persistence entries parsed
+    assertThat(vc.getPersistences(), hasKey("/Common/test_inline_cookie"));
+    assertThat(vc.getPersistences(), hasKey("/Common/test_inline_persist"));
+
+    // Verify pools parsed
+    assertThat(vc.getPools(), hasKey("/Common/test_inline_pool"));
+
+    // Verify monitors parsed
+    assertThat(vc.getMonitors(), hasKey("/Common/test_inline_monitor"));
+
+    // Verify rules parsed
+    assertThat(vc.getRules(), hasKey("/Common/test_inline_rule"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testIgnoredBlocks() throws IOException {
+    String filename = "f5_bigip_structured_ignored_blocks";
+    String hostname = "f5_bigip_structured_ignored_blocks";
+
+    // Test ignored_block patterns used in sys and security sections:
+    // - sys dns, management-ip, management-route, sshd, syslog
+    // - sys ecm cloud-provider, software update, wom deduplication
+    // - sys httpd, outbound-smtp, provision, diags ihealth
+    // - sys management-ovsdb, compatibility-level
+    // - security firewall config-change-log
+    // - security word-id profile
+    // - security protocol-inspection
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+
+    // Verify some structures are extracted
+    // LTM structures should be present
+    assertThat(vc.getLtmProfiles(), hasKey("analytics"));
+    assertThat(vc.getMonitors(), hasKey("/Common/monitor_with_blocks"));
+  }
 }
