@@ -155,7 +155,7 @@ iws_chars
 
 iws_double_quotes
 :
-  DOUBLE_QUOTE iwsd_segment* DOUBLE_QUOTE
+  DOUBLE_QUOTED_STRING iwsd_segment* DOUBLE_QUOTED_STRING
 ;
 
 iwsd_segment

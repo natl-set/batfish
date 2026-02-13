@@ -3856,8 +3856,7 @@ public final class F5BigipStructuredGrammarTest {
     // Verify that config parsed successfully without warnings
     Batfish batfish = getBatfishForConfigurationNames(hostname);
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
-    assertThat(
-        initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
 
   @Test
@@ -3881,8 +3880,7 @@ public final class F5BigipStructuredGrammarTest {
     // Verify that config parsed successfully without warnings
     Batfish batfish = getBatfishForConfigurationNames(hostname);
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
-    assertThat(
-        initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
   }
 
   @Test

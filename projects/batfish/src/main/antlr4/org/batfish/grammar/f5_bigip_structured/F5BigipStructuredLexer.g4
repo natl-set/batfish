@@ -958,7 +958,7 @@ DEC
   F_Digit+
 ;
 
-DOUBLE_QUOTE
+DOUBLE_QUOTED_STRING
 :
   '"' -> more, pushMode(M_DoubleQuote)
 ;
@@ -1413,7 +1413,8 @@ fragment
 F_WordCharCommon
 :
   ~[ \t\n\r{}[\]/:"]
-;
+  | '_'
+  ;
 
 fragment
 F_WordChar
@@ -1580,7 +1581,7 @@ M_Command_DOLLAR
 
 M_Command_DOUBLE_QUOTE
 :
-  '"' -> type(DOUBLE_QUOTE), pushMode(M_DoubleQuotedSegment)
+  '"' -> type(DOUBLE_QUOTED_STRING), pushMode(M_DoubleQuotedSegment)
 ;
 
 M_Command_NEWLINE
@@ -1654,7 +1655,7 @@ M_DoubleQuotedSegment_DOLLAR
 
 M_DoubleQuotedSegment_DOUBLE_QUOTE
 :
-  '"' -> type(DOUBLE_QUOTE), popMode
+  '"' -> type(DOUBLE_QUOTED_STRING), popMode
 ;
 
 mode M_VariableSubstitution;
