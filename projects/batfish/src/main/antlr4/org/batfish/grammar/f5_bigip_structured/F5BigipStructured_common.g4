@@ -238,7 +238,9 @@ vlan_id
 ;
 
 word
-  : ~NEWLINE
+:
+  ~( BRACE_LEFT | BRACE_RIGHT | BRACKET_LEFT | BRACKET_RIGHT | IMISH_CHUNK |
+  RULE_SPECIAL | NEWLINE )
 ;
 
 word_id
