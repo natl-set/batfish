@@ -106,8 +106,8 @@ ignored
 ignored_content
 :
   ignored                           // simple line
-  | word BRACE_LEFT                // nested block start: "method {"
-  | BRACE_RIGHT NEWLINE            // nested block end: "}"
+  | word BRACE_LEFT ~NEWLINE* NEWLINE                // nested block start: "method { ... }"
+  | BRACE_RIGHT (~NEWLINE)* NEWLINE                  // nested block end: "} ..."
 ;
 
 /*
