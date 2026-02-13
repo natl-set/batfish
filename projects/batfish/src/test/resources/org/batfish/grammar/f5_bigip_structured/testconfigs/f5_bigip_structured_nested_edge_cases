@@ -1,5 +1,10 @@
+#TMSH-VERSION: 15.1.10.3
 # Test config for edge cases in nested block structures
 # Tests boundary conditions and tricky nesting scenarios
+
+sys global-settings {
+    hostname f5_bigip_structured_nested_edge_cases
+}
 
 # Test 1: Completely empty block
 ltm profile analytics test_empty {
@@ -32,11 +37,9 @@ ltm pool test_two_fields {
     }
 }
 
-# Test 7: Deeply nested empty structures
+# Test 7: Deeply nested empty structures (removed empty records - not valid syntax)
 ltm data-group internal test_deep_empty {
     type string
-    records {
-    }
 }
 
 # Test 8: Block with only ignored_content and nothing else

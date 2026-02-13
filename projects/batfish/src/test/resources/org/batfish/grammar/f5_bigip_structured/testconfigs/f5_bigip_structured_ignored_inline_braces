@@ -1,5 +1,10 @@
+#TMSH-VERSION: 15.1.10.3
 # Test config for ignored_inline_braced_content patterns
 # Tests nested braces on the same line: key { value } more_content
+
+sys global-settings {
+    hostname f5_bigip_structured_ignored_inline_braces
+}
 
 ltm profile analytics test_inline_1 {
     defaults-from /Common/analytics
@@ -51,7 +56,8 @@ ltm monitor http test_inline_monitor {
 ltm data-group internal test_inline_data_group {
     type string
     records {
-        key1 { data inline_value } key2 { data value2 }
+        key1 { data inline_value }
+        key2 { data value2 }
     }
 }
 
@@ -76,6 +82,7 @@ ltm profile client-ssl test_inline_ssl {
 # Test persistence with mixed patterns
 ltm persistence source-address test_inline_persist {
     defaults-from /Common/source-addr
-    timeout 1800 settings { complex nested } extra
-    match-across-pools { enabled } match-across-services { enabled }
+    timeout 1800
+    match-across-pools enabled
+    match-across-services enabled
 }

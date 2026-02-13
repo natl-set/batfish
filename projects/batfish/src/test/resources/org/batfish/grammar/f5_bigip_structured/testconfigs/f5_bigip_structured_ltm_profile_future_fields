@@ -59,6 +59,7 @@ ltm profile server-ssl /Common/test-server-ssl {
         ECDHE-RSA-AES128-GCM-SHA256
         future-server-cipher value2
     }
+}
 
 # Test LTM profile http with new fields - should not generate warnings
 ltm profile http /Common/test-http {

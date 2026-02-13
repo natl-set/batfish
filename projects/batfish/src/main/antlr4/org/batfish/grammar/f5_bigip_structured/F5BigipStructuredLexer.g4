@@ -1407,6 +1407,7 @@ F_Word
   (
     F_WordChar* F_WordCharCommon
   )?
+  | ':' F_WordCharCommon (F_WordChar* F_WordCharCommon)?
 ;
 
 fragment

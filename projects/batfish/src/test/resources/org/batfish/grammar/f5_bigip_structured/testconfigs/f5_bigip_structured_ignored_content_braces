@@ -1,5 +1,10 @@
+#TMSH-VERSION: 15.1.10.3
 # Test config for ignored_content patterns with various closing brace formats
 # Tests the fix for handling closing braces with trailing content
+
+sys global-settings {
+    hostname f5_bigip_structured_ignored_content_braces
+}
 
 ltm profile analytics test_analytics_1 {
     defaults-from /Common/analytics
@@ -71,14 +76,14 @@ ltm persistence source-address test_persist_2 {
 }
 
 # Test pool with nested members
-ltm pool test_pool_1 {
+ltm pool /Common/test_pool_1 {
     members {
         server1:80 {}
         server2:80 {}
     }
 }
 
-ltm pool test_pool_2 {
+ltm pool /Common/test_pool_2 {
     members {
         server1:80 {}
         server2:80 {}

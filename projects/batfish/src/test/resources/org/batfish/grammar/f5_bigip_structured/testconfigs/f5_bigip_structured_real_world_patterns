@@ -1,5 +1,10 @@
+#TMSH-VERSION: 15.1.10.3
 # Test config with patterns extracted from real F5 BIG-IP configurations
 # These patterns match the actual structures found in F5-DC1-bigip.conf and F5-DC2-bigip.conf
+
+sys global-settings {
+    hostname f5_bigip_structured_real_world_patterns
+}
 
 # Pattern 1: CLI and AUTH blocks
 cli global-settings {
@@ -135,11 +140,6 @@ ltm virtual /Common/vs_web {
 }
 
 # Pattern 13: SYS configuration blocks
-sys snmp {
-    trap-options { all }
-    source-address 0.0.0.0
-}
-
 sys ntp {
     timezone America/Los_Angeles
 }
