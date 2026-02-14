@@ -1254,6 +1254,10 @@ public final class CiscoNxosControlPlaneExtractor extends CiscoNxosParserBaseLis
 
   private @Nonnull Optional<RoutingProtocolInstance> toRoutingProtocolInstance(
       ParserRuleContext messageCtx, Rip_instanceContext ctx) {
+    // router_rip_process_id is optional; use "rip" as default when not specified
+    if (ctx.router_rip_process_id() == null) {
+      return Optional.of(RoutingProtocolInstance.rip("rip"));
+    }
     return toString(messageCtx, ctx.router_rip_process_id()).map(RoutingProtocolInstance::rip);
   }
 
@@ -6837,6 +6841,10 @@ public final class CiscoNxosControlPlaneExtractor extends CiscoNxosParserBaseLis
 
   @Override
   public void exitS_vdc(S_vdcContext ctx) {
+    // ID is optional; if not present, skip VDC processing
+    if (ctx.id == null) {
+      return;
+    }
     Optional<Integer> maybeId = toInteger(ctx, ctx.id);
     if (!maybeId.isPresent()) {
       return;

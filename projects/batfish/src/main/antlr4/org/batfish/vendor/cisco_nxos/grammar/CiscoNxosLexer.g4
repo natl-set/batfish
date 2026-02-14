@@ -11,6 +11,7 @@ tokens {
   HSRP_VERSION_2,
   MAC_ADDRESS_LITERAL,
   MOTD,
+  NULL_LINE_TEXT,
   PASSWORD_0,
   PASSWORD_0_TEXT,
   PASSWORD_3,
@@ -283,6 +284,8 @@ BIFF: 'biff';
 
 BLOCK: 'block';
 
+BLOGGERD: 'bloggerd' -> pushMode(M_NullLine);
+
 BOOT: 'boot';
 
 BOOTPC: 'bootpc';
@@ -309,7 +312,9 @@ BUFFER_LIMIT: 'buffer-limit';
 
 BYTES: 'bytes';
 
-CALLHOME: 'callhome';
+CA: 'ca';
+
+CALLHOME: 'callhome' -> pushMode(M_NullLine);
 
 CAPABILITY: 'capability';
 
@@ -325,7 +330,7 @@ CCMCLIRUNNINGCONFIGCHANGED
 
 CDP: 'cdp';
 
-CFS: 'cfs';
+CFS: 'cfs' -> pushMode(M_NullLine);
 
 CHAIN
 :
@@ -416,6 +421,8 @@ CONGESTION_CONTROL: 'congestion-control';
 
 CONNECT: 'connect';
 
+COPP: 'copp' -> pushMode(M_NullLine);
+
 CONNECTION_MODE: 'connection-mode';
 
 CONSOLE: 'console';
@@ -459,7 +466,7 @@ CRITICAL: 'critical';
 
 CRON: 'cron';
 
-CRYPTO: 'crypto';
+CRYPTO: 'crypto' -> pushMode(M_NullLine);
 
 CS1: 'cs1';
 
@@ -538,6 +545,8 @@ DHCP: 'dhcp';
 DHCP_SNOOP: 'dhcp-snoop';
 
 DHCP_SNOOPING_VLAN: 'dhcp-snooping-vlan';
+
+DIAGNOSTIC: 'diagnostic' -> pushMode(M_NullLine);
 
 DIR: 'dir';
 
@@ -765,6 +774,8 @@ FEATURE_CONTROL: 'feature-control';
 
 FEATURE_SET: 'feature-set';
 
+FEC: 'fec' -> pushMode(M_NullLine);
+
 FEATUREOPSTATUSCHANGE
 :
   [Ff] [Ee] [Aa] [Tt] [Uu] [Rr] [Ee] [Oo] [Pp] [Ss] [Tt] [Aa] [Tt] [Uu] [Ss]
@@ -865,7 +876,9 @@ GT: 'gt';
 
 GUARD: 'guard';
 
-HARDWARE: 'hardware';
+HA_POLICY: 'ha-policy' -> pushMode(M_NullLine);
+
+HARDWARE: 'hardware' -> pushMode(M_NullLine);
 
 HEAD: 'head';
 
@@ -942,6 +955,8 @@ HTTP_SERVER: 'http-server';
 HW_HASH: 'hw-hash';
 
 IBGP: 'ibgp';
+
+ICAM: 'icam' -> pushMode(M_NullLine);
 
 ICMP: 'icmp';
 
@@ -1020,6 +1035,8 @@ INTERFACE
 INTERFACE_VLAN: 'interface-vlan';
 
 INTERNAL: 'internal';
+
+INTERSIGHT: 'intersight' -> pushMode(M_NullLine);
 
 INTERNET: 'internet';
 
@@ -1102,6 +1119,8 @@ KEY_STRING
   'key-string' -> pushMode ( M_Remark )
 ;
 
+KEYSTORE: 'keystore' -> pushMode(M_NullLine);
+
 KICKSTART
 :
   'kickstart'
@@ -1156,7 +1175,9 @@ LINE: 'line';
 
 LINE_PROTOCOL: 'line-protocol';
 
-LINK: 'link';
+LDP: 'ldp';
+
+LINK: 'link' -> pushMode(M_NullLine);
 
 LINK_FLAP: 'link-flap';
 
@@ -1170,13 +1191,15 @@ LINK_TYPE: 'link-type';
 
 LINK_UP: 'link-up';
 
+LOAD_BALANCE: 'load-balance';
+
 LISP: 'lisp';
 
 LLDP: 'lldp';
 
 LOAD_DEFER: 'load-defer';
 
-LOAD_INTERVAL: 'load-interval';
+LOAD_INTERVAL: 'load-interval' -> pushMode(M_NullLine);
 
 LOAD_SHARE: 'load-share';
 
@@ -1723,6 +1746,8 @@ POAP: 'poap';
 
 POINT_TO_POINT: 'point-to-point';
 
+POWER: 'power' -> pushMode(M_NullLine);
+
 POLICE: 'police';
 
 POLICY: 'policy';
@@ -1788,7 +1813,7 @@ PRIMARY: 'primary';
 
 PRIORITY: 'priority';
 
-PRIORITY_FLOW_CONTROL: 'priority-flow-control';
+PRIORITY_FLOW_CONTROL: 'priority-flow-control' -> pushMode(M_NullLine);
 
 PRIV
 :
@@ -2141,6 +2166,8 @@ SRC_IP: 'src-ip';
 
 SRC_MAC: 'src-mac';
 
+SRC_DST: 'src-dst';
+
 SSH: 'ssh';
 
 STALEPATH_TIME: 'stalepath-time';
@@ -2168,7 +2195,7 @@ STATISTICS: 'statistics';
 
 STICKY_ARP: 'sticky-arp';
 
-STORM_CONTROL: 'storm-control';
+STORM_CONTROL: 'storm-control' -> pushMode(M_NullLine);
 
 STPX: 'stpx';
 
@@ -2282,7 +2309,7 @@ TCP_FLAGS_MASK: 'tcp-flags-mask';
 
 TCP_OPTION_LENGTH: 'tcp-option-length';
 
-TELNET: 'telnet';
+TELNET: 'telnet' -> pushMode(M_NullLine);
 
 TEMPLATE: 'template';
 
@@ -2542,6 +2569,8 @@ VETHERNET: 'vethernet';
 VIOLATE: 'violate';
 
 VIRTUAL_LINK: 'virtual-link';
+
+VIRTUAL_SERVICE: 'virtual-service' -> pushMode(M_NullLine);
 
 VLAN
 :
@@ -3774,6 +3803,24 @@ M_Word_WORD
 ;
 
 M_Word_WS
+:
+  F_Whitespace+ -> channel ( HIDDEN )
+;
+
+// Mode for consuming the rest of a line for null commands we don't care about
+mode M_NullLine;
+
+M_NullLine_TEXT
+:
+  F_NonNewline+ -> type ( NULL_LINE_TEXT )
+;
+
+M_NullLine_NEWLINE
+:
+  F_Newline -> type ( NEWLINE ) , popMode
+;
+
+M_NullLine_WS
 :
   F_Whitespace+ -> channel ( HIDDEN )
 ;

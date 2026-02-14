@@ -2348,6 +2348,12 @@ public final class CiscoNxosGrammarTest {
   }
 
   @Test
+  public void testNullStatements() {
+    // Test that new null statement handlers parse without errors
+    assertThat(parseVendorConfig("nxos_null_statements"), notNullValue());
+  }
+
+  @Test
   public void testInterfaceBindDependency() throws IOException {
     String hostname = "nxos_interface_bind_dependency";
     String ifaceName = "Ethernet1/1";
@@ -10025,5 +10031,35 @@ public final class CiscoNxosGrammarTest {
     assertThat(
         ans,
         hasNumReferrers(filename, CiscoNxosStructureType.POLICY_MAP_QOS, "qos-classify-unused", 0));
+  }
+
+  /** Test that global null commands with M_NullLine mode parse correctly */
+  @Test
+  public void testNullCommandsGlobalLexerMode() {
+    // Tests keywords with -> pushMode(M_NullLine): bloggerd, callhome, copp, icam, intersight,
+    // virtual-service
+    assertThat(parseVendorConfig("nxos_null_commands_global"), notNullValue());
+  }
+
+  /** Test that global null commands with parser-level null_rest_of_line parse correctly */
+  @Test
+  public void testNullCommandsGlobalParserMode() {
+    // Tests keywords in s_null_rest using null_rest_of_line
+    assertThat(parseVendorConfig("nxos_null_commands_global"), notNullValue());
+  }
+
+  /** Test that structured uses in nested contexts (interface, bgp, ospf) still work */
+  @Test
+  public void testNullCommandsNestedStructured() throws IOException {
+    String hostname = "nxos_null_commands_nested";
+    Configuration c = parseConfig(hostname);
+
+    // Verify interface structured commands work
+    // Check that Ethernet1/1 exists with expected bandwidth and MTU
+    assertThat(
+        c,
+        hasInterface("Ethernet1/1", allOf(hasBandwidth(Double.valueOf(10000000.0)), hasMtu(9000))));
+    // Verify Ethernet1/2 exists with channel-group (creates port-channel automatically)
+    assertThat(c, hasInterface("Ethernet1/2", hasChannelGroup("port-channel1")));
   }
 }

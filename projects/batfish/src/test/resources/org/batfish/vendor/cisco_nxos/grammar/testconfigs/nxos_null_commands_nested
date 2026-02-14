@@ -1,0 +1,92 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_null_commands_nested
+feature bgp
+feature ospf
+feature ospfv3
+feature eigrp
+feature rip
+feature interface-vlan
+!
+! Test structured uses in interface context
+! These keywords are null at global level but have structured parsing in interface
+interface Ethernet1/1
+  description Test interface with structured commands
+  bandwidth 10000
+  speed 1000
+  mtu 9000
+  duplex full
+  delay 100
+!
+interface Ethernet1/2
+  description Interface with channel-group
+  channel-group 1 force mode active
+!
+interface Ethernet1/3
+  description Interface with carrier-delay and cdp
+  carrier-delay 100
+  cdp enable
+!
+interface Ethernet1/4
+  description Interface with flowcontrol and medium
+  flowcontrol send on receive off
+  medium broadcast
+!
+interface Ethernet1/5
+  description Interface with hsrp
+  hsrp 1
+    ip 10.1.1.1
+    priority 110
+    preempt
+!
+interface Ethernet1/6
+  description Interface with authentication
+  authentication mode md5
+!
+interface Ethernet1/7
+  description Interface with vpc
+  vpc 10
+!
+interface Ethernet1/8
+  description Interface with timers
+  hsrp 2
+    timers 1 3
+!
+interface port-channel1
+  description Port-channel interface
+!
+! Test structured uses in BGP context
+! address-family ipv4 unicast should parse correctly (IPV4 is structured here)
+router bgp 65000
+  router-id 1.1.1.1
+  address-family ipv4 unicast
+    maximum-paths 32
+  address-family ipv6 unicast
+    maximum-paths 16
+  timers 10 30
+  graceful-restart
+!
+! Test structured uses in OSPF context
+router ospf 1
+  router-id 2.2.2.2
+  graceful-restart
+  timers throttle lsa 50 200 5000
+!
+! Test structured uses in OSPFv3 context
+router ospfv3 1
+  router-id 3.3.3.3
+  graceful-restart
+!
+! Test structured uses in EIGRP context
+router eigrp TestEigrp
+  address-family ipv4 unicast
+    autonomous-system 100
+!
+! Test structured uses in RIP context
+router rip
+  address-family ipv4 unicast
+!
+! Test structured uses in VRF context
+vrf context testvrf
+  address-family ipv4 unicast
+!
