@@ -1,0 +1,32 @@
+# Huawei VRP BGP import-route Test Configuration
+# This file demonstrates BGP route redistribution configuration
+
+# Set system name
+sysname BgpRouter
+
+# Configure Loopback interface for router ID
+interface LoopBack0
+ description Router ID
+ ip address 1.1.1.1 255.255.255.255
+return
+
+# Configure BGP with import-route (route redistribution)
+bgp 65001
+ router-id 1.1.1.1
+ # Redistribute OSPF routes into BGP
+ import-route ospf
+ # Redistribute static routes into BGP
+ import-route static
+ # Redistribute direct (connected) routes into BGP with route-policy
+ import-route direct route-policy FILTER_DIRECT
+ # Redistribute RIP routes into BGP
+ import-route rip
+ # Redistribute ISIS routes into BGP
+ import-route isis
+ # Redistribute BGP routes (for route reflector scenarios)
+ import-route bgp
+ # Peer configuration
+ peer 192.168.1.2 as-number 65002
+ # Network statement
+ network 10.0.0.0 255.255.255.0
+return

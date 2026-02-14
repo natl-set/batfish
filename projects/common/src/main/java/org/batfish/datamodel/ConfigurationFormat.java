@@ -28,6 +28,7 @@ public enum ConfigurationFormat {
   CISCO_FTD("cisco"),
   FOUNDRY("foundry"),
   HOST("host"),
+  HUAWEI("huawei"),
   IBM_BNT("ibmbnt"),
   IGNORED("ignored"),
   IPTABLES("iptables"),

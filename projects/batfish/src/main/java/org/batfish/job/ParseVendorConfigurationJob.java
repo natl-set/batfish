@@ -80,6 +80,8 @@ import org.batfish.vendor.cisco_ftd.grammar.FtdCombinedParser;
 import org.batfish.vendor.cisco_ftd.grammar.FtdControlPlaneExtractor;
 import org.batfish.vendor.cisco_nxos.grammar.CiscoNxosCombinedParser;
 import org.batfish.vendor.cisco_nxos.grammar.NxosControlPlaneExtractor;
+import org.batfish.vendor.huawei.grammar.HuaweiCombinedParser;
+import org.batfish.vendor.huawei.grammar.HuaweiControlPlaneExtractor;
 import org.batfish.vendor.sonic.grammar.SonicControlPlaneExtractor;
 import org.batfish.vendor.sonic.grammar.SonicControlPlaneExtractor.SonicFileType;
 
@@ -458,6 +460,24 @@ public class ParseVendorConfigurationJob extends BatfishJob<ParseVendorConfigura
                     filename, e.getMessage()),
                 e);
           }
+        }
+
+      case HUAWEI:
+        {
+          Entry<String, String> fileEntry = Iterables.getOnlyElement(_fileTexts.entrySet());
+          String filename = fileEntry.getKey();
+          String fileText = fileEntry.getValue();
+          HuaweiCombinedParser huaweiParser = new HuaweiCombinedParser(fileText, _settings);
+          ControlPlaneExtractor extractor =
+              new HuaweiControlPlaneExtractor(
+                  fileText,
+                  huaweiParser,
+                  _fileResults.get(filename).getWarnings(),
+                  _fileResults.get(filename).getSilentSyntax());
+          parseFile(filename, huaweiParser, extractor);
+          vc = extractor.getVendorConfiguration();
+          vc.setFilename(filename);
+          break;
         }
 
       case SONIC:

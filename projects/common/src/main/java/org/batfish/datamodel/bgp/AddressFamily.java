@@ -158,6 +158,7 @@ public abstract class AddressFamily implements Serializable {
   /** BGP address family type */
   public enum Type {
     IPV4_UNICAST,
+    IPV6_UNICAST,
     EVPN
   }
 }
