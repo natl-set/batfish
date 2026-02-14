@@ -4453,4 +4453,45 @@ public final class F5BigipStructuredGrammarTest {
         ParserBatfishException.class,
         () -> parseVendorConfig(filename));
   }
+
+  @Test
+  public void testDc1Dc2Patterns() throws IOException {
+    String filename = "f5_bigip_structured_dc1_dc2_patterns";
+    String hostname = "f5_bigip_structured_dc1_dc2_patterns";
+
+    // Test edge case patterns extracted from F5-DC1-bigip.conf and F5-DC2-bigip.conf.
+    // These patterns were identified as potentially problematic:
+    //
+    // Security patterns:
+    // - security protocol-inspection compliance (with description, documentation, id, etc.)
+    // - security protocol-inspection compliance-map (with insp-id, key-type, value-type)
+    // - security protocol-inspection compliance-objects (with insp-id, type)
+    // - security ip-intelligence policy
+    // - security scrubber profile (with advertisement-ttl)
+    // - security shared-objects port-list (with nested ports)
+    // - security dos device-config (with deeply nested dos-device-vector)
+    //
+    // Net patterns:
+    // - net dns-resolver (with nested forward-zones and nameservers)
+    // - net ipsec ike-daemon (with log-publisher)
+    // - net stp (with nested interfaces and path-costs)
+    // - net stp-globals (with config-name)
+    //
+    // Sys patterns:
+    // - sys compatibility-level (with level)
+    // - sys management-ovsdb (with many config options)
+    // - sys turboflex profile-config (with type)
+    // - sys software update (with auto-check, frequency)
+    //
+    // Other patterns:
+    // - pem global-settings (analytics, gx, policy)
+    // - wom deduplication (with disabled)
+    // - wom endpoint-discovery
+    parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
 }
