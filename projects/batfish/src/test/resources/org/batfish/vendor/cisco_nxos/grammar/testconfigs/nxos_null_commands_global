@@ -1,0 +1,37 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_null_commands_global
+feature privilege
+!
+! Test global null commands with M_NullLine mode (lexer consumes arbitrary text)
+bloggerd test arbitrary text 123
+callhome
+copp
+icam
+intersight
+virtual-service
+!
+! Test global null commands with parser-level null_rest_of_line
+autostate
+bandwidth 10000
+carrier-delay 100
+cdp enable
+control-plane
+crypto test
+delay 100
+duplex full
+flowcontrol send on
+graceful-restart
+hsrp 1
+ipv4 test
+login block
+management test
+medium broadcast
+mpls test
+mtu 9000
+police 1000
+port-channel test
+speed 1000
+timers 10 30
+vpc 1
+!

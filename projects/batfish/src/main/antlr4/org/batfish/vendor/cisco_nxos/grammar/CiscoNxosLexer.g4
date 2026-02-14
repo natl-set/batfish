@@ -284,6 +284,8 @@ BIFF: 'biff';
 
 BLOCK: 'block';
 
+BLOGGERD: 'bloggerd' -> pushMode(M_NullLine);
+
 BOOT: 'boot';
 
 BOOTPC: 'bootpc';
@@ -310,7 +312,7 @@ BUFFER_LIMIT: 'buffer-limit';
 
 BYTES: 'bytes';
 
-CALLHOME: 'callhome';
+CALLHOME: 'callhome' -> pushMode(M_NullLine);
 
 CAPABILITY: 'capability';
 
@@ -416,6 +418,8 @@ CONFORM: 'conform';
 CONGESTION_CONTROL: 'congestion-control';
 
 CONNECT: 'connect';
+
+COPP: 'copp' -> pushMode(M_NullLine);
 
 CONNECTION_MODE: 'connection-mode';
 
@@ -950,6 +954,8 @@ HW_HASH: 'hw-hash';
 
 IBGP: 'ibgp';
 
+ICAM: 'icam' -> pushMode(M_NullLine);
+
 ICMP: 'icmp';
 
 ICMP_ECHO
@@ -1027,6 +1033,8 @@ INTERFACE
 INTERFACE_VLAN: 'interface-vlan';
 
 INTERNAL: 'internal';
+
+INTERSIGHT: 'intersight' -> pushMode(M_NullLine);
 
 INTERNET: 'internet';
 
@@ -2553,6 +2561,8 @@ VETHERNET: 'vethernet';
 VIOLATE: 'violate';
 
 VIRTUAL_LINK: 'virtual-link';
+
+VIRTUAL_SERVICE: 'virtual-service' -> pushMode(M_NullLine);
 
 VLAN
 :

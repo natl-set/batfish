@@ -362,17 +362,23 @@ s_null
     | USERPASSPHRASE
   ) null_rest_of_line
   | s_null_text
+  | s_null_rest
 ;
 
 // Null statements that use M_NullLine lexer mode (accepts arbitrary text)
 s_null_text
 :
   (
-    CFS
+    BLOGGERD
+    | CALLHOME
+    | CFS
+    | COPP
     | DIAGNOSTIC
     | FEC
     | HA_POLICY
     | HARDWARE
+    | ICAM
+    | INTERSIGHT
     | KEYSTORE
     | LINK
     | LOAD_INTERVAL
@@ -380,7 +386,39 @@ s_null_text
     | PRIORITY_FLOW_CONTROL
     | STORM_CONTROL
     | TELNET
+    | VIRTUAL_SERVICE
   ) NULL_LINE_TEXT? NEWLINE
+;
+
+// Null statements using parser-level null_rest_of_line (for keywords with structured uses elsewhere)
+s_null_rest
+:
+  (
+    AUTHENTICATION
+    | AUTOSTATE
+    | BANDWIDTH
+    | CARRIER_DELAY
+    | CDP
+    | CHANNEL_GROUP
+    | CONTROL_PLANE
+    | CRYPTO
+    | DELAY
+    | DUPLEX
+    | FLOWCONTROL
+    | GRACEFUL_RESTART
+    | HSRP
+    | IPV4
+    | LOGIN
+    | MANAGEMENT
+    | MEDIUM
+    | MPLS
+    | MTU
+    | POLICE
+    | PORT_CHANNEL
+    | SPEED
+    | TIMERS
+    | VPC
+  ) null_rest_of_line
 ;
 
 s_no
