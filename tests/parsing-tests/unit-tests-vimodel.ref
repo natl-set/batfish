@@ -59609,6 +59609,1130 @@
           }
         }
       },
+      "ftd-bgp-router" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-bgp-router",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "ROUTER",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-bgp-router",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "203.0.113.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "203.0.113.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "OUTSIDE"
+          },
+          "GigabitEthernet0/1" : {
+            "name" : "GigabitEthernet0/1",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "192.168.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "192.168.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "INSIDE"
+          }
+        },
+        "ipAccessLists" : {
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 0 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 0 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 100 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 100 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default",
+            "bgpProcess" : {
+              "clientToClientReflection" : true,
+              "ebgpAdminCost" : 20,
+              "ibgpAdminCost" : 200,
+              "localAdminCost" : 200,
+              "localOriginationTypeTieBreaker" : "NO_PREFERENCE",
+              "networkNextHopIpTieBreaker" : "HIGHEST_NEXT_HOP_IP",
+              "redistributeNextHopIpTieBreaker" : "HIGHEST_NEXT_HOP_IP",
+              "routerId" : "10.0.0.1",
+              "clusterListAsIbgpCost" : false,
+              "multipathEbgp" : false,
+              "multipathIbgp" : false,
+              "neighbors" : {
+                "203.0.113.2" : {
+                  "class" : "org.batfish.datamodel.BgpActivePeerConfig",
+                  "checkLocalIpOnAccept" : true,
+                  "defaultMetric" : 0,
+                  "description" : "\"ISP Peer\"",
+                  "ebgpMultihop" : false,
+                  "enforceFirstAs" : false,
+                  "ipv4UnicastAddressFamily" : {
+                    "addressFamilyCapabilities" : {
+                      "additionalPathsReceive" : false,
+                      "additionalPathsSelectAll" : false,
+                      "additionalPathsSend" : false,
+                      "advertiseExternal" : false,
+                      "advertiseInactive" : false,
+                      "allowLocalAsIn" : false,
+                      "allowRemoteAsOut" : "NEVER",
+                      "sendCommunity" : false,
+                      "sendExtendedCommunity" : false
+                    },
+                    "routeReflectorClient" : false
+                  },
+                  "localAs" : 65001,
+                  "peerAddress" : "203.0.113.2",
+                  "remoteAsns" : "65002",
+                  "replaceNonLocalAsesOnExport" : false
+                }
+              },
+              "tieBreaker" : "ARRIVAL_ORDER"
+            }
+          }
+        },
+        "zones" : {
+          "INSIDE" : {
+            "name" : "INSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/1"
+            ]
+          },
+          "OUTSIDE" : {
+            "name" : "OUTSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/0"
+            ]
+          }
+        }
+      },
+      "ftd-ha-primary" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-ha-primary",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-ha-primary",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "203.0.113.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "203.0.113.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "OUTSIDE"
+          },
+          "GigabitEthernet0/1" : {
+            "name" : "GigabitEthernet0/1",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "192.168.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "192.168.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "INSIDE"
+          }
+        },
+        "ipAccessLists" : {
+          "OUTSIDE-IN" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    },
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    }
+                  }
+                },
+                "name" : "PERMIT ip any -> any",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line PERMIT ip any -> any"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "OUTSIDE-IN"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 0 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 0 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 100 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 100 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        },
+        "zones" : {
+          "INSIDE" : {
+            "name" : "INSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/1"
+            ]
+          },
+          "OUTSIDE" : {
+            "name" : "OUTSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/0"
+            ]
+          }
+        }
+      },
+      "ftd-objects" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-objects",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-objects",
+        "ipAccessLists" : {
+          "ACL-IN" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.AclIpSpace",
+                      "lines" : [
+                        {
+                          "action" : "PERMIT",
+                          "ipSpace" : {
+                            "class" : "org.batfish.datamodel.IpIpSpace",
+                            "ip" : "192.168.1.10"
+                          }
+                        },
+                        {
+                          "action" : "PERMIT",
+                          "ipSpace" : {
+                            "class" : "org.batfish.datamodel.IpIpSpace",
+                            "ip" : "192.168.1.20"
+                          }
+                        },
+                        {
+                          "action" : "PERMIT",
+                          "ipSpace" : {
+                            "class" : "org.batfish.datamodel.IpIpSpace",
+                            "ip" : "192.168.1.30"
+                          }
+                        }
+                      ]
+                    },
+                    "ipProtocols" : [
+                      "TCP"
+                    ],
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    }
+                  }
+                },
+                "name" : "PERMIT tcp any -> object-group INSIDE-HOSTS object-group WEB-SERVICES",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line PERMIT tcp any -> object-group INSIDE-HOSTS object-group WEB-SERVICES"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "ACL-IN"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { }
+      },
+      "ftd-ospf" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-ospf",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "ROUTER",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-ospf",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "203.0.113.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "203.0.113.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "OUTSIDE"
+          },
+          "GigabitEthernet0/1" : {
+            "name" : "GigabitEthernet0/1",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "192.168.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "192.168.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "INSIDE"
+          },
+          "GigabitEthernet0/2" : {
+            "name" : "GigabitEthernet0/2",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "172.16.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/2~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "172.16.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "DMZ"
+          }
+        },
+        "ipAccessLists" : {
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 0 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 0 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 100 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 100 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/2~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 50 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 50 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/2~"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default",
+            "ospfProcesses" : {
+              "1" : {
+                "adminCosts" : {
+                  "ospf" : 110,
+                  "ospfE1" : 110,
+                  "ospfE2" : 110,
+                  "ospfIA" : 110,
+                  "ospfIS" : 110
+                },
+                "areas" : {
+                  "0" : {
+                    "injectDefaultRoute" : true,
+                    "metricOfDefaultRoute" : 0,
+                    "name" : 0,
+                    "stubType" : "NONE"
+                  },
+                  "1" : {
+                    "injectDefaultRoute" : true,
+                    "metricOfDefaultRoute" : 0,
+                    "name" : 1,
+                    "stubType" : "NONE"
+                  }
+                },
+                "processId" : "1",
+                "referenceBandwidth" : 1.0E8,
+                "routerId" : "1.1.1.1",
+                "summaryAdminCost" : 254,
+                "summaryDiscardMetric" : 0
+              }
+            }
+          }
+        },
+        "zones" : {
+          "DMZ" : {
+            "name" : "DMZ",
+            "interfaces" : [
+              "GigabitEthernet0/2"
+            ]
+          },
+          "INSIDE" : {
+            "name" : "INSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/1"
+            ]
+          },
+          "OUTSIDE" : {
+            "name" : "OUTSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/0"
+            ]
+          }
+        }
+      },
+      "ftd-prefilter" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-prefilter",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-prefilter",
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "203.0.113.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "203.0.113.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "OUTSIDE"
+          },
+          "GigabitEthernet0/1" : {
+            "name" : "GigabitEthernet0/1",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "192.168.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "192.168.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "INSIDE"
+          }
+        },
+        "ipAccessLists" : {
+          "PREFILTER-OUTSIDE-IN" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    },
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    }
+                  }
+                },
+                "name" : "rule-id 268455934 :: trust ip any -> any",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line rule-id 268455934 :: trust ip any -> any"
+                    }
+                  ]
+                }
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    },
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.PrefixIpSpace",
+                      "prefix" : "192.168.1.0/24"
+                    }
+                  }
+                },
+                "name" : "rule-id 268455935 :: PERMIT ip 192.168.1.0 255.255.255.0 -> any",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line rule-id 268455935 :: PERMIT ip 192.168.1.0 255.255.255.0 -> any"
+                    }
+                  ]
+                }
+              },
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    },
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.UniverseIpSpace"
+                    }
+                  }
+                },
+                "name" : "rule-id 268455936 :: DENY ip any -> any",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line rule-id 268455936 :: DENY ip any -> any"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "PREFILTER-OUTSIDE-IN"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 0 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 0 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 100 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 100 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~"
+          }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        },
+        "zones" : {
+          "INSIDE" : {
+            "name" : "INSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/1"
+            ]
+          },
+          "OUTSIDE" : {
+            "name" : "OUTSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/0"
+            ]
+          }
+        }
+      },
+      "ftd-vpn" : {
+        "configurationFormat" : "CISCO_FTD",
+        "exportBgpFromBgpRib" : false,
+        "generateBgpAggregatesFromMainRib" : false,
+        "name" : "ftd-vpn",
+        "defaultCrossZoneAction" : "PERMIT",
+        "defaultInboundAction" : "PERMIT",
+        "deviceModel" : "CISCO_FTD",
+        "deviceType" : "SWITCH",
+        "disconnectAdminDownInterfaces" : true,
+        "humanName" : "ftd-vpn",
+        "ikePhase1Keys" : {
+          "REMOTE-SITE" : {
+            "keyHash" : "MySecret123",
+            "keyType" : "PRE_SHARED_KEY_UNENCRYPTED",
+            "localInterface" : "unset_local_interface",
+            "remoteIdentity" : {
+              "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+              "ipWildcard" : "0.0.0.0"
+            }
+          }
+        },
+        "interfaces" : {
+          "GigabitEthernet0/0" : {
+            "name" : "GigabitEthernet0/0",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "203.0.113.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "cryptoMap" : "CRYPTO-MAP",
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "203.0.113.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "OUTSIDE"
+          },
+          "GigabitEthernet0/1" : {
+            "name" : "GigabitEthernet0/1",
+            "active" : true,
+            "additionalArpIps" : {
+              "class" : "org.batfish.datamodel.EmptyIpSpace"
+            },
+            "adminUp" : true,
+            "allPrefixes" : [
+              "192.168.1.1/24"
+            ],
+            "autostate" : true,
+            "blacklisted" : false,
+            "hmm" : false,
+            "incomingFilter" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~",
+            "lineUp" : true,
+            "mtu" : 1500,
+            "prefix" : "192.168.1.1/24",
+            "proxyArp" : false,
+            "ripEnabled" : false,
+            "ripPassive" : false,
+            "spanningTreePortfast" : false,
+            "switchport" : false,
+            "switchportMode" : "NONE",
+            "switchportTrunkEncapsulation" : "DOT1Q",
+            "type" : "PHYSICAL",
+            "vrf" : "default",
+            "zone" : "INSIDE"
+          }
+        },
+        "ipAccessLists" : {
+          "VPN-TRAFFIC" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "dstIps" : {
+                      "class" : "org.batfish.datamodel.PrefixIpSpace",
+                      "prefix" : "10.10.10.0/24"
+                    },
+                    "negate" : false,
+                    "srcIps" : {
+                      "class" : "org.batfish.datamodel.PrefixIpSpace",
+                      "prefix" : "192.168.1.0/24"
+                    }
+                  }
+                },
+                "name" : "PERMIT ip 192.168.1.0 255.255.255.0 -> 10.10.10.0 255.255.255.0",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line PERMIT ip 192.168.1.0 255.255.255.0 -> 10.10.10.0 255.255.255.0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "VPN-TRAFFIC"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "DENY",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 0 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 0 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/0~"
+          },
+          "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~" : {
+            "lines" : [
+              {
+                "class" : "org.batfish.datamodel.ExprAclLine",
+                "action" : "PERMIT",
+                "matchCondition" : {
+                  "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                  "headerSpace" : {
+                    "negate" : false
+                  }
+                },
+                "name" : "security-level 100 default",
+                "traceElement" : {
+                  "fragments" : [
+                    {
+                      "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                      "text" : "Matched line security-level 100 default"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name" : "~SECURITY_LEVEL_DEFAULT~GigabitEthernet0/1~"
+          }
+        },
+        "ipsecPeerConfigs" : {
+          "~IPSEC_PEER_CONFIG:CRYPTO-MAP:10:GigabitEthernet0/0~" : {
+            "class" : "org.batfish.datamodel.IpsecStaticPeerConfig",
+            "destinationAddress" : "198.51.100.1",
+            "ipsecPolicy" : "~IPSEC_PHASE2_POLICY:CRYPTO-MAP:10~",
+            "localAddress" : "203.0.113.1",
+            "policyAccessList" : {
+              "lines" : [
+                {
+                  "class" : "org.batfish.datamodel.ExprAclLine",
+                  "action" : "PERMIT",
+                  "matchCondition" : {
+                    "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                    "headerSpace" : {
+                      "dstIps" : {
+                        "class" : "org.batfish.datamodel.PrefixIpSpace",
+                        "prefix" : "10.10.10.0/24"
+                      },
+                      "negate" : false,
+                      "srcIps" : {
+                        "class" : "org.batfish.datamodel.PrefixIpSpace",
+                        "prefix" : "192.168.1.0/24"
+                      }
+                    }
+                  },
+                  "name" : "PERMIT ip 192.168.1.0 255.255.255.0 -> 10.10.10.0 255.255.255.0",
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched line PERMIT ip 192.168.1.0 255.255.255.0 -> 10.10.10.0 255.255.255.0"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "class" : "org.batfish.datamodel.ExprAclLine",
+                  "action" : "PERMIT",
+                  "matchCondition" : {
+                    "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                    "headerSpace" : {
+                      "dstIps" : {
+                        "class" : "org.batfish.datamodel.PrefixIpSpace",
+                        "prefix" : "192.168.1.0/24"
+                      },
+                      "negate" : false,
+                      "srcIps" : {
+                        "class" : "org.batfish.datamodel.PrefixIpSpace",
+                        "prefix" : "10.10.10.0/24"
+                      }
+                    }
+                  }
+                }
+              ],
+              "name" : "VPN-TRAFFIC~SYMMETRICAL"
+            },
+            "sourceInterface" : "GigabitEthernet0/0"
+          }
+        },
+        "ipsecPhase2Policies" : {
+          "~IPSEC_PHASE2_POLICY:CRYPTO-MAP:10~" : { }
+        },
+        "mainRibEnforceResolvability" : false,
+        "vendorFamily" : { },
+        "vrfs" : {
+          "default" : {
+            "name" : "default"
+          }
+        },
+        "zones" : {
+          "INSIDE" : {
+            "name" : "INSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/1"
+            ]
+          },
+          "OUTSIDE" : {
+            "name" : "OUTSIDE",
+            "interfaces" : [
+              "GigabitEthernet0/0"
+            ]
+          }
+        }
+      },
       "host1" : {
         "configurationFormat" : "HOST",
         "exportBgpFromBgpRib" : false,
