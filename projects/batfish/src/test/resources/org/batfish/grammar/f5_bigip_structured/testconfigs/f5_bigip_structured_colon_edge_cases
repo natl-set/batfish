@@ -1,0 +1,66 @@
+#TMSH-VERSION: 15.1.10.3
+# Test config for colon edge cases in identifiers and paths
+
+sys global-settings {
+    hostname f5_bigip_structured_colon_edge_cases
+}
+
+# Test 1: Normal colon in path (IP:port)
+ltm pool test_ip_port {
+    members {
+        192.168.1.1:80 {}
+        10.0.0.1:443 {}
+    }
+}
+
+# Test 2: IPv6 with colons
+ltm pool test_ipv6 {
+    members {
+        2001:db8::1.http {}
+    }
+}
+
+# Test 3: Pool with colon-like name (underscore, not colon)
+ltm pool test_backup_pool {
+    members {
+        server1:80 {}
+    }
+}
+
+# Test 4: Virtual with IP:port destination
+ltm virtual test_virtual_ip_port {
+    destination 192.168.1.100:443
+    pool test_ip_port
+}
+
+# Test 5: CM cert with colon-prefixed cache path (the main fix)
+cm cert /Common/test_cert.crt {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_d/:Common:test_cert.crt_12345_1
+    checksum SHA1:1234:abcdef1234567890
+    revision 1
+}
+
+# Test 6: CM key with colon-prefixed cache path
+cm key /Common/test_key.key {
+    cache-path /config/filestore/files_d/Common_d/trust_certificate_key_d/:Common:test_key.key_12346_1
+    checksum SHA1:5678:fedcba0987654321
+    revision 1
+}
+
+# Test 7: Rule with colon in string
+ltm rule test_rule_colon {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "example.com:8080" } {
+            pool test_ip_port
+        }
+    }
+}
+
+# Test 8: Monitor with colon in send string
+ltm monitor http test_monitor_colon {
+    defaults-from /Common/http
+    send "GET / HTTP/1.1\r\nHost: test.example.com:80\r\n\r\n"
+    recv "HTTP/1.1 200"
+    interval 5
+    timeout 16
+}

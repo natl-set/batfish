@@ -958,7 +958,7 @@ DEC
   F_Digit+
 ;
 
-DOUBLE_QUOTE
+DOUBLE_QUOTED_STRING
 :
   '"' -> more, pushMode(M_DoubleQuote)
 ;
@@ -1403,17 +1403,25 @@ F_Whitespace
 fragment
 F_Word
 :
+  // Standard word: starts and ends with F_WordCharCommon
   F_WordCharCommon
   (
     F_WordChar* F_WordCharCommon
   )?
+  // Word starting with colon: :Common or :Common:value
+  | ':' F_WordCharCommon (F_WordChar* F_WordCharCommon)?
+  // Word ending with colon: value: (for paths like /path/value:)
+  | F_WordCharCommon F_WordChar* ':'
+  // Word with leading and trailing colon: :Common: (F5 cache paths)
+  | ':' F_WordCharCommon F_WordChar* ':'
 ;
 
 fragment
 F_WordCharCommon
 :
   ~[ \t\n\r{}[\]/:"]
-;
+  | '_'
+  ;
 
 fragment
 F_WordChar
@@ -1580,7 +1588,7 @@ M_Command_DOLLAR
 
 M_Command_DOUBLE_QUOTE
 :
-  '"' -> type(DOUBLE_QUOTE), pushMode(M_DoubleQuotedSegment)
+  '"' -> type(DOUBLE_QUOTED_STRING), pushMode(M_DoubleQuotedSegment)
 ;
 
 M_Command_NEWLINE
@@ -1654,7 +1662,7 @@ M_DoubleQuotedSegment_DOLLAR
 
 M_DoubleQuotedSegment_DOUBLE_QUOTE
 :
-  '"' -> type(DOUBLE_QUOTE), popMode
+  '"' -> type(DOUBLE_QUOTED_STRING), popMode
 ;
 
 mode M_VariableSubstitution;

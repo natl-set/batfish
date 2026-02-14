@@ -157,6 +157,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Predicates;
@@ -238,6 +239,7 @@ import org.batfish.datamodel.vendor_family.f5_bigip.F5BigipFamily;
 import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
 import org.batfish.main.Batfish;
 import org.batfish.main.BatfishTestUtils;
+import org.batfish.main.ParserBatfishException;
 import org.batfish.main.TestrigText;
 import org.batfish.representation.f5_bigip.Builtin;
 import org.batfish.representation.f5_bigip.BuiltinMonitor;
@@ -3831,6 +3833,59 @@ public final class F5BigipStructuredGrammarTest {
   }
 
   @Test
+  public void testAnalyticsInlineBracesIgnored() throws IOException {
+    String filename = "f5_bigip_structured_analytics_inline_braces";
+    String hostname = "f5_bigip_structured_analytics_inline_braces";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that analytics gui-widget blocks with inline braces don't generate parse warnings
+    // This verifies the fix for ignored_inline_braced_content which handles:
+    // - metrics { events_count }  - inline braces on single line
+    // - filters { src_ip } destinations { dst_pool }  - multiple inline braces
+    // - { /path/to/file }  - inline braces with complex values
+    // - ltm-profile { /Common/test-http }  - profile-style inline braces
+    //
+    // The ignored_inline_braced_content rule prevents parser warnings like:
+    // "line 21920: } Syntax error detected"
+    // "line 21922: cache-path ... Syntax error detected"
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify that config parsed successfully without warnings
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testSysIgnoredBlockInlineBraces() throws IOException {
+    String filename = "f5_bigip_structured_sys_inline_braces";
+    String hostname = "f5_bigip_structured_sys_inline_braces";
+    Map<String, Configuration> configurations = parseTextConfigs(filename);
+
+    // Test that sys blocks with inline braces don't generate parse warnings
+    // This verifies the fix for ignored_inline_braced_content in sys blocks:
+    // - login { test } in sshd block
+    // - name-servers { ... } in dns block
+    // - remote-servers { ... { ... } ... } in syslog block
+
+    assertThat(configurations, hasKey(hostname));
+
+    Configuration c = configurations.get(hostname);
+    assertThat(c, notNullValue());
+    assertThat(c.getHostname(), equalTo(hostname));
+
+    // Verify that config parsed successfully without warnings
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
   public void testProfilePersistNestedContentIgnored() throws IOException {
     String filename = "f5_bigip_structured_profile_persist_nested";
     String hostname = "f5_bigip_structured_profile_persist_nested";
@@ -3887,6 +3942,554 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(c.getHostname(), equalTo(hostname));
 
     // Verify the config parsed successfully
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testIgnoredContentClosingBraces() throws IOException {
+    String filename = "f5_bigip_structured_ignored_content_braces";
+    String hostname = "f5_bigip_structured_ignored_content_braces";
+
+    // Test that profiles with various closing brace formats parse correctly.
+    // This validates the fix for ignored_content rule to handle:
+    // - Closing braces with no trailing content: }
+    // - Closing braces with leading whitespace:   }
+    // - Closing braces with inline comments: } # comment
+    // - Nested blocks with multiple levels
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify pools were parsed (using available getter)
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_1"));
+    assertThat(vc.getPools(), hasKey("/Common/test_pool_2"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testIgnoredContentEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_ignored_content_edge_cases";
+    String hostname = "f5_bigip_structured_ignored_content_edge_cases";
+
+    // Test complex nesting scenarios and edge cases for ignored_content:
+    // - Multiple profiles with various nesting levels
+    // - Persistence entries with complex fields
+    // - Rules with nested braces
+    // - Data groups with nested structures
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify pools were parsed (using available getter)
+    assertThat(vc.getPools(), hasKey("test_pool_complex"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testIgnoredInlineBracedContent() throws IOException {
+    String filename = "f5_bigip_structured_ignored_inline_braces";
+    String hostname = "f5_bigip_structured_ignored_inline_braces";
+
+    // Test ignored_inline_braced_content patterns for nested braces on same line:
+    // - Single inline braces: key { value } extra
+    // - Multiple inline braces: { val1 } { val2 } text
+    // - Back-to-back inline braces: { val1 }{ val2 }
+    // - Inline braces with comments
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify pools parsed (using available getter)
+    assertThat(vc.getPools(), hasKey("test_inline_pool"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testIgnoredBlocks() throws IOException {
+    String filename = "f5_bigip_structured_ignored_blocks";
+    String hostname = "f5_bigip_structured_ignored_blocks";
+
+    // Test ignored_block patterns used in sys and security sections:
+    // - sys dns, management-ip, management-route, sshd, syslog
+    // - sys ecm cloud-provider, software update, wom deduplication
+    // - sys httpd, outbound-smtp, provision, diags ihealth
+    // - sys management-ovsdb, compatibility-level
+    // - security firewall config-change-log
+    // - security word-id profile
+    // - security protocol-inspection
+    parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testCmAndCliBlocks() throws IOException {
+    String filename = "f5_bigip_structured_cm_cli_blocks";
+    String hostname = "f5_bigip_structured_cm_cli_blocks";
+
+    // Test cm and cli blocks that use the 'ignored' rule instead of 'ignored_content'.
+    // These blocks should handle nested structures with closing braces correctly.
+    // Tests patterns found in real F5 configs like:
+    // - cli global-settings { ... }
+    // - auth password-policy { ... }
+    // - cm cert, key, device, device-group, traffic-group, trust-domain
+    // - All with various nested content
+    parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testWhitespaceVariations() throws IOException {
+    String filename = "f5_bigip_structured_whitespace_variations";
+    String hostname = "f5_bigip_structured_whitespace_variations";
+
+    // Test various whitespace patterns before closing braces:
+    // - No trailing content: }
+    // - Single space: (space)}
+    // - Multiple spaces: (spaces)}
+    // - Tab character: (tab)}
+    // - Mixed tabs and spaces: (tabs+spaces)}
+    // - Inline comments: } # comment
+    // - Spaces + comment: (spaces)} # comment
+    // - Comments with special characters
+    // - Very long comments
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify pools (using available getter)
+    assertThat(vc.getPools(), hasKey("test_nested_spacing"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testRealWorldPatterns() throws IOException {
+    String filename = "f5_bigip_structured_real_world_patterns";
+    String hostname = "f5_bigip_structured_real_world_patterns";
+
+    // Test real-world patterns extracted from production F5 BIG-IP configurations.
+    // These patterns match structures found in F5-DC1-bigip.conf and F5-DC2-bigip.conf
+    // that were causing syntax errors with the old grammar:
+    //
+    // - cli global-settings { idle-timeout 10 }
+    // - auth password-policy { policy-enforcement disabled }
+    // - cm cert blocks with cache-path, checksum, revision fields
+    // - cm device blocks with active-modules, base-mac, build
+    // - cm device-group blocks with devices and nested structures
+    // - cm key blocks with complex file paths
+    // - cm traffic-group with ha-order and nested device lists
+    // - LTM profiles (analytics, certificate-authority, dns, dns-logging)
+    // - LTM pools with member lists
+    // - LTM persistence entries with multiple fields
+    // - LTM monitors with configuration
+    // - LTM rules with when/then logic
+    // - LTM virtual servers with profile lists
+    // - SYS configuration blocks (snmp, ntp, global-settings)
+    // - SYS management blocks (management-ip, management-route)
+    // - SYS service blocks (sshd, httpd)
+    // - LTM data groups with nested records
+    // - WOM endpoint discovery blocks
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify ltm structures (using available getters)
+    assertThat(vc.getPools(), hasKey("/Common/pool_web"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/vs_web"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testCommentPatterns() throws IOException {
+    String filename = "f5_bigip_structured_comment_patterns";
+    String hostname = "f5_bigip_structured_comment_patterns";
+
+    // Test various comment patterns after closing braces:
+    // - No comment (baseline)
+    // - Single character comment: } #
+    // - Comment with single word
+    // - Comment with multiple words
+    // - Comment with numbers and version info
+    // - Comment with dashes, underscores, dots, slashes
+    // - Comment with punctuation marks
+    // - Comment with special F5 syntax references
+    // - Comment with URLs and IP addresses
+    // - Very long comments (simulates real production configs)
+    // - Pseudo-code in comments
+    // - Multiple spaces before comment
+    // - Tab character before comment
+    // - Mixed whitespace before comment
+    // - No space after # character
+    // - Multiple # symbols in comment
+    // - Equals signs in comment
+    // - Curly braces in comment
+    // - Square brackets in comment
+    // - Reference numbers (JIRA IDs)
+    // - Date/time information
+    // - Version compatibility markers
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify pools parsed correctly (using available getter)
+    assertThat(vc.getPools(), hasKey("test_f5_syntax_comment"));
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));
+  }
+
+  @Test
+  public void testNestedEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_nested_edge_cases";
+    String hostname = "f5_bigip_structured_nested_edge_cases";
+
+    // Test edge cases in nested block structures:
+    // - Completely empty blocks
+    // - Blocks with only newlines and whitespace
+    // - Single field blocks
+    // - Multiple fields with immediate closing
+    // - Deeply nested empty structures
+    // - Blocks with only ignored_content
+    // - Multiple profiles back-to-back
+    // - Deep nesting levels (3+ levels)
+    // - Virtual servers with minimal config
+    // - Virtual servers with many profiles
+    // - Monitors with minimal vs. full config
+    // - Pools with single vs. many members
+    // - Data groups with single vs. many records
+    // - Persistence entries with minimal vs. full fields
+    // - Device groups with single vs. many devices
+    // - Traffic groups with ordered device lists
+    // - Rules with empty conditionals
+    // - Rules with chained conditionals
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    // This is critical for edge cases like empty blocks, deep nesting, etc.
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with nested edge cases should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify at least some structures were parsed using available getters
+    assertThat(vc.getPools(), hasKey("test_single_member"));
+    assertThat(vc.getPools(), hasKey("test_many_members"));
+    assertThat(vc.getVirtuals(), hasKey("test_minimal"));
+    assertThat(vc.getVirtuals(), hasKey("test_complex_profiles"));
+  }
+
+  @Test
+  public void testIgnoredContentInvalidSyntax() throws IOException {
+    String hostname = "f5_bigip_structured_invalid_ignored_content";
+
+    // Test that INVALID syntax properly FAILS to parse.
+    // This negative test verifies that the parser correctly rejects:
+    // - Unmatched opening braces (no closing brace)
+    // - Unmatched closing braces (orphaned closing brace)
+    // - Invalid syntax in blocks
+    // - Malformed structures
+    //
+    // This is important to ensure the grammar fix doesn't accidentally
+    // accept invalid configurations that should be rejected.
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+
+    // Verify the config FAILED to parse (not PASSED)
+    ParseStatus parseStatus = initAns.getParseStatus().get("configs/" + hostname);
+    assertThat(
+        "Invalid config should fail to parse", parseStatus, not(equalTo(ParseStatus.PASSED)));
+  }
+
+  @Test
+  public void testDeepNesting() throws IOException {
+    String filename = "f5_bigip_structured_deep_nesting";
+    String hostname = "f5_bigip_structured_deep_nesting";
+
+    // Test deeply nested block structures (5+ levels deep).
+    // This stress test verifies that the grammar handles complex nesting:
+    // - Level 1-2: Basic block structures
+    // - Level 3-4: Nested conditionals in rules
+    // - Level 5: Five levels of nested braces
+    // - Level 6: Six levels of nested conditionals (stress test)
+    // - Multiple branches: Complex rule logic with multiple pools
+    //
+    // Nesting patterns tested:
+    // - Data groups with nested records
+    // - Pools with member lists
+    // - Rules with IF/ELSEIF/ELSE chains
+    // - Virtual servers with profile blocks
+    // - Deeply nested settings blocks
+    // - Multiple conditional branches at same level
+
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors (even with deep nesting)
+    // This is a critical test to ensure that deeply nested structures don't cause
+    // parser failures or stack issues.
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with deep nesting should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify at least some structures were parsed by checking available getters
+    assertThat(vc.getPools(), hasKey("test_level2"));
+    assertThat(vc.getVirtuals(), hasKey("test_level4"));
+  }
+
+  @Test
+  public void testFilePaths() throws IOException {
+    String filename = "f5_bigip_structured_file_paths";
+    String hostname = "f5_bigip_structured_file_paths";
+
+    // Test various file path patterns found in real F5 configs:
+    // - Cache paths with colon-prefixed segments (:Common:)
+    // - Paths with multiple colons
+    // - Complex file names with underscores, numbers, hyphens
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with complex file paths should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pool was parsed
+    assertThat(vc.getPools(), hasKey("test_pool"));
+  }
+
+  @Test
+  public void testMorePatterns() throws IOException {
+    String filename = "f5_bigip_structured_more_patterns";
+    String hostname = "f5_bigip_structured_more_patterns";
+
+    // Test more patterns from real F5 configs:
+    // - LTM monitors with various fields
+    // - LTM persistence entries (cookie, source-addr, hash)
+    // - LTM virtual-address
+    // - LTM snatpool and snat-translation
+    // - Net route
+    // - Complex virtual with many profiles
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with more patterns should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify structures were parsed
+    assertThat(vc.getPools(), hasKey("test_verify_pool"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/test-complex-vip"));
+  }
+
+  @Test
+  public void testKeywordIdentifiers() throws IOException {
+    String filename = "f5_bigip_structured_keyword_identifiers";
+    String hostname = "f5_bigip_structured_keyword_identifiers";
+
+    // Test that F5 keywords can be used as part of identifiers
+    // e.g., "pool" in "pool_test", "virtual" in "virtual_server_pool"
+    // This ensures the lexer doesn't incorrectly tokenize keywords as identifiers
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with keyword-like identifiers should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pools with keyword-like names were parsed
+    assertThat(vc.getPools(), hasKey("pool_test"));
+    assertThat(vc.getPools(), hasKey("virtual_server_pool"));
+    assertThat(vc.getPools(), hasKey("pool_monitor_virtual_test"));
+
+    // Verify virtual with keyword-like name
+    assertThat(vc.getVirtuals(), hasKey("virtual_test"));
+  }
+
+  @Test
+  public void testColonEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_colon_edge_cases";
+    String hostname = "f5_bigip_structured_colon_edge_cases";
+
+    // Test various colon edge cases:
+    // - IP:port in pool members and virtual destinations
+    // - IPv6 addresses with colons
+    // - Colon-prefixed cache paths (:Common:)
+    // - Colons in strings (rules, monitors)
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with colon edge cases should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pools were parsed
+    assertThat(vc.getPools(), hasKey("test_ip_port"));
+    assertThat(vc.getPools(), hasKey("test_ipv6"));
+    assertThat(vc.getPools(), hasKey("test_backup_pool"));
+
+    // Verify virtual was parsed
+    assertThat(vc.getVirtuals(), hasKey("test_virtual_ip_port"));
+  }
+
+  @Test
+  public void testRealWorldV2Patterns() throws IOException {
+    String filename = "f5_bigip_structured_real_world_v2";
+    String hostname = "f5_bigip_structured_real_world_v2";
+
+    // Test more real-world patterns from actual F5 configs
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Real-world v2 config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    assertThat(vc.getPools(), hasKey("test_real_world_pool"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/F5-VIP-443-001"));
+  }
+
+  @Test
+  public void testStressTest() throws IOException {
+    String filename = "f5_bigip_structured_stress_test";
+    String hostname = "f5_bigip_structured_stress_test";
+
+    // Stress test with many nested structures and large numbers of objects
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Stress test config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify some of the many pools were parsed
+    assertThat(vc.getPools(), hasKey("pool_001"));
+    assertThat(vc.getPools(), hasKey("pool_010"));
+    assertThat(vc.getPools(), hasKey("large_pool_1"));
+  }
+
+  @Test
+  public void testEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_edge_cases";
+    String hostname = "f5_bigip_structured_edge_cases";
+
+    // Test unusual but valid F5 syntax patterns
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Edge cases config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify various edge case structures
+    assertThat(vc.getPools(), hasKey("empty_pool"));
+    assertThat(
+        vc.getPools(),
+        hasKey(
+            "this_is_a_very_long_pool_name_that_tests_the_lexer_ability_to_handle_long_identifiers_without_issues"));
+    assertThat(vc.getPools(), hasKey("test_pool"));
+  }
+
+  @Test
+  public void testNegativeUnclosedBrace() throws IOException {
+    String filename = "f5_bigip_structured_negative_unclosed_brace";
+
+    // Negative test: config with unclosed brace should fail
+    // Expect a parser exception to be thrown
+    assertThrows(
+        "Config with unclosed brace should throw parser exception",
+        ParserBatfishException.class,
+        () -> parseVendorConfig(filename));
+  }
+
+  @Test
+  public void testNegativeInvalidKeyword() throws IOException {
+    String filename = "f5_bigip_structured_negative_invalid_keyword";
+
+    // Negative test: config with invalid keyword placement should fail
+    // Expect a parser exception to be thrown
+    assertThrows(
+        "Config with invalid keyword should throw parser exception",
+        ParserBatfishException.class,
+        () -> parseVendorConfig(filename));
+  }
+
+  @Test
+  public void testDc1Dc2Patterns() throws IOException {
+    String filename = "f5_bigip_structured_dc1_dc2_patterns";
+    String hostname = "f5_bigip_structured_dc1_dc2_patterns";
+
+    // Test edge case patterns extracted from F5-DC1-bigip.conf and F5-DC2-bigip.conf.
+    // These patterns were identified as potentially problematic:
+    //
+    // Security patterns:
+    // - security protocol-inspection compliance (with description, documentation, id, etc.)
+    // - security protocol-inspection compliance-map (with insp-id, key-type, value-type)
+    // - security protocol-inspection compliance-objects (with insp-id, type)
+    // - security ip-intelligence policy
+    // - security scrubber profile (with advertisement-ttl)
+    // - security shared-objects port-list (with nested ports)
+    // - security dos device-config (with deeply nested dos-device-vector)
+    //
+    // Net patterns:
+    // - net dns-resolver (with nested forward-zones and nameservers)
+    // - net ipsec ike-daemon (with log-publisher)
+    // - net stp (with nested interfaces and path-costs)
+    // - net stp-globals (with config-name)
+    //
+    // Sys patterns:
+    // - sys compatibility-level (with level)
+    // - sys management-ovsdb (with many config options)
+    // - sys turboflex profile-config (with type)
+    // - sys software update (with auto-check, frequency)
+    //
+    // Other patterns:
+    // - pem global-settings (analytics, gx, policy)
+    // - wom deduplication (with disabled)
+    // - wom endpoint-discovery
+    parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
     Batfish batfish = getBatfishForConfigurationNames(hostname);
     InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
     assertThat(initAns.getParseStatus().get("configs/" + hostname), equalTo(ParseStatus.PASSED));

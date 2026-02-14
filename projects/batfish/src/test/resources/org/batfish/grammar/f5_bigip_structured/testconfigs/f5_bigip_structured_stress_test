@@ -1,0 +1,224 @@
+#TMSH-VERSION: 15.1.10.3
+# Stress test with many nested structures and large numbers of objects
+
+sys global-settings {
+    hostname f5_bigip_structured_stress_test
+}
+
+# Create 10 pools (multi-line format)
+ltm pool pool_001 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_002 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_003 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_004 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_005 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_006 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_007 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_008 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_009 {
+    members {
+        server1:80 {}
+    }
+}
+ltm pool pool_010 {
+    members {
+        server1:80 {}
+    }
+}
+
+# Create pools with many members
+ltm pool large_pool_1 {
+    members {
+        server001:80 {}
+        server002:80 {}
+        server003:80 {}
+        server004:80 {}
+        server005:80 {}
+        server006:80 {}
+        server007:80 {}
+        server008:80 {}
+        server009:80 {}
+        server010:80 {}
+    }
+}
+
+# Create deeply nested rule
+ltm rule deep_nested_rule {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "api.example.com" } {
+            if { [HTTP::uri] starts_with "/v1" } {
+                if { [HTTP::method] equals "GET" } {
+                    pool api_v1_get_pool
+                } elseif { [HTTP::method] equals "POST" } {
+                    pool api_v1_post_pool
+                } else {
+                    pool api_v1_default_pool
+                }
+            } elseif { [HTTP::uri] starts_with "/v2" } {
+                if { [HTTP::method] equals "GET" } {
+                    pool api_v2_get_pool
+                } elseif { [HTTP::method] equals "POST" } {
+                    pool api_v2_post_pool
+                } else {
+                    pool api_v2_default_pool
+                }
+            } else {
+                pool api_default_pool
+            }
+        } elseif { [HTTP::host] equals "web.example.com" } {
+            pool web_pool
+        } else {
+            pool default_pool
+        }
+    }
+}
+
+# Create virtual with many profiles
+ltm virtual complex_virtual {
+    destination 10.0.0.1:443
+    pool large_pool_1
+    profiles {
+        /Common/clientssl { }
+        /Common/serverssl { }
+        /Common/http { }
+        /Common/http2 { }
+        /Common/tcp { }
+        /Common/udp { }
+        /Common/fasthttp { }
+        /Common/fastl4 { }
+        /Common/oneconnect { }
+        /Common/request-adapt { }
+        /Common/response-adapt { }
+        /Common/webaccel { }
+    }
+    source-address-translation {
+        pool /Common/snat_pool
+        type snat
+    }
+}
+
+# Create many data-groups
+ltm data-group internal dg_001 {
+    type string
+}
+ltm data-group internal dg_002 {
+    type string
+}
+ltm data-group internal dg_003 {
+    type string
+}
+ltm data-group internal dg_004 {
+    type string
+}
+ltm data-group internal dg_005 {
+    type string
+}
+
+# Data-group with many records
+ltm data-group internal large_data_group {
+    type string
+    records {
+        key001 { data value001 }
+        key002 { data value002 }
+        key003 { data value003 }
+        key004 { data value004 }
+        key005 { data value005 }
+        key006 { data value006 }
+        key007 { data value007 }
+        key008 { data value008 }
+        key009 { data value009 }
+        key010 { data value010 }
+    }
+}
+
+# Many monitors
+ltm monitor http mon_001 {
+    defaults-from /Common/http
+    interval 5
+    timeout 16
+}
+ltm monitor http mon_002 {
+    defaults-from /Common/http
+    interval 5
+    timeout 16
+}
+ltm monitor http mon_003 {
+    defaults-from /Common/http
+    interval 5
+    timeout 16
+}
+ltm monitor tcp mon_004 {
+    defaults-from /Common/tcp
+    interval 5
+    timeout 16
+}
+ltm monitor tcp mon_005 {
+    defaults-from /Common/tcp
+    interval 5
+    timeout 16
+}
+
+# Many persistence profiles
+ltm persistence cookie persist_001 {
+    defaults-from /Common/cookie
+}
+ltm persistence cookie persist_002 {
+    defaults-from /Common/cookie
+}
+ltm persistence source-addr persist_003 {
+    defaults-from /Common/source_addr
+}
+ltm persistence source-addr persist_004 {
+    defaults-from /Common/source_addr
+}
+ltm persistence hash persist_005 {
+    defaults-from /Common/hash
+}
+
+# Many profiles
+ltm profile http prof_001 {
+    defaults-from /Common/http
+}
+ltm profile http prof_002 {
+    defaults-from /Common/http
+}
+ltm profile tcp prof_003 {
+    defaults-from /Common/tcp
+}
+ltm profile tcp prof_004 {
+    defaults-from /Common/tcp
+}
+ltm profile clientssl prof_005 {
+    defaults-from /Common/clientssl
+}

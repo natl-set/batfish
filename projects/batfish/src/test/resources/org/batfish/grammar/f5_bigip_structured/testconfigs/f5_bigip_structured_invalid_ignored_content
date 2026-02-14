@@ -1,0 +1,23 @@
+# Test config with intentionally invalid syntax
+# This config should FAIL to parse due to unmatched braces and syntax errors
+# Used to verify that the parser correctly rejects invalid input
+
+# Invalid case 1: Unmatched opening brace
+ltm profile analytics test_unmatched_open {
+    defaults-from /Common/analytics
+# Missing closing brace - will cause parse failure
+
+# Invalid case 2: Unmatched closing brace (orphaned)
+}
+
+# Invalid case 3: Invalid nesting (closing brace without opening)
+ltm profile dns test_invalid {
+    defaults-from /Common/dns
+}
+} # Extra closing brace
+
+# Invalid case 4: Invalid syntax in block
+ltm pool invalid_pool {
+    invalid syntax here without proper structure
+    this should fail @@@ !!! ;;;
+}

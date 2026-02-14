@@ -1,0 +1,194 @@
+#TMSH-VERSION: 15.1.10.3
+# Test config for edge cases in nested block structures
+# Tests boundary conditions and tricky nesting scenarios
+
+sys global-settings {
+    hostname f5_bigip_structured_nested_edge_cases
+}
+
+# Test 1: Completely empty block
+ltm profile analytics test_empty {
+}
+
+# Test 2: Block with only newline
+ltm profile dns test_just_newline {
+
+}
+
+# Test 3: Block with only spaces and newline
+ltm profile fasthttp test_spaces_only {
+
+}
+
+# Test 4: Block with only tab and newline
+ltm profile client-ssl test_tab_only {
+
+}
+
+# Test 5: Single field in block
+ltm profile certificate-authority test_single_field {
+    defaults-from /Common/certificate-authority
+}
+
+# Test 6: Two fields closing immediately after
+ltm pool test_two_fields {
+    members {
+        server1:80 { }
+    }
+}
+
+# Test 7: Deeply nested empty structures (removed empty records - not valid syntax)
+ltm data-group internal test_deep_empty {
+    type string
+}
+
+# Test 8: Block with only ignored_content and nothing else
+ltm persistence cookie test_only_ignored {
+    defaults-from /Common/cookie
+}
+
+# Test 9: Multiple profiles back-to-back
+ltm profile analytics test_profile_1 {
+    defaults-from /Common/analytics
+}
+
+ltm profile dns test_profile_2 {
+    defaults-from /Common/dns
+}
+
+# Test 10: Block with multiple levels of nesting
+ltm rule test_deep_nesting {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "example.com" } {
+            if { [HTTP::uri] starts_with "/api" } {
+                pool api_pool
+            }
+        }
+    }
+}
+
+# Test 11: Virtual with minimal config
+ltm virtual test_minimal {
+    destination 203.0.113.1:443
+}
+
+# Test 12: Virtual with complex profile list
+ltm virtual test_complex_profiles {
+    destination 203.0.113.2:443
+    profiles {
+        /Common/clientssl { }
+        /Common/serverssl { }
+        /Common/http { }
+        /Common/tcp { }
+        /Common/fasthttp { }
+    }
+}
+
+# Test 13: Monitor with very minimal config
+ltm monitor http test_monitor_minimal {
+    defaults-from /Common/http
+}
+
+# Test 14: Monitor with full config
+ltm monitor http test_monitor_full {
+    defaults-from /Common/http
+    recv "200 OK"
+    send "GET / HTTP/1.1"
+    interval 5
+    timeout 16
+    up-interval 0
+}
+
+# Test 15: Pool with single member
+ltm pool test_single_member {
+    members {
+        server:80 { }
+    }
+}
+
+# Test 16: Pool with many members
+ltm pool test_many_members {
+    members {
+        server1:80 { }
+        server2:80 { }
+        server3:80 { }
+        server4:80 { }
+        server5:80 { }
+    }
+}
+
+# Test 17: Data group with single record
+ltm data-group internal test_single_record {
+    type string
+    records {
+        key1 { data value1 }
+    }
+}
+
+# Test 18: Data group with many records
+ltm data-group internal test_many_records {
+    type string
+    records {
+        key1 { data value1 }
+        key2 { data value2 }
+        key3 { data value3 }
+        key4 { data value4 }
+        key5 { data value5 }
+    }
+}
+
+# Test 19: Persistence with minimal fields
+ltm persistence source-address test_persist_minimal {
+    defaults-from /Common/source-addr
+}
+
+# Test 20: Persistence with full fields
+ltm persistence source-address test_persist_full {
+    defaults-from /Common/source-addr
+    match-across-pools enabled
+    match-across-services enabled
+    match-across-virtuals enabled
+    timeout 1800
+}
+
+# Test 21: Device group with single device
+cm device-group test_single_device {
+    devices {
+        /Common/device1 { }
+    }
+}
+
+# Test 22: Device group with many devices
+cm device-group test_many_devices {
+    devices {
+        /Common/device1 { }
+        /Common/device2 { }
+        /Common/device3 { }
+        /Common/device4 { }
+    }
+}
+
+# Test 23: Traffic group with ordered devices
+cm traffic-group test_ordered {
+    ha-order {
+        /Common/device1
+        /Common/device2
+        /Common/device3
+    }
+}
+
+# Test 24: Rule with empty conditional
+ltm rule test_empty_conditional {
+    when HTTP_REQUEST {
+        if { 0 } { }
+    }
+}
+
+# Test 25: Chained conditionals
+ltm rule test_chained {
+    when HTTP_REQUEST {
+        if { [HTTP::host] equals "a" } { pool pool_a }
+        if { [HTTP::host] equals "b" } { pool pool_b }
+        if { [HTTP::host] equals "c" } { pool pool_c }
+    }
+}

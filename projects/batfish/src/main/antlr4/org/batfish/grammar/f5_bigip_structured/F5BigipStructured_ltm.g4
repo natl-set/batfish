@@ -659,7 +659,7 @@ lprof_analytics
     NEWLINE
     (
       lprof_analytics_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -676,7 +676,7 @@ lprof_certificate_authority
     NEWLINE
     (
       lprof_certificate_authority_defaults_from
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -853,7 +853,7 @@ lprof_dns
       | lprof_dns_defaults_from
       | lprof_dns_log_profile_null
       | lprof_dns_setting_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
@@ -886,7 +886,7 @@ lprof_dns_logging
     (
       ldns_log_publisher_null
       | ldns_setting_null
-      | unrecognized
+      | ignored_content
     )*
   )? BRACE_RIGHT NEWLINE
 ;
