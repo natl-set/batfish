@@ -1,0 +1,123 @@
+#TMSH-VERSION: 15.1.10.3
+# Edge cases - unusual but valid F5 syntax
+
+sys global-settings {
+    hostname f5_bigip_structured_edge_cases
+}
+
+# Edge 1: Empty pool (valid in F5)
+ltm pool empty_pool {
+}
+
+# Edge 2: Pool with empty member block
+ltm pool empty_members_pool {
+    members {
+    }
+}
+
+# Edge 3: Virtual with minimal config
+ltm virtual minimal_virtual {
+    destination 0.0.0.0:0
+}
+
+# Edge 4: Very long name
+ltm pool this_is_a_very_long_pool_name_that_tests_the_lexer_ability_to_handle_long_identifiers_without_issues {
+    members {
+        server1:80 {}
+    }
+}
+
+# Edge 5: Name with numbers and special chars (underscore, hyphen)
+ltm pool pool-123_test_456-name {
+    members {
+        server1:80 {}
+    }
+}
+
+# Edge 6: IP address with all zeros
+ltm virtual zero_ip_virtual {
+    destination 0.0.0.0:80
+}
+
+# Edge 7: IPv6 address
+ltm virtual ipv6_virtual {
+    destination 2001:0db8:85a3:0000:0000:8a2e:0370:7334.80
+}
+
+# Edge 8: Profile with partition path
+ltm profile http /Common/my_http_profile {
+    defaults-from /Common/http
+}
+
+# Edge 9: Pool member with IPv6
+ltm pool ipv6_pool {
+    members {
+        2001:db8::1.http {}
+    }
+}
+
+# Edge 10: Rule with complex iRules syntax
+ltm rule complex_irule {
+    when HTTP_REQUEST priority 100 {
+        set host [HTTP::host]
+        set uri [HTTP::uri]
+        set method [HTTP::method]
+        
+        log local0. "Request: $method $host$uri"
+        
+        switch -glob $uri {
+            "/api/*" {
+                pool api_pool
+            }
+            "/static/*" {
+                pool static_pool
+            }
+            default {
+                pool default_pool
+            }
+        }
+    }
+}
+
+# Edge 11: Monitor with wildcard destination
+ltm monitor http wildcard_monitor {
+    defaults-from /Common/http
+    destination *:*
+    interval 5
+    timeout 16
+}
+
+# Edge 12: Data-group with empty records (valid)
+ltm data-group internal empty_dg {
+    type string
+}
+
+# Edge 13: CM device with special chars in hostname
+cm device /Common/device-1.example.com {
+    hostname device-1.example.com
+}
+
+# Edge 14: Certificate with colon in cache path (the main fix)
+cm cert /Common/special:cert.crt {
+    cache-path /config/filestore/files_d/Common_d/cert_d/:Common:special:cert.crt_12345_1
+    checksum SHA1:1234:abcdef
+    revision 1
+}
+
+# Edge 15: SNAT pool with many IPs
+ltm snatpool large_snat_pool {
+    members {
+        /Common/10.0.0.1
+        /Common/10.0.0.2
+        /Common/10.0.0.3
+        /Common/10.0.0.4
+        /Common/10.0.0.5
+    }
+}
+
+# Simple pool for verification
+ltm pool test_pool {
+    members {
+        server1:80 {}
+    }
+}

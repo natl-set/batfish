@@ -157,6 +157,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Predicates;
@@ -238,6 +239,7 @@ import org.batfish.datamodel.vendor_family.f5_bigip.F5BigipFamily;
 import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
 import org.batfish.main.Batfish;
 import org.batfish.main.BatfishTestUtils;
+import org.batfish.main.ParserBatfishException;
 import org.batfish.main.TestrigText;
 import org.batfish.representation.f5_bigip.Builtin;
 import org.batfish.representation.f5_bigip.BuiltinMonitor;
@@ -4363,5 +4365,95 @@ public final class F5BigipStructuredGrammarTest {
 
     // Verify virtual was parsed
     assertThat(vc.getVirtuals(), hasKey("test_virtual_ip_port"));
+  }
+
+  @Test
+  public void testRealWorldV2Patterns() throws IOException {
+    String filename = "f5_bigip_structured_real_world_v2";
+    String hostname = "f5_bigip_structured_real_world_v2";
+
+    // Test more real-world patterns from actual F5 configs
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Real-world v2 config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    assertThat(vc.getPools(), hasKey("test_real_world_pool"));
+    assertThat(vc.getVirtuals(), hasKey("/Common/F5-VIP-443-001"));
+  }
+
+  @Test
+  public void testStressTest() throws IOException {
+    String filename = "f5_bigip_structured_stress_test";
+    String hostname = "f5_bigip_structured_stress_test";
+
+    // Stress test with many nested structures and large numbers of objects
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Stress test config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify some of the many pools were parsed
+    assertThat(vc.getPools(), hasKey("pool_001"));
+    assertThat(vc.getPools(), hasKey("pool_010"));
+    assertThat(vc.getPools(), hasKey("large_pool_1"));
+  }
+
+  @Test
+  public void testEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_edge_cases";
+    String hostname = "f5_bigip_structured_edge_cases";
+
+    // Test unusual but valid F5 syntax patterns
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Edge cases config should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify various edge case structures
+    assertThat(vc.getPools(), hasKey("empty_pool"));
+    assertThat(
+        vc.getPools(),
+        hasKey(
+            "this_is_a_very_long_pool_name_that_tests_the_lexer_ability_to_handle_long_identifiers_without_issues"));
+    assertThat(vc.getPools(), hasKey("test_pool"));
+  }
+
+  @Test
+  public void testNegativeUnclosedBrace() throws IOException {
+    String filename = "f5_bigip_structured_negative_unclosed_brace";
+    String hostname = "f5_bigip_structured_negative_unclosed_brace";
+
+    // Negative test: config with unclosed brace should fail
+    // Expect a parser exception to be thrown
+    assertThrows(
+        "Config with unclosed brace should throw parser exception",
+        ParserBatfishException.class,
+        () -> parseVendorConfig(filename));
+  }
+
+  @Test
+  public void testNegativeInvalidKeyword() throws IOException {
+    String filename = "f5_bigip_structured_negative_invalid_keyword";
+    String hostname = "f5_bigip_structured_negative_invalid_keyword";
+
+    // Negative test: config with invalid keyword placement should fail
+    // Expect a parser exception to be thrown
+    assertThrows(
+        "Config with invalid keyword should throw parser exception",
+        ParserBatfishException.class,
+        () -> parseVendorConfig(filename));
   }
 }
