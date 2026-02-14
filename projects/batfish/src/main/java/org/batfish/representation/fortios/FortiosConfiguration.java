@@ -53,6 +53,7 @@ public class FortiosConfiguration extends VendorConfiguration {
 
   public FortiosConfiguration() {
     _accessLists = new HashMap<>();
+    _prefixLists = new HashMap<>();
     _addresses = new HashMap<>();
     _addrgrps = new HashMap<>();
     _interfaces = new HashMap<>();
@@ -63,6 +64,7 @@ public class FortiosConfiguration extends VendorConfiguration {
     _routeMaps = new HashMap<>();
     _services = new HashMap<>();
     _serviceGroups = new HashMap<>();
+    _ippools = new HashMap<>();
     _staticRoutes = new HashMap<>();
     _zones = new HashMap<>();
   }
@@ -90,12 +92,20 @@ public class FortiosConfiguration extends VendorConfiguration {
     return _accessLists;
   }
 
+  public @Nonnull Map<String, PrefixList> getPrefixLists() {
+    return _prefixLists;
+  }
+
   public @Nonnull Map<String, Address> getAddresses() {
     return _addresses;
   }
 
   public @Nonnull Map<String, Addrgrp> getAddrgrps() {
     return _addrgrps;
+  }
+
+  public @Nonnull Map<String, Ippool> getIppools() {
+    return _ippools;
   }
 
   public @Nullable BgpProcess getBgpProcess() {
@@ -151,6 +161,11 @@ public class FortiosConfiguration extends VendorConfiguration {
     return _zones;
   }
 
+  /** Global BFD settings */
+  public @Nonnull BfdSettings getBfdSettings() {
+    return _bfdSettings;
+  }
+
   /** Initializes configuration's {@link BgpProcess} if it isn't already initialized */
   public void initBgpProcess() {
     if (_bgpProcess == null) {
@@ -161,6 +176,7 @@ public class FortiosConfiguration extends VendorConfiguration {
   private String _hostname;
   private String _rawHostname;
   private final @Nonnull Map<String, AccessList> _accessLists;
+  private final @Nonnull Map<String, PrefixList> _prefixLists;
   private final @Nonnull Map<String, Address> _addresses;
   private final @Nonnull Map<String, Addrgrp> _addrgrps;
   private final @Nonnull Map<String, Interface> _interfaces;
@@ -174,6 +190,8 @@ public class FortiosConfiguration extends VendorConfiguration {
   private final @Nonnull Map<String, ServiceGroup> _serviceGroups;
   private final @Nonnull Map<String, StaticRoute> _staticRoutes;
   private final @Nonnull Map<String, Zone> _zones;
+  private final @Nonnull Map<String, Ippool> _ippools;
+  private final @Nonnull BfdSettings _bfdSettings = new BfdSettings();
 
   private @Nullable BgpProcess _bgpProcess;
 
@@ -215,7 +233,12 @@ public class FortiosConfiguration extends VendorConfiguration {
         (name, accessList) ->
             c.getRouteFilterLists().put(name, convertAccessList(accessList, _filename)));
 
-    // Convert route-maps. Must happen after access-list conversion (and prefix-list conversion once
+    // Convert prefix-lists
+    _prefixLists.forEach(
+        (name, prefixList) ->
+            c.getRouteFilterLists().put(name, convertPrefixList(prefixList, _filename)));
+
+    // Convert route-maps. Must happen after access-list and prefix-list conversion
     // they are supported)
     _routeMaps.values().forEach(routeMap -> convertRouteMap(routeMap, c, _w));
 
@@ -241,6 +264,7 @@ public class FortiosConfiguration extends VendorConfiguration {
     markConcreteStructure(FortiosStructureType.INTERFACE);
     markConcreteStructure(FortiosStructureType.ZONE);
     markConcreteStructure(FortiosStructureType.ACCESS_LIST);
+    markConcreteStructure(FortiosStructureType.PREFIX_LIST);
     markConcreteStructure(FortiosStructureType.POLICY);
     return c;
   }
@@ -340,10 +364,17 @@ public class FortiosConfiguration extends VendorConfiguration {
   private static double toSpeed(Interface.Speed speed) {
     return switch (speed) {
       case TEN_FULL, TEN_HALF -> 10e6;
-      case HUNDRED_FULL, HUNDRED_HALF -> 100e6;
-      case THOUSAND_FULL, THOUSAND_HALF -> 1000e6;
-      case TEN_THOUSAND_FULL, TEN_THOUSAND_HALF -> 10000e6;
-      case HUNDRED_GFULL, HUNDRED_GHALF -> 100e9;
+      case HUNDRED_FULL, HUNDRED_HALF, HUNDRED_AUTO -> 100e6;
+      case THOUSAND_FULL, THOUSAND_HALF, THOUSAND_AUTO -> 1000e6;
+      case TEN_THOUSAND_FULL, TEN_THOUSAND_HALF, TEN_THOUSAND_AUTO -> 10000e6;
+      case TWENTY_FIVE_THOUSAND_FULL, TWENTY_FIVE_THOUSAND_AUTO -> 25000e6;
+      case FORTY_THOUSAND_FULL, FORTY_THOUSAND_AUTO -> 40000e6;
+      case FIFTY_THOUSAND_FULL, FIFTY_THOUSAND_AUTO -> 50000e6;
+      case TWO_THOUSAND_FIVE_HUNDRED_AUTO -> 2500e6;
+      case FIVE_THOUSAND_AUTO -> 5000e6;
+      case HUNDRED_GFULL, HUNDRED_GHALF, HUNDRED_GAUTO -> 100e9;
+      case TWO_HUNDRED_GFULL, TWO_HUNDRED_GAUTO -> 200e9;
+      case FOUR_HUNDRED_G_FULL, FOUR_HUNDRED_G_AUTO -> 400e9;
       case AUTO ->
           // Assume 10Gbps default
           10000e6;
@@ -412,6 +443,36 @@ public class FortiosConfiguration extends VendorConfiguration {
             vendorConfigFilename,
             FortiosStructureType.ACCESS_LIST.getDescription(),
             accessList.getName()));
+  }
+
+  @VisibleForTesting
+  static @Nonnull RouteFilterList convertPrefixList(
+      PrefixList prefixList, String vendorConfigFilename) {
+    List<RouteFilterLine> lines =
+        prefixList.getRules().values().stream()
+            .map(
+                rule -> {
+                  // Prefix-list rules are match-only (no action), treat as PERMIT
+                  LineAction action = LineAction.PERMIT;
+                  Prefix prefix = rule.getPrefix();
+                  int prefixLength = prefix.getPrefixLength();
+                  int minLen =
+                      rule.getGe() != PrefixListRule.DEFAULT_GE ? rule.getGe() : prefixLength;
+                  int maxLen =
+                      rule.getLe() != PrefixListRule.DEFAULT_LE
+                          ? rule.getLe()
+                          : Prefix.MAX_PREFIX_LENGTH;
+                  SubRange lengthRange = new SubRange(minLen, maxLen);
+                  return new RouteFilterLine(action, prefix, lengthRange);
+                })
+            .collect(ImmutableList.toImmutableList());
+    return new RouteFilterList(
+        prefixList.getName(),
+        lines,
+        new VendorStructureId(
+            vendorConfigFilename,
+            FortiosStructureType.PREFIX_LIST.getDescription(),
+            prefixList.getName()));
   }
 
   private static @Nonnull org.batfish.datamodel.Zone convertZone(Zone zone) {
