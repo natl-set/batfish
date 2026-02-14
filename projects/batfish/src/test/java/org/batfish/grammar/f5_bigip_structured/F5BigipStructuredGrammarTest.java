@@ -4045,7 +4045,7 @@ public final class F5BigipStructuredGrammarTest {
     // - auth password-policy { ... }
     // - cm cert, key, device, device-group, traffic-group, trust-domain
     // - All with various nested content
-    F5BigipConfiguration vc = parseVendorConfig(filename);
+    parseVendorConfig(filename);
 
     // Verify the config parses without syntax errors
     Batfish batfish = getBatfishForConfigurationNames(hostname);
@@ -4201,7 +4201,6 @@ public final class F5BigipStructuredGrammarTest {
 
   @Test
   public void testIgnoredContentInvalidSyntax() throws IOException {
-    String filename = "f5_bigip_structured_invalid_ignored_content";
     String hostname = "f5_bigip_structured_invalid_ignored_content";
 
     // Test that INVALID syntax properly FAILS to parse.
@@ -4434,7 +4433,6 @@ public final class F5BigipStructuredGrammarTest {
   @Test
   public void testNegativeUnclosedBrace() throws IOException {
     String filename = "f5_bigip_structured_negative_unclosed_brace";
-    String hostname = "f5_bigip_structured_negative_unclosed_brace";
 
     // Negative test: config with unclosed brace should fail
     // Expect a parser exception to be thrown
@@ -4447,7 +4445,6 @@ public final class F5BigipStructuredGrammarTest {
   @Test
   public void testNegativeInvalidKeyword() throws IOException {
     String filename = "f5_bigip_structured_negative_invalid_keyword";
-    String hostname = "f5_bigip_structured_negative_invalid_keyword";
 
     // Negative test: config with invalid keyword placement should fail
     // Expect a parser exception to be thrown
