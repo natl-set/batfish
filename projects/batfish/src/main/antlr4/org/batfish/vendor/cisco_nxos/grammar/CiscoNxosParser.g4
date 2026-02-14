@@ -401,7 +401,6 @@ s_null_rest
     | CDP
     | CHANNEL_GROUP
     | CONTROL_PLANE
-    | CRYPTO
     | DELAY
     | DUPLEX
     | FLOWCONTROL

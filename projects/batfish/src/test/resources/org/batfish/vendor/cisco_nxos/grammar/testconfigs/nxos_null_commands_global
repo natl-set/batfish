@@ -4,34 +4,55 @@ hostname nxos_null_commands_global
 feature privilege
 !
 ! Test global null commands with M_NullLine mode (lexer consumes arbitrary text)
-bloggerd test arbitrary text 123
-callhome
-copp
-icam
-intersight
-virtual-service
+! These keywords have -> pushMode(M_NullLine) and accept any text after them
+bloggerd test arbitrary text 123 with special-chars !@#
+callhome profile myprofile email test@example.com
+copp strict policy my-policy description test policy
+icam monitor entries 100 resource type test-monitor
+intersight profile default license-tier essential mode normal
+virtual-service myapp type lxc description my application
+!
+! Test existing M_NullLine keywords that were already working
+cfs distribute
+diagnostic bootup level complete
+fec algorithm rs-fec
+ha-policy my-policy
+hardware profile load-balance
+keystore import test
+link debounce time 100
+load-interval 30
+power redundancy-mode combined
+priority-flow-control mode on
+storm-control broadcast level 1
+telnet server enable
+!
+! Test global null commands with lexer M_NullLine mode
+! CRYPTO now uses M_NullLine to handle arbitrary text like "ca trustpoint mytp"
+crypto ca trustpoint mytp
 !
 ! Test global null commands with parser-level null_rest_of_line
+! These keywords have structured uses elsewhere but are null at global level
+authentication login
 autostate
 bandwidth 10000
 carrier-delay 100
 cdp enable
+channel-group 1
 control-plane
-crypto test
 delay 100
 duplex full
 flowcontrol send on
 graceful-restart
-hsrp 1
-ipv4 test
-login block
-management test
+hsrp version 2
+ipv4 route 0.0.0.0/0 1.1.1.1
+login block 60
+management interface mgmt0
 medium broadcast
-mpls test
-mtu 9000
-police 1000
-port-channel test
-speed 1000
-timers 10 30
-vpc 1
+mpls ldp enable
+mtu 9216
+police 1000000
+port-channel load-balance src-dst
+speed 10000
+timers basic 30 180
+vpc domain 10
 !

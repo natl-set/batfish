@@ -441,7 +441,7 @@ protocol_distance
 
 rip_instance
 :
-  RIP router_rip_process_id
+  RIP router_rip_process_id?
 ;
 
 routing_instance_v4

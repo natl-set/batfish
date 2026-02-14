@@ -312,6 +312,8 @@ BUFFER_LIMIT: 'buffer-limit';
 
 BYTES: 'bytes';
 
+CA: 'ca';
+
 CALLHOME: 'callhome' -> pushMode(M_NullLine);
 
 CAPABILITY: 'capability';
@@ -464,7 +466,7 @@ CRITICAL: 'critical';
 
 CRON: 'cron';
 
-CRYPTO: 'crypto';
+CRYPTO: 'crypto' -> pushMode(M_NullLine);
 
 CS1: 'cs1';
 
@@ -1173,6 +1175,8 @@ LINE: 'line';
 
 LINE_PROTOCOL: 'line-protocol';
 
+LDP: 'ldp';
+
 LINK: 'link' -> pushMode(M_NullLine);
 
 LINK_FLAP: 'link-flap';
@@ -1186,6 +1190,8 @@ LINK_STATUS: 'link-status';
 LINK_TYPE: 'link-type';
 
 LINK_UP: 'link-up';
+
+LOAD_BALANCE: 'load-balance';
 
 LISP: 'lisp';
 
@@ -2159,6 +2165,8 @@ SPINE_ANYCAST_GATEWAY: 'spine-anycast-gateway';
 SRC_IP: 'src-ip';
 
 SRC_MAC: 'src-mac';
+
+SRC_DST: 'src-dst';
 
 SSH: 'ssh';
 

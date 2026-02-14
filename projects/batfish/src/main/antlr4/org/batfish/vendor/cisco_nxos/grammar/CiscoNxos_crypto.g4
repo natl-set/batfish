@@ -19,10 +19,8 @@ crypto_key
   )
 ;
 
+// CRYPTO token pushes M_NullLine mode, so we get NULL_LINE_TEXT for the rest of the line
 s_crypto
 :
-  CRYPTO
-  (
-    crypto_key
-  )
+  CRYPTO NULL_LINE_TEXT? NEWLINE
 ;
