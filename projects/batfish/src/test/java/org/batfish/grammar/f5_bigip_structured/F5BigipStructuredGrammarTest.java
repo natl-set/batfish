@@ -4308,4 +4308,60 @@ public final class F5BigipStructuredGrammarTest {
     assertThat(vc.getPools(), hasKey("test_verify_pool"));
     assertThat(vc.getVirtuals(), hasKey("/Common/test-complex-vip"));
   }
+
+  @Test
+  public void testKeywordIdentifiers() throws IOException {
+    String filename = "f5_bigip_structured_keyword_identifiers";
+    String hostname = "f5_bigip_structured_keyword_identifiers";
+
+    // Test that F5 keywords can be used as part of identifiers
+    // e.g., "pool" in "pool_test", "virtual" in "virtual_server_pool"
+    // This ensures the lexer doesn't incorrectly tokenize keywords as identifiers
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with keyword-like identifiers should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pools with keyword-like names were parsed
+    assertThat(vc.getPools(), hasKey("pool_test"));
+    assertThat(vc.getPools(), hasKey("virtual_server_pool"));
+    assertThat(vc.getPools(), hasKey("pool_monitor_virtual_test"));
+
+    // Verify virtual with keyword-like name
+    assertThat(vc.getVirtuals(), hasKey("virtual_test"));
+  }
+
+  @Test
+  public void testColonEdgeCases() throws IOException {
+    String filename = "f5_bigip_structured_colon_edge_cases";
+    String hostname = "f5_bigip_structured_colon_edge_cases";
+
+    // Test various colon edge cases:
+    // - IP:port in pool members and virtual destinations
+    // - IPv6 addresses with colons
+    // - Colon-prefixed cache paths (:Common:)
+    // - Colons in strings (rules, monitors)
+    F5BigipConfiguration vc = parseVendorConfig(filename);
+
+    // Verify the config parses without syntax errors
+    Batfish batfish = getBatfishForConfigurationNames(hostname);
+    InitInfoAnswerElement initAns = batfish.initInfo(batfish.getSnapshot(), false, true);
+    assertThat(
+        "Config with colon edge cases should parse successfully",
+        initAns.getParseStatus().get("configs/" + hostname),
+        equalTo(ParseStatus.PASSED));
+
+    // Verify pools were parsed
+    assertThat(vc.getPools(), hasKey("test_ip_port"));
+    assertThat(vc.getPools(), hasKey("test_ipv6"));
+    assertThat(vc.getPools(), hasKey("test_backup_pool"));
+
+    // Verify virtual was parsed
+    assertThat(vc.getVirtuals(), hasKey("test_virtual_ip_port"));
+  }
 }
