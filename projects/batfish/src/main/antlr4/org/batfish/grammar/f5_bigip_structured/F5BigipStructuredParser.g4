@@ -6,6 +6,7 @@ import
   F5BigipStructured_cm,
   F5BigipStructured_ltm,
   F5BigipStructured_net,
+  F5BigipStructured_security,
   F5BigipStructured_sys;
 
 options {
@@ -32,14 +33,23 @@ imish_chunk
 
 statement
 :
-  s_cm
+  s_analytics
+  | s_cm
   | s_ltm
   | s_net
   | s_security
+  | s_security_firewall_rule_list
   | s_sys
+  | s_unrecognized
 ;
 
-s_security
+// Unrecognized top-level blocks
+s_analytics
 :
-  SECURITY ignored
+  ANALYTICS ignored
+;
+
+s_unrecognized
+:
+  word ignored
 ;

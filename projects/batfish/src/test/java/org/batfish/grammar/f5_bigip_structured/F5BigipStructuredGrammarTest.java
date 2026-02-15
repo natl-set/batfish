@@ -205,6 +205,7 @@ import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.IpSpace;
 import org.batfish.datamodel.KernelRoute;
+import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.MacAddress;
 import org.batfish.datamodel.NamedPort;
 import org.batfish.datamodel.OriginType;
@@ -213,6 +214,7 @@ import org.batfish.datamodel.RouteFilterList;
 import org.batfish.datamodel.RoutingProtocol;
 import org.batfish.datamodel.StaticRoute;
 import org.batfish.datamodel.SwitchportMode;
+import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.datamodel.answers.ConvertConfigurationAnswerElement;
 import org.batfish.datamodel.answers.InitInfoAnswerElement;
 import org.batfish.datamodel.answers.ParseStatus;
@@ -249,6 +251,8 @@ import org.batfish.representation.f5_bigip.DeviceGroup;
 import org.batfish.representation.f5_bigip.DeviceGroupDevice;
 import org.batfish.representation.f5_bigip.F5BigipConfiguration;
 import org.batfish.representation.f5_bigip.F5BigipStructureType;
+import org.batfish.representation.f5_bigip.FirewallRule;
+import org.batfish.representation.f5_bigip.FirewallRuleList;
 import org.batfish.representation.f5_bigip.HaGroup;
 import org.batfish.representation.f5_bigip.HaGroupPool;
 import org.batfish.representation.f5_bigip.HaGroupTrunk;
@@ -3639,5 +3643,97 @@ public final class F5BigipStructuredGrammarTest {
 
     // detect all structure references
     assertThat(ans, hasNumReferrers(file, VLAN, used, 3));
+  }
+
+  @Test
+  public void testFirewallRuleListExtraction() {
+    F5BigipConfiguration vc = parseVendorConfig("f5_bigip_firewall_rule_list");
+    FirewallRuleList ruleList = vc.getFirewallRuleLists().get("/Common/test_rules");
+
+    assertThat(ruleList, notNullValue());
+    assertThat(ruleList.getName(), equalTo("/Common/test_rules"));
+    assertThat(ruleList.getRules(), hasSize(4));
+
+    // Check first rule (accept tcp)
+    FirewallRule rule1 = ruleList.getRules().get(0);
+    assertThat(rule1.getName(), equalTo("/Common/allow_http"));
+    assertThat(rule1.getAction(), equalTo("accept"));
+    assertThat(rule1.getIpProtocol(), equalTo("tcp"));
+
+    // Check second rule (drop tcp)
+    FirewallRule rule2 = ruleList.getRules().get(1);
+    assertThat(rule2.getName(), equalTo("/Common/deny_ssh"));
+    assertThat(rule2.getAction(), equalTo("drop"));
+    assertThat(rule2.getIpProtocol(), equalTo("tcp"));
+
+    // Check third rule (accept udp)
+    FirewallRule rule3 = ruleList.getRules().get(2);
+    assertThat(rule3.getName(), equalTo("/Common/allow_dns"));
+    assertThat(rule3.getAction(), equalTo("accept"));
+    assertThat(rule3.getIpProtocol(), equalTo("udp"));
+
+    // Check fourth rule (reject icmp)
+    FirewallRule rule4 = ruleList.getRules().get(3);
+    assertThat(rule4.getName(), equalTo("/Common/reject_icmp"));
+    assertThat(rule4.getAction(), equalTo("reject"));
+    assertThat(rule4.getIpProtocol(), equalTo("icmp"));
+  }
+
+  @Test
+  public void testFirewallRuleListConversion() throws IOException {
+    Configuration c = parseConfig("f5_bigip_firewall_rule_list");
+    IpAccessList acl = c.getIpAccessLists().get("/Common/test_rules");
+
+    assertThat(acl, notNullValue());
+    assertThat(acl.getName(), equalTo("/Common/test_rules"));
+    assertThat(acl.getLines(), hasSize(4));
+
+    // Verify that accept actions result in PERMIT
+    assertThat(((ExprAclLine) acl.getLines().get(0)).getAction(), equalTo(LineAction.PERMIT));
+    assertThat(((ExprAclLine) acl.getLines().get(2)).getAction(), equalTo(LineAction.PERMIT));
+
+    // Verify that drop/reject actions result in DENY
+    assertThat(((ExprAclLine) acl.getLines().get(1)).getAction(), equalTo(LineAction.DENY));
+    assertThat(((ExprAclLine) acl.getLines().get(3)).getAction(), equalTo(LineAction.DENY));
+  }
+
+  @Test
+  public void testFirewallRuleListIpProtocolConversion() throws IOException {
+    Configuration c = parseConfig("f5_bigip_firewall_rule_list");
+    IpAccessList acl = c.getIpAccessLists().get("/Common/test_rules");
+
+    // Verify TCP protocol is correctly set in HeaderSpace
+    ExprAclLine tcpLine = (ExprAclLine) acl.getLines().get(0);
+    assertThat(
+        ((MatchHeaderSpace) tcpLine.getMatchCondition()).getHeaderspace().getIpProtocols(),
+        contains(IpProtocol.TCP));
+
+    // Verify UDP protocol
+    ExprAclLine udpLine = (ExprAclLine) acl.getLines().get(2);
+    assertThat(
+        ((MatchHeaderSpace) udpLine.getMatchCondition()).getHeaderspace().getIpProtocols(),
+        contains(IpProtocol.UDP));
+
+    // Verify ICMP protocol
+    ExprAclLine icmpLine = (ExprAclLine) acl.getLines().get(3);
+    assertThat(
+        ((MatchHeaderSpace) icmpLine.getMatchCondition()).getHeaderspace().getIpProtocols(),
+        contains(IpProtocol.ICMP));
+  }
+
+  @Test
+  public void testFirewallRuleListActionSemantics() throws IOException {
+    Configuration c = parseConfig("f5_bigip_firewall_rule_list");
+    IpAccessList acl = c.getIpAccessLists().get("/Common/test_rules");
+
+    // accept → PERMIT
+    assertThat(((ExprAclLine) acl.getLines().get(0)).getAction(), equalTo(LineAction.PERMIT));
+    assertThat(((ExprAclLine) acl.getLines().get(2)).getAction(), equalTo(LineAction.PERMIT));
+
+    // drop → DENY
+    assertThat(((ExprAclLine) acl.getLines().get(1)).getAction(), equalTo(LineAction.DENY));
+
+    // reject → DENY
+    assertThat(((ExprAclLine) acl.getLines().get(3)).getAction(), equalTo(LineAction.DENY));
   }
 }

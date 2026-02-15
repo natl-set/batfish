@@ -268,12 +268,14 @@ public class F5BigipConfiguration extends VendorConfiguration {
   private transient SortedMap<String, SimpleTransformation> _virtualOutgoingTransformations;
   private final @Nonnull Map<String, Virtual> _virtuals;
   private final @Nonnull Map<String, Vlan> _vlans;
+  private final @Nonnull Map<String, FirewallRuleList> _firewallRuleLists;
 
   public F5BigipConfiguration() {
     _accessLists = new HashMap<>();
     _bgpProcesses = new HashMap<>();
     _devices = new HashMap<>();
     _deviceGroups = new HashMap<>();
+    _firewallRuleLists = new HashMap<>();
     _haGroups = new HashMap<>();
     _imishInterfaces = new HashMap<>();
     _interfaces = new HashMap<>();
@@ -378,6 +380,50 @@ public class F5BigipConfiguration extends VendorConfiguration {
                 .collect(ImmutableList.toImmutableList()))
         .setName(acl.getName())
         .build();
+  }
+
+  private void addFirewallRuleList(FirewallRuleList ruleList) {
+    List<AclLine> lines =
+        ruleList.getRules().stream()
+            .map(this::toIpAccessListLine)
+            .collect(ImmutableList.toImmutableList());
+
+    IpAccessList.builder().setOwner(_c).setLines(lines).setName(ruleList.getName()).build();
+  }
+
+  private ExprAclLine toIpAccessListLine(FirewallRule rule) {
+    ExprAclLine.Builder builder = ExprAclLine.builder();
+
+    // Set action based on rule action
+    if ("accept".equals(rule.getAction())) {
+      builder.setAction(LineAction.PERMIT);
+    } else {
+      // For drop, reject, or any other action, default to deny
+      builder.setAction(LineAction.DENY);
+    }
+
+    // Build header space with IP protocol if specified
+    HeaderSpace.Builder headerSpace = HeaderSpace.builder();
+
+    if (rule.getIpProtocol() != null) {
+      try {
+        IpProtocol ipProtocol = IpProtocol.fromString(rule.getIpProtocol());
+        headerSpace.setIpProtocols(ImmutableSortedSet.of(ipProtocol));
+      } catch (IllegalArgumentException e) {
+        // If protocol is not recognized, log a warning and leave it empty
+        if (_w != null) {
+          _w.redFlag(
+              String.format(
+                  "Unrecognized IP protocol '%s' in firewall rule '%s'",
+                  rule.getIpProtocol(), rule.getName()));
+        }
+      }
+    }
+
+    builder.setMatchCondition(new MatchHeaderSpace(headerSpace.build()));
+    builder.setName(rule.getName());
+
+    return builder.build();
   }
 
   private void addNatRules(org.batfish.datamodel.Interface vlanInterface) {
@@ -939,6 +985,10 @@ public class F5BigipConfiguration extends VendorConfiguration {
 
   public @Nonnull Map<String, Vlan> getVlans() {
     return _vlans;
+  }
+
+  public @Nonnull Map<String, FirewallRuleList> getFirewallRuleLists() {
+    return _firewallRuleLists;
   }
 
   private void initInterfaceIncomingFilterLines() {
@@ -1807,6 +1857,9 @@ public class F5BigipConfiguration extends VendorConfiguration {
 
     // Add access-lists
     _accessLists.values().forEach(this::addIpAccessList);
+
+    // Add firewall rule-lists as access-lists
+    _firewallRuleLists.values().forEach(this::addFirewallRuleList);
 
     // Convert access-lists referenced by route-maps to RouteFilterLists
     _accessLists.forEach(

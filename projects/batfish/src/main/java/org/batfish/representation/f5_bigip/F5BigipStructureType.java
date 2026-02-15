@@ -13,6 +13,7 @@ public enum F5BigipStructureType implements StructureType {
   DATA_GROUP("data-group"),
   DATA_GROUP_EXTERNAL("data-group external"),
   DATA_GROUP_INTERNAL("data-group internal"),
+  FIREWALL_RULE_LIST("firewall rule-list"),
   DEVICE("device"),
   DEVICE_GROUP("device-group"),
   HA_GROUP("ha-group"),

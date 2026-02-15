@@ -25,6 +25,8 @@ tokens {
 
 ACTION: 'action';
 
+ACCEPT: 'accept';
+
 ACTIVATE: 'activate';
 
 ACTIVE_BONUS: 'active-bonus';
@@ -135,6 +137,8 @@ DENY: 'deny';
 
 DESCRIPTION: 'description';
 
+DROP: 'drop';
+
 DESTINATION: 'destination';
 
 DEVICE: 'device';
@@ -182,6 +186,8 @@ FASTHTTP: 'fasthttp';
 FASTL4: 'fastl4';
 
 FDB: 'fdb';
+
+FIREWALL: 'firewall';
 
 FEATURE_MODULE: 'feature-module';
 
@@ -482,6 +488,8 @@ RULE
 ;
 
 RULES: 'rules';
+
+RULE_LIST: 'rule-list';
 
 SCTP: 'sctp';
 
@@ -1176,7 +1184,9 @@ F_Whitespace
 fragment
 F_Word
 :
-  F_WordCharCommon
+  // Allow leading colon for F5 path references like :Common:filename
+  ':' F_WordCharCommon (F_WordChar* F_WordCharCommon)?
+  | F_WordCharCommon
   (
     F_WordChar* F_WordCharCommon
   )?

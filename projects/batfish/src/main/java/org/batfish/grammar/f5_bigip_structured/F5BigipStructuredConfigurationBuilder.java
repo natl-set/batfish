@@ -7,6 +7,7 @@ import static org.batfish.representation.f5_bigip.F5BigipStructureType.DATA_GROU
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.DATA_GROUP_INTERNAL;
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.DEVICE;
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.DEVICE_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.FIREWALL_RULE_LIST;
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.HA_GROUP;
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.INTERFACE;
 import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR;
@@ -518,6 +519,17 @@ import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Prefix_li
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Route_advertisement_modeContext;
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Route_map_actionContext;
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.S_securityContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.S_security_firewall_rule_listContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secf_rule_listContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrl_ruleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrlr_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrlr_individual_ruleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrlr_ip_protocolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrlri_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secfrlri_ip_protocolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secsfrlr_individual_ruleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secsfrlri_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Secsfrlri_ip_protocolContext;
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sgs_hostnameContext;
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sh_active_bonusContext;
 import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Shp_poolContext;
@@ -557,6 +569,8 @@ import org.batfish.representation.f5_bigip.F5BigipConfiguration;
 import org.batfish.representation.f5_bigip.F5BigipRoutingProtocol;
 import org.batfish.representation.f5_bigip.F5BigipStructureType;
 import org.batfish.representation.f5_bigip.F5BigipStructureUsage;
+import org.batfish.representation.f5_bigip.FirewallRule;
+import org.batfish.representation.f5_bigip.FirewallRuleList;
 import org.batfish.representation.f5_bigip.HaGroup;
 import org.batfish.representation.f5_bigip.HaGroupPool;
 import org.batfish.representation.f5_bigip.HaGroupTrunk;
@@ -708,6 +722,8 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   private @Nullable Node _currentNode;
   private @Nullable Pool _currentPool;
   private @Nullable PoolMember _currentPoolMember;
+  private @Nullable FirewallRuleList _currentFirewallRuleList;
+  private @Nullable FirewallRule.Builder _currentFirewallRuleBuilder;
   private @Nullable PrefixList _currentPrefixList;
   private @Nullable PrefixListEntry _currentPrefixListEntry;
   private @Nullable Route _currentRoute;
@@ -2292,6 +2308,134 @@ public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredPars
   @Override
   public void exitL_pool(L_poolContext ctx) {
     _currentPool = null;
+  }
+
+  @Override
+  public void enterSecf_rule_list(Secf_rule_listContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(FIREWALL_RULE_LIST, name, ctx);
+    _currentFirewallRuleList =
+        _c.getFirewallRuleLists().computeIfAbsent(name, FirewallRuleList::new);
+  }
+
+  @Override
+  public void exitSecf_rule_list(Secf_rule_listContext ctx) {
+    _currentFirewallRuleList = null;
+  }
+
+  @Override
+  public void enterSecfrl_rule(Secfrl_ruleContext ctx) {
+    String name = toName(ctx.name);
+    _currentFirewallRuleBuilder = FirewallRule.builder().setName(name);
+  }
+
+  @Override
+  public void exitSecfrl_rule(Secfrl_ruleContext ctx) {
+    if (_currentFirewallRuleList != null && _currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleList.addRule(_currentFirewallRuleBuilder.build());
+    }
+    _currentFirewallRuleBuilder = null;
+  }
+
+  @Override
+  public void exitSecfrlr_action(Secfrlr_actionContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      if (ctx.ACCEPT() != null) {
+        _currentFirewallRuleBuilder.setAction("accept");
+      } else if (ctx.DROP() != null) {
+        _currentFirewallRuleBuilder.setAction("drop");
+      } else if (ctx.REJECT() != null) {
+        _currentFirewallRuleBuilder.setAction("reject");
+      }
+    }
+  }
+
+  @Override
+  public void exitSecfrlr_ip_protocol(Secfrlr_ip_protocolContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleBuilder.setIpProtocol(ctx.word().getText());
+    }
+  }
+
+  @Override
+  public void enterS_security_firewall_rule_list(S_security_firewall_rule_listContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(FIREWALL_RULE_LIST, name, ctx);
+    _currentFirewallRuleList =
+        _c.getFirewallRuleLists().computeIfAbsent(name, FirewallRuleList::new);
+  }
+
+  @Override
+  public void exitS_security_firewall_rule_list(S_security_firewall_rule_listContext ctx) {
+    _currentFirewallRuleList = null;
+  }
+
+  @Override
+  public void enterSecsfrlr_individual_rule(Secsfrlr_individual_ruleContext ctx) {
+    String name = toName(ctx.name);
+    _currentFirewallRuleBuilder = FirewallRule.builder().setName(name);
+  }
+
+  @Override
+  public void exitSecsfrlr_individual_rule(Secsfrlr_individual_ruleContext ctx) {
+    if (_currentFirewallRuleList != null && _currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleList.addRule(_currentFirewallRuleBuilder.build());
+    }
+    _currentFirewallRuleBuilder = null;
+  }
+
+  @Override
+  public void exitSecsfrlri_action(Secsfrlri_actionContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      if (ctx.ACCEPT() != null) {
+        _currentFirewallRuleBuilder.setAction("accept");
+      } else if (ctx.DROP() != null) {
+        _currentFirewallRuleBuilder.setAction("drop");
+      } else if (ctx.REJECT() != null) {
+        _currentFirewallRuleBuilder.setAction("reject");
+      }
+    }
+  }
+
+  @Override
+  public void exitSecsfrlri_ip_protocol(Secsfrlri_ip_protocolContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleBuilder.setIpProtocol(ctx.word().getText());
+    }
+  }
+
+  @Override
+  public void enterSecfrlr_individual_rule(Secfrlr_individual_ruleContext ctx) {
+    String name = toName(ctx.name);
+    _currentFirewallRuleBuilder = FirewallRule.builder().setName(name);
+  }
+
+  @Override
+  public void exitSecfrlr_individual_rule(Secfrlr_individual_ruleContext ctx) {
+    if (_currentFirewallRuleList != null && _currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleList.addRule(_currentFirewallRuleBuilder.build());
+    }
+    _currentFirewallRuleBuilder = null;
+  }
+
+  @Override
+  public void exitSecfrlri_action(Secfrlri_actionContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      if (ctx.ACCEPT() != null) {
+        _currentFirewallRuleBuilder.setAction("accept");
+      } else if (ctx.DROP() != null) {
+        _currentFirewallRuleBuilder.setAction("drop");
+      } else if (ctx.REJECT() != null) {
+        _currentFirewallRuleBuilder.setAction("reject");
+      }
+    }
+  }
+
+  @Override
+  public void exitSecfrlri_ip_protocol(Secfrlri_ip_protocolContext ctx) {
+    if (_currentFirewallRuleBuilder != null) {
+      _currentFirewallRuleBuilder.setIpProtocol(ctx.word().getText());
+    }
   }
 
   @Override

@@ -1,0 +1,29 @@
+#TMSH-VERSION: 13.1.1
+
+sys global-settings {
+  hostname f5_bigip_firewall_rule_list
+}
+security {
+    firewall {
+        rule-list /Common/test_rules {
+            rules {
+                /Common/allow_http {
+                    action accept
+                    ip-protocol tcp
+                }
+                /Common/deny_ssh {
+                    action drop
+                    ip-protocol tcp
+                }
+                /Common/allow_dns {
+                    action accept
+                    ip-protocol udp
+                }
+                /Common/reject_icmp {
+                    action reject
+                    ip-protocol icmp
+                }
+            }
+        }
+    }
+}
